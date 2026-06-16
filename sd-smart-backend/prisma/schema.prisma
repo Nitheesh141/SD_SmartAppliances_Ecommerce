@@ -4,10 +4,60 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  phoneNumber String?  @unique
+  password    String
+  firstName   String
+  lastName    String
+  role        String   @default("user")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model OtpVerification {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id               String   @id @default(uuid())
+  name             String
+  category         String
+  categoryLabel    String
+  image            String
+  rating           Float    @default(5.0)
+  reviewCount      Int      @default(0)
+  price            Float
+  originalPrice    Float
+  discountPercent  Int      @default(0)
+  warranty         String   @default("1 Year")
+  capacity         String?
+  badge            String?
+  href             String   @default("")
+  inStock          Boolean  @default(true)
+  isBestSeller     Boolean  @default(false)
+  isFeatured       Boolean  @default(false)
+  eyebrow          String?
+  description      String?
+  specs            Json?    // Stores array of {label, value}
+  startingPrice    Float?
+  primaryCTALabel  String?
+  primaryCTAHref   String?
+  secondaryCTALabel String?
+  secondaryCTAHref  String?
+  imagePosition    String?  @default("left")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
