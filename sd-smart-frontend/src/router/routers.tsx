@@ -22,6 +22,17 @@ const SignupPage = dynamic(() => import("../app/auth/signup_page"), {
   ssr: true,
 });
 
+// Admin pages
+const AdminDashboardPage = dynamic(() => import("../app/admin/dashboard_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminManageProductPage = dynamic(() => import("../app/admin/manage-product_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 const ForgotPasswordPage = dynamic(() => import("../app/auth/forgot-password_page"), {
   loading: PageLoader,
   ssr: true,
@@ -134,6 +145,9 @@ export const routes: Record<string, React.ComponentType<any>> = {
   "/": LandingPage,
   "/auth/login": LoginPage,
   "/auth/signup": SignupPage,
+  "/admin/dashboard": AdminDashboardPage,
+  "/admin/manage-product": AdminManageProductPage,
+  "/admin/manage": AdminManageProductPage,
   "/auth/forgot-password": ForgotPasswordPage,
   "/about": AboutPage,
   "/contact": ContactPage,

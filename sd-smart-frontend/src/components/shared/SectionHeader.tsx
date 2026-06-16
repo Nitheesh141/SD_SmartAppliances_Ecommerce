@@ -32,7 +32,7 @@ export default function SectionHeader({
       {...props}
     >
       {badge && (
-        <span className="inline-flex items-center px-3 py-1 text-xs font-semibold tracking-wider text-teal-800 bg-teal-100/80 rounded-full mb-3 uppercase dark:bg-teal-950 dark:text-teal-300">
+        <span className="inline-flex items-center px-3 py-1 text-xs font-semibold tracking-wider text-red-800 bg-red-100/80 rounded-full mb-3 uppercase dark:bg-red-950 dark:text-red-300">
           {badge}
         </span>
       )}

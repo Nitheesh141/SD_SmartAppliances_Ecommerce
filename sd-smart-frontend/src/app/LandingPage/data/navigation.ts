@@ -15,9 +15,9 @@ export const footerColumns: FooterColumn[] = [
     links: [
       { label: "Pressure Cookers", href: "#pressure-cookers" },
       { label: "Wet Grinders", href: "#wet-grinders" },
-      { label: "Kitchen Chimneys", href: "#chimneys" },
+      { label: "LPG Stoves", href: "#gas-stoves" },
       { label: "Mixer Grinders", href: "#mixer-grinders" },
-      { label: "Induction Cooktops", href: "#induction-cooktops" }
+      { label: "Stainless Steel Wet Grinders", href: "#wet-grinders" }
     ]
   },
   {
@@ -52,7 +52,7 @@ export const socialLinks: SocialLink[] = [
 export const commercialSectionData: CommercialSection = {
   eyebrow: "HEAVY-DUTY LINE",
   heading: "Commercial Kitchen Solutions",
-  description: "We manufacture massive capacity grinders, chimneys, and energy-optimized electromagnetic induction systems tailored for restaurants, high-volume caterers, and institutional kitchens. Engineered for continuous operation under demanding conditions.",
+  description: "We manufacture massive capacity commercial wet grinders, heavy-duty mixer grinders, bulk pressure cookers, and high-efficiency LPG stoves tailored for restaurants, high-volume caterers, and institutional kitchens. Engineered for continuous operation under demanding conditions.",
   bullets: [
     "Rugged Build: High-grade steel housings",
     "High Capacity: Up to 20-litre wet grinders",

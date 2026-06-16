@@ -3,13 +3,13 @@
 import AnnouncementBar from "@/components/layout/AnnouncementBar";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { announcements } from "../LandingPage/data/announcements";
+// import { announcements } from "../LandingPage/data/announcements";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
 
 export default function WarrantyRegistrationPage() {
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-slate-950 font-sans">
-      <AnnouncementBar announcements={announcements} />
+      {/* <AnnouncementBar announcements={announcements} /> */}
       <Header navLinks={navLinks} />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-left w-full">

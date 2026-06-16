@@ -13,8 +13,8 @@ export default function SectionContainer({
   ...props
 }: SectionContainerProps) {
   return (
-    <section className={cn("py-16 md:py-24 overflow-hidden", bgClass)} {...props}>
-      <div className={cn("max-w-7xl mx-auto px-4 sm:px-6 lg:px-8", className)}>
+    <section className={cn("py-10 md:py-14 overflow-hidden", bgClass)} {...props}>
+      <div className={cn("max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12", className)}>
         {children}
       </div>
     </section>

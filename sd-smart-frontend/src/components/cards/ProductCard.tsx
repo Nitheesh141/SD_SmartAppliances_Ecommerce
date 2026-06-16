@@ -22,17 +22,53 @@ const badgeVariantMap: Record<string, "red" | "orange" | "green"> = {
   Sale: "orange",
 };
 
+const getSpecTags = (category: string) => {
+  if (category.toLowerCase().includes("cooker")) return ["Tri-Ply Steel", "Smart Control", "15 PSI Safe"];
+  if (category.toLowerCase().includes("grinder")) return ["Stone Grinding", "High Torque", "Smart Timer"];
+  if (category.toLowerCase().includes("stove")) return ["Auto Ignition", "Brass Burners", "Glass Top"];
+  if (category.toLowerCase().includes("stick")) return ["PFOA Free", "5-Layer Coat", "Metal Safe"];
+  if (category.toLowerCase().includes("commercial")) return ["Heavy Duty", "Stainless 304", "High Output"];
+  return ["IoT Connected", "Smart Control", "5-Star Energy"];
+};
+
 export default function ProductCard({ product, className }: ProductCardProps) {
   const [wishlisted, setWishlisted] = useState(false);
+  const specTags = getSpecTags(product.categoryLabel);
 
   return (
     <div
+      onMouseMove={(e) => {
+        const el = e.currentTarget;
+        const rect = el.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const mx = (x / rect.width) - 0.5;
+        const my = (y / rect.height) - 0.5;
+        el.style.setProperty("--p-mx", `${x}px`);
+        el.style.setProperty("--p-my", `${y}px`);
+        el.style.setProperty("--tx", `${mx * 8}px`); // magnetic pull
+        el.style.setProperty("--ty", `${my * 8}px`);
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget;
+        el.style.setProperty("--tx", "0px");
+        el.style.setProperty("--ty", "0px");
+      }}
+      style={{
+        transform: "translate3d(var(--tx, 0px), var(--ty, 0px), 0px)",
+      }}
       className={cn(
-        "group relative bg-white rounded-2xl overflow-hidden border border-neutral-100",
-        "hover:shadow-xl hover:-translate-y-1 transition-all duration-300",
+        "group relative bg-white rounded-2xl overflow-hidden border border-neutral-100 transition-all duration-300 ease-out hover:shadow-2xl hover:border-neutral-200/80",
         className
       )}
     >
+      {/* Glow effect follows mouse */}
+      <div
+        className="absolute inset-0 pointer-events-none z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{
+          background: "radial-gradient(circle 120px at var(--p-mx, 0px) var(--p-my, 0px), rgba(215, 25, 32, 0.05), transparent)",
+        }}
+      />
       {/* Image area */}
       <Link href={product.href} className="block relative aspect-[4/3] overflow-hidden bg-neutral-50">
         {product.image.startsWith("/") ? (
@@ -89,6 +125,18 @@ export default function ProductCard({ product, className }: ProductCardProps) {
               variant="orange"
             />
           )}
+        </div>
+
+        {/* Floating specification indicators (slide up on hover) */}
+        <div className="absolute bottom-2 left-2 right-2 flex flex-wrap gap-1 z-10 translate-y-8 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 delay-75">
+          {specTags.map((tag) => (
+            <span
+              key={tag}
+              className="px-1.5 py-0.5 text-[9px] font-bold text-white bg-slate-950/75 border border-white/10 backdrop-blur-md rounded-md select-none uppercase tracking-wider"
+            >
+              {tag}
+            </span>
+          ))}
         </div>
       </Link>
 
