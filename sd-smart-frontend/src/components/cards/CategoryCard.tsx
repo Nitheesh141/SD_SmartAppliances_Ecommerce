@@ -28,7 +28,7 @@ export default function CategoryCard({ category }: CategoryCardProps) {
 
       {/* Content overlay */}
       <div className="relative z-10 text-white text-left">
-        <h3 className="text-lg font-bold font-heading group-hover:text-teal-300 transition-colors duration-200">
+        <h3 className="text-lg font-bold font-heading group-hover:text-red-300 transition-colors duration-200">
           {category.name}
         </h3>
         <p className="mt-1 text-xs text-slate-350 line-clamp-2 leading-normal font-sans">

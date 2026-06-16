@@ -12,14 +12,14 @@ export default function NewsletterSection() {
 
   return (
     <SectionContainer id="newsletter" bgClass="bg-white dark:bg-slate-950">
-      <div className="relative max-w-4xl mx-auto rounded-3xl bg-gradient-to-br from-teal-900 via-teal-800 to-slate-950 p-8 md:p-12 shadow-2xl text-center overflow-hidden">
+      <div className="relative max-w-4xl mx-auto rounded-3xl bg-gradient-to-br from-red-950 via-red-900 to-slate-950 p-8 md:p-12 shadow-2xl text-center overflow-hidden">
         {/* Glow Effects */}
-        <div className="absolute -top-20 -left-20 h-64 w-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -right-20 h-64 w-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-20 -left-20 h-64 w-64 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-20 -right-20 h-64 w-64 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col items-center">
           {/* Bell Icon Wrapper */}
-          <div className="h-12 w-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-teal-300 mb-6 shadow-lg">
+          <div className="h-12 w-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-red-300 mb-6 shadow-lg">
             <Bell size={24} weight="duotone" className="animate-swing" />
           </div>
 
@@ -31,7 +31,7 @@ export default function NewsletterSection() {
           </p>
 
           {subscribed ? (
-            <div className="bg-teal-950/40 border border-teal-800 rounded-xl py-4 px-8 max-w-sm flex items-center gap-3 text-teal-300 animate-in fade-in zoom-in-95 duration-300">
+            <div className="bg-red-950/40 border border-red-800 rounded-xl py-4 px-8 max-w-sm flex items-center gap-3 text-red-300 animate-in fade-in zoom-in-95 duration-300">
               <EnvelopeSimple size={20} weight="fill" />
               <span className="text-xs font-semibold text-left">Thank you for subscribing! Keep an eye on your inbox.</span>
             </div>
@@ -43,12 +43,12 @@ export default function NewsletterSection() {
               <input
                 type="email"
                 placeholder="Enter your email address"
-                className="flex-1 bg-slate-950/40 border border-white/10 rounded-lg py-3 px-4 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-teal-500"
+                className="flex-1 bg-slate-950/40 border border-white/10 rounded-lg py-3 px-4 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-red-500"
                 required
               />
               <button
                 type="submit"
-                className="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold px-6 py-3 rounded-lg text-xs transition-colors duration-300 cursor-pointer shadow-lg shadow-teal-500/15 shrink-0"
+                className="bg-[#D71920] hover:bg-[#b8141a] text-white font-bold px-6 py-3 rounded-lg text-xs transition-colors duration-300 cursor-pointer shadow-lg shadow-red-600/15 shrink-0"
               >
                 Subscribe Now
               </button>

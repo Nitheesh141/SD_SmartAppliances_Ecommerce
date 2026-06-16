@@ -3,7 +3,7 @@
 import AnnouncementBar from "@/components/layout/AnnouncementBar";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { announcements } from "../LandingPage/data/announcements";
+// import { announcements } from "../LandingPage/data/announcements";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
 import { ShoppingBag, ArrowRight, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -11,7 +11,7 @@ import Link from "next/link";
 export default function CartPage() {
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-slate-950 font-sans">
-      <AnnouncementBar announcements={announcements} />
+      {/* <AnnouncementBar announcements={announcements} /> */}
       <Header navLinks={navLinks} />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center flex flex-col items-center justify-center">

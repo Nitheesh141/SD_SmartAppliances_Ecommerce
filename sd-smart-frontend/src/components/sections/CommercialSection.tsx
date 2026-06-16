@@ -10,7 +10,7 @@ interface CommercialSectionProps {
 
 export default function CommercialSection({ data }: CommercialSectionProps) {
   const renderIcon = (index: number) => {
-    const iconProps = { size: 20, className: "text-teal-400" };
+    const iconProps = { size: 20, className: "text-red-400" };
     switch (index) {
       case 0:
         return <Hammer {...iconProps} />;
@@ -26,7 +26,7 @@ export default function CommercialSection({ data }: CommercialSectionProps) {
   return (
     <SectionContainer
       id="commercial"
-      bgClass="relative bg-slate-900 overflow-hidden py-20 md:py-28"
+      bgClass="relative bg-slate-900 overflow-hidden py-12 md:py-16"
     >
       {/* Visual background image with strong gradient overlay */}
       <div className="absolute inset-0 z-0 opacity-20">
@@ -39,13 +39,13 @@ export default function CommercialSection({ data }: CommercialSectionProps) {
       </div>
 
       {/* Decorative accent glow */}
-      <div className="absolute top-0 right-0 h-64 w-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 right-0 h-64 w-64 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Content (relative z-10) */}
       <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center text-white">
         {/* Text Area */}
         <div className="lg:col-span-7 text-left flex flex-col items-start">
-          <span className="inline-flex items-center px-3 py-1 text-xs font-semibold tracking-wider text-teal-300 bg-teal-950/80 border border-teal-800 rounded-full mb-4 uppercase">
+          <span className="inline-flex items-center px-3 py-1 text-xs font-semibold tracking-wider text-red-300 bg-red-950/80 border border-red-800 rounded-full mb-4 uppercase">
             {data.eyebrow}
           </span>
           <h2 className="text-3xl md:text-4xl font-heading font-extrabold tracking-tight leading-tight mb-4">
@@ -77,7 +77,7 @@ export default function CommercialSection({ data }: CommercialSectionProps) {
             <CTAButton
               variant="primary"
               size="md"
-              className="!bg-teal-500 hover:!bg-teal-600 !border-teal-500 !text-slate-950 font-bold shadow-lg shadow-teal-500/20 animate-pulse"
+              className="!bg-[#D71920] hover:!bg-[#b8141a] !border-[#D71920] !text-white font-bold shadow-lg shadow-red-600/20 animate-pulse"
               asLink
               href={data.primaryCTA.href}
             >
@@ -107,23 +107,23 @@ export default function CommercialSection({ data }: CommercialSectionProps) {
             <input
               type="text"
               placeholder="Business Name"
-              className="w-full bg-slate-950/40 border border-white/10 rounded-lg py-2.5 px-4 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-teal-500"
+              className="w-full bg-slate-950/40 border border-white/10 rounded-lg py-2.5 px-4 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-red-500"
               required
             />
             <input
               type="email"
               placeholder="Business Email"
-              className="w-full bg-slate-950/40 border border-white/10 rounded-lg py-2.5 px-4 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-teal-500"
+              className="w-full bg-slate-950/40 border border-white/10 rounded-lg py-2.5 px-4 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-red-500"
               required
             />
             <textarea
               placeholder="Tell us about your kitchen requirements (e.g. Grinder capacity, numbers)"
-              className="w-full h-20 bg-slate-950/40 border border-white/10 rounded-lg py-2.5 px-4 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 resize-none"
+              className="w-full h-20 bg-slate-950/40 border border-white/10 rounded-lg py-2.5 px-4 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-red-500 resize-none"
               required
             />
             <button
               type="submit"
-              className="w-full bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold py-2.5 rounded-lg text-xs transition-colors duration-300 cursor-pointer shadow-lg shadow-teal-500/10"
+              className="w-full bg-[#D71920] hover:bg-[#b8141a] text-white font-bold py-2.5 rounded-lg text-xs transition-colors duration-300 cursor-pointer shadow-lg shadow-red-600/10"
             >
               Submit Inquiry
             </button>

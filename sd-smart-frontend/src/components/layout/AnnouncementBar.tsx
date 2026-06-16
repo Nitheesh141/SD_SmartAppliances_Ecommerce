@@ -18,14 +18,14 @@ export default function AnnouncementBar({ announcements }: AnnouncementBarProps)
   return (
     <div className="bg-slate-900 text-white py-2.5 px-4 relative flex items-center justify-center text-center select-none z-50">
       <div className="flex items-center justify-center gap-2 flex-wrap text-3xs font-medium tracking-wide">
-        <span className="bg-teal-500 text-slate-950 font-bold px-1.5 py-0.5 rounded-full uppercase text-4xs leading-none inline-flex items-center gap-1">
+        <span className="bg-[#D71920] text-white font-bold px-1.5 py-0.5 rounded-full uppercase text-4xs leading-none inline-flex items-center gap-1">
           <Tag size={10} weight="fill" /> Offer
         </span>
         <span>{announcement.text}</span>
         {announcement.href && (
           <a
             href={announcement.href}
-            className="underline hover:text-teal-400 inline-flex items-center gap-1 font-semibold transition-colors duration-200"
+            className="underline hover:text-red-400 inline-flex items-center gap-1 font-semibold transition-colors duration-200"
           >
             Shop Now <ArrowRight size={10} weight="bold" />
           </a>

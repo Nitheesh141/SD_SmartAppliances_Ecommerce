@@ -27,7 +27,7 @@ export default function TestimonialCard({ testimonial }: TestimonialCardProps) {
 
       {/* Profile summary row */}
       <div className="relative z-10 flex items-center gap-3 pt-4 border-t border-slate-100/80 dark:border-slate-800/80">
-        <div className="h-10 w-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-xs uppercase dark:bg-teal-950 dark:text-teal-400 shrink-0">
+        <div className="h-10 w-10 rounded-full bg-red-100 text-red-700 flex items-center justify-center font-bold text-xs uppercase dark:bg-red-950 dark:text-red-400 shrink-0">
           {testimonial.authorInitials}
         </div>
         <div className="flex flex-col text-left">
@@ -35,7 +35,7 @@ export default function TestimonialCard({ testimonial }: TestimonialCardProps) {
             {testimonial.authorName}
           </h4>
           <span className="text-4xs font-medium text-slate-400 mt-0.5">
-            {testimonial.authorLocation} • Verified Buyer of <strong className="text-teal-600 dark:text-teal-400">{testimonial.productName}</strong>
+            {testimonial.authorLocation} • Verified Buyer of <strong className="text-[#D71920] dark:text-red-400">{testimonial.productName}</strong>
           </span>
         </div>
       </div>
