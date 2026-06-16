@@ -5,11 +5,11 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { announcements } from "../../LandingPage/data/announcements";
 import { navLinks, footerColumns, socialLinks } from "../../LandingPage/data/navigation";
-import { bestSellingProducts } from "../../LandingPage/data/products";
 import ProductCard from "@/components/cards/ProductCard";
+import { useDynamicProducts } from "@/hooks/useDynamicProducts";
 
 export default function PressureCookersPage() {
-  const products = bestSellingProducts.filter((p) => p.category === "pressure-cookers");
+  const products = useDynamicProducts("pressure-cookers");
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-slate-950 font-sans">

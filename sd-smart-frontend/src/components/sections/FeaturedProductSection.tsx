@@ -5,6 +5,7 @@ import ProductPrice from "../shared/ProductPrice";
 import BadgePill from "../shared/BadgePill";
 import CTAButton from "../shared/CTAButton";
 import { Cpu, ShieldCheck, Gear } from "@phosphor-icons/react";
+import ScrollReveal from "../animations/ScrollReveal";
 
 interface FeaturedProductSectionProps {
   product: FeaturedProduct;
@@ -15,32 +16,38 @@ export default function FeaturedProductSection({ product }: FeaturedProductSecti
   const isImageLeft = product.imagePosition === "left";
 
   return (
-    <SectionContainer id={`featured-${product.id}`} className="py-12 md:py-20">
+    <SectionContainer id={`featured-${product.id}`}>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
         {/* Image Column */}
-        <div className={`lg:col-span-6 relative flex justify-center ${isImageLeft ? "" : "lg:order-last"}`}>
-          <div className="absolute -inset-4 bg-teal-500/5 rounded-2xl blur-2xl dark:bg-teal-500/2 pointer-events-none" />
+        <ScrollReveal
+          direction={isImageLeft ? "left" : "right"}
+          className={`lg:col-span-6 relative flex justify-center w-full ${isImageLeft ? "" : "lg:order-last"}`}
+        >
+          <div className="absolute -inset-4 bg-red-500/5 rounded-2xl blur-2xl dark:bg-red-500/2 pointer-events-none w-full h-full" />
           <div className="relative aspect-square w-full max-w-md md:max-w-lg rounded-2xl overflow-hidden border border-slate-100 bg-white p-4 shadow-xl dark:bg-slate-900/60 dark:border-slate-800">
             <img
               src={product.image}
               alt={product.name}
-              className="h-full w-full object-cover object-center rounded-xl"
+              className="h-full w-full object-cover object-center rounded-xl transition-transform duration-700 hover:scale-[1.03]"
               loading="lazy"
             />
             {product.eyebrow && (
               <div className="absolute top-8 left-8">
-                <BadgePill variant="primary" className="shadow-md backdrop-blur-md !bg-teal-600/90 !text-white border-none">
+                <BadgePill variant="primary" className="shadow-md backdrop-blur-md !bg-red-650/90 !text-white border-none">
                   {product.eyebrow}
                 </BadgePill>
               </div>
             )}
           </div>
-        </div>
+        </ScrollReveal>
 
         {/* Content Column */}
-        <div className="lg:col-span-6 flex flex-col items-start text-left">
+        <ScrollReveal
+          direction={isImageLeft ? "right" : "left"}
+          className="lg:col-span-6 flex flex-col items-start text-left w-full"
+        >
           {/* Eyebrow / Tag */}
-          <span className="text-3xs font-bold text-teal-600 tracking-widest uppercase mb-2 dark:text-teal-400">
+          <span className="text-3xs font-bold text-[#D71920] tracking-widest uppercase mb-2 dark:text-red-400">
             {product.eyebrow}
           </span>
           {/* Title */}
@@ -53,7 +60,7 @@ export default function FeaturedProductSection({ product }: FeaturedProductSecti
             <span className="text-3xs font-medium text-slate-400 uppercase tracking-wider">Starting from</span>
             <ProductPrice
               price={product.startingPrice}
-              priceClass="text-2xl md:text-3xl font-extrabold text-teal-600 dark:text-teal-400"
+              priceClass="text-2xl md:text-3xl font-extrabold text-[#D71920] dark:text-red-400"
             />
           </div>
 
@@ -63,7 +70,7 @@ export default function FeaturedProductSection({ product }: FeaturedProductSecti
               onClick={() => setActiveTab("overview")}
               className={`pb-3 text-xs font-bold transition-all duration-300 border-b-2 mr-6 cursor-pointer ${
                 activeTab === "overview"
-                  ? "border-teal-500 text-teal-600 dark:text-teal-400"
+                  ? "border-[#D71920] text-[#D71920] dark:text-red-400"
                   : "border-transparent text-slate-400 hover:text-slate-600"
               }`}
             >
@@ -73,7 +80,7 @@ export default function FeaturedProductSection({ product }: FeaturedProductSecti
               onClick={() => setActiveTab("specs")}
               className={`pb-3 text-xs font-bold transition-all duration-300 border-b-2 mr-6 cursor-pointer ${
                 activeTab === "specs"
-                  ? "border-teal-500 text-teal-600 dark:text-teal-400"
+                  ? "border-[#D71920] text-[#D71920] dark:text-red-400"
                   : "border-transparent text-slate-400 hover:text-slate-600"
               }`}
             >
@@ -83,7 +90,7 @@ export default function FeaturedProductSection({ product }: FeaturedProductSecti
               onClick={() => setActiveTab("features")}
               className={`pb-3 text-xs font-bold transition-all duration-300 border-b-2 cursor-pointer ${
                 activeTab === "features"
-                  ? "border-teal-500 text-teal-600 dark:text-teal-400"
+                  ? "border-[#D71920] text-[#D71920] dark:text-red-400"
                   : "border-transparent text-slate-400 hover:text-slate-600"
               }`}
             >
@@ -120,21 +127,21 @@ export default function FeaturedProductSection({ product }: FeaturedProductSecti
             {activeTab === "features" && (
               <ul className="flex flex-col gap-3">
                 <li className="flex items-start gap-2.5">
-                  <Cpu size={18} className="text-teal-600 dark:text-teal-400 mt-0.5 shrink-0" />
+                  <Cpu size={18} className="text-[#D71920] dark:text-red-400 mt-0.5 shrink-0" />
                   <div className="flex flex-col text-left">
                     <strong className="text-xs text-slate-800 dark:text-slate-200">Intelligent Micro-controls</strong>
                     <span className="text-3xs text-slate-500 dark:text-slate-400">Embedded smart chips modulate heating patterns dynamically.</span>
                   </div>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <ShieldCheck size={18} className="text-teal-600 dark:text-teal-400 mt-0.5 shrink-0" />
+                  <ShieldCheck size={18} className="text-[#D71920] dark:text-red-400 mt-0.5 shrink-0" />
                   <div className="flex flex-col text-left">
                     <strong className="text-xs text-slate-800 dark:text-slate-200">Safety First Construction</strong>
                     <span className="text-3xs text-slate-500 dark:text-slate-400">Equipped with automatic pressure release valves and heat-resistant gaskets.</span>
                   </div>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <Gear size={18} className="text-teal-600 dark:text-teal-400 mt-0.5 shrink-0" />
+                  <Gear size={18} className="text-[#D71920] dark:text-red-400 mt-0.5 shrink-0" />
                   <div className="flex flex-col text-left">
                     <strong className="text-xs text-slate-800 dark:text-slate-200">Heavy-Duty Operation</strong>
                     <span className="text-3xs text-slate-500 dark:text-slate-400">Designed with copper-wound motors built to execute high-stress tasks continuously.</span>
@@ -153,7 +160,7 @@ export default function FeaturedProductSection({ product }: FeaturedProductSecti
               {product.secondaryCTA.label}
             </CTAButton>
           </div>
-        </div>
+        </ScrollReveal>
       </div>
     </SectionContainer>
   );

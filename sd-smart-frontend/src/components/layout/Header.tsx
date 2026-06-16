@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Search, User, Heart, ShoppingCart, ChevronDown, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "../../app/LandingPage/types";
 import { THEME_CLASSES } from "@/config/themes";
+import { useAuth } from "@/providers/AuthProvider";
 
 interface HeaderProps {
   navLinks?: NavLink[];
   isAuthenticated?: boolean;
-  userProfile?: { name: string; email: string } | null;
+  userProfile?: { name: string; email: string; role?: string } | null;
 }
 
 const defaultNavLinks = [
@@ -31,15 +33,38 @@ const shopDropdownLinks = [
   { label: "Commercial Products", href: "/shop/commercial" },
 ];
 
-export default function Header({ navLinks = defaultNavLinks, isAuthenticated = false, userProfile = null }: HeaderProps) {
+export default function Header({ navLinks = defaultNavLinks, isAuthenticated: propIsAuthenticated, userProfile: propUserProfile }: HeaderProps) {
+  const { isAuthenticated: contextIsAuthenticated, user: contextUser } = useAuth();
+
+  const isAuthenticated = propIsAuthenticated !== undefined ? propIsAuthenticated : contextIsAuthenticated;
+  const userProfile = propUserProfile !== undefined ? propUserProfile : contextUser;
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const pathname = usePathname() || "";
+
+  useEffect(() => {
+    setIsLoaded(true);
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 15);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-neutral-200 shadow-sm">
+    <header className={cn(
+      "sticky top-0 z-50 transition-all duration-500 will-change-transform",
+      isScrolled
+        ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-b border-neutral-200/50 shadow-[0_5px_22px_rgba(215,25,32,0.22)] dark:shadow-[0_5px_25px_rgba(215,25,32,0.38)] py-1"
+        : "bg-red-50 dark:bg-[#1A090A] border-b border-neutral-200/20 shadow-[0_3px_16px_rgba(215,25,32,0.15)] dark:shadow-[0_3px_20px_rgba(215,25,32,0.28)] py-1",
+      isLoaded ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
+    )}>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
-        <div className="flex items-center h-16 gap-4 lg:gap-8">
+        <div className="flex items-center h-15 gap-4 lg:gap-8">
 
           {/* Logo */}
           <Link href="/" className="flex items-center flex-shrink-0 ml-[-80px]">
@@ -47,7 +72,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated = f
             <img
               src="/sd-smart-ecommerce/SD-logo.png"
               alt="SD Smart Appliances"
-              className="h-11.5 w-auto object-contain"
+              className="h-15 w-auto object-contain mix-blend-multiply"
             />
           </Link>
 
@@ -59,7 +84,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated = f
               link.hasDropdown ? (
                 <div key={link.label} className="relative group">
                   <button
-                    className="flex items-center gap-1 px-3 py-2 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-neutral-50 transition-colors cursor-pointer"
+                    className="flex items-center gap-1 px-3 py-2 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
                     onMouseEnter={() => setShopOpen(true)}
                     onMouseLeave={() => setShopOpen(false)}
                   >
@@ -79,7 +104,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated = f
                       <Link
                         key={l.href}
                         href={l.href}
-                        className="block px-4 py-2 text-sm text-neutral-700 hover:text-[#D71920] hover:bg-neutral-50 transition-colors text-left"
+                        className="block px-4 py-2 text-sm text-neutral-700 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                       >
                         {l.label}
                       </Link>
@@ -90,9 +115,17 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated = f
                 <Link
                   key={link.label}
                   href={link.href}
-                  className="px-3 py-2 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-neutral-50 transition-colors"
+                  className={cn(
+                    "px-3 py-2 text-sm font-semibold rounded-lg transition-all duration-300 relative",
+                    pathname === link.href || (link.href === "/" && (pathname === "/" || pathname === "/sd-smart-ecommerce"))
+                      ? "text-[#D71920]"
+                      : "text-[#1C1C1C] hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40"
+                  )}
                 >
                   {link.label}
+                  {(pathname === link.href || (link.href === "/" && (pathname === "/" || pathname === "/sd-smart-ecommerce"))) && (
+                    <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#D71920] rounded-full" />
+                  )}
                 </Link>
               )
             )}
@@ -114,13 +147,18 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated = f
             {isAuthenticated ? (
               <>
                 {/* Authenticated: Profile, Wishlist, Cart */}
-                <Link href="/account" className="p-2 text-neutral-600 hover:text-[#D71920] hover:bg-neutral-50 rounded-lg transition-colors" aria-label="Account">
+                {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin") && (
+                  <Link href="/admin/dashboard" className="px-3 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg hover:bg-[#B91520] transition-colors flex items-center mr-1" title="Admin Dashboard">
+                    <span>Admin Panel</span>
+                  </Link>
+                )}
+                <Link href="/account" className="p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Account">
                   <User size={18} />
                 </Link>
-                <Link href="/wishlist" className="p-2 text-neutral-600 hover:text-[#D71920] hover:bg-neutral-50 rounded-lg transition-colors" aria-label="Wishlist">
+                <Link href="/wishlist" className="p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Wishlist">
                   <Heart size={18} />
                 </Link>
-                <Link href="/cart" className="relative p-2 text-neutral-600 hover:text-[#D71920] hover:bg-neutral-50 rounded-lg transition-colors" aria-label="Cart">
+                <Link href="/cart" className="relative p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Cart">
                   <ShoppingCart size={18} />
                   <span className="absolute top-1 right-1 w-4 h-4 bg-[#D71920] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                     0
@@ -178,7 +216,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated = f
               <Link
                 key={link.label}
                 href={link.href}
-                className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-neutral-50 transition-colors text-left"
+                className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                 onClick={() => setMobileOpen(false)}
               >
                 {link.label}
@@ -189,7 +227,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated = f
                 <Link
                   key={l.href}
                   href={l.href}
-                  className="px-3 py-2 text-sm text-neutral-600 hover:text-[#D71920] rounded-lg hover:bg-neutral-50 text-left"
+                  className="px-3 py-2 text-sm text-neutral-600 hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 text-left"
                   onClick={() => setMobileOpen(false)}
                 >
                   — {l.label}
@@ -201,7 +239,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated = f
               <div className="mt-4 pt-4 border-t border-neutral-100 flex flex-col gap-2">
                 <Link
                   href="/auth/login"
-                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-neutral-50 transition-colors text-center"
+                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-center"
                   onClick={() => setMobileOpen(false)}
                 >
                   Login

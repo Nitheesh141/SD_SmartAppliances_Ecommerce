@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { MapPin, Phone, Mail, ArrowRight } from "lucide-react";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { FooterColumn, SocialLink } from "../../app/LandingPage/types";
 
 interface CustomIconProps extends React.SVGProps<SVGSVGElement> {
@@ -139,7 +140,12 @@ const getSocialIconComponent = (platformOrIcon: string) => {
 };
 
 export default function Footer({ footerColumns, socialLinks }: FooterProps) {
+  const pathname = usePathname();
   const [email, setEmail] = useState("");
+
+  if (pathname !== "/") {
+    return null;
+  }
 
   const activeFooterColumns = footerColumns || defaultFooterColumns;
   const activeSocialLinks = socialLinks

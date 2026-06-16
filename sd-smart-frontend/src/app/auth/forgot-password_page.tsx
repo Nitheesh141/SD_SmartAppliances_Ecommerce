@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import AuthBackground from "@/components/animations/AuthBackground";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -15,6 +16,19 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [focusPos, setFocusPos] = useState<{ x: number; y: number } | null>(null);
+
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    const rect = e.target.getBoundingClientRect();
+    setFocusPos({
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    });
+  };
+
+  const handleBlur = () => {
+    setFocusPos(null);
+  };
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,8 +90,8 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md">
+    <AuthBackground focusPos={focusPos}>
+      <div className="w-full max-w-md bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/20 dark:border-slate-800/40 rounded-2xl p-6 sm:p-8 shadow-2xl transition-all duration-500">
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-4">
@@ -119,8 +133,10 @@ export default function ForgotPasswordPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
                 required
-                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all"
+                className="w-full px-4 py-2 border border-neutral-200 dark:border-slate-800 dark:bg-slate-950/40 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all"
                 placeholder="you@example.com"
               />
             </div>
@@ -153,8 +169,10 @@ export default function ForgotPasswordPage() {
                 type="text"
                 value={verificationCode}
                 onChange={(e) => setVerificationCode(e.target.value)}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
                 required
-                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all text-center text-lg tracking-widest"
+                className="w-full px-4 py-2 border border-neutral-200 dark:border-slate-800 dark:bg-slate-950/40 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all text-center text-lg tracking-widest"
                 placeholder="000000"
               />
               <p className="text-xs text-neutral-500 mt-1">Check your email for the 6-digit code</p>
@@ -202,8 +220,10 @@ export default function ForgotPasswordPage() {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
                 required
-                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all"
+                className="w-full px-4 py-2 border border-neutral-200 dark:border-slate-800 dark:bg-slate-950/40 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all"
                 placeholder="••••••••"
               />
             </div>
@@ -217,8 +237,10 @@ export default function ForgotPasswordPage() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
                 required
-                className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all"
+                className="w-full px-4 py-2 border border-neutral-200 dark:border-slate-800 dark:bg-slate-950/40 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all"
                 placeholder="••••••••"
               />
             </div>
@@ -252,6 +274,6 @@ export default function ForgotPasswordPage() {
           </Link>
         </p>
       </div>
-    </div>
+    </AuthBackground>
   );
 }

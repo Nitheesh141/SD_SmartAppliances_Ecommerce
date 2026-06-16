@@ -4,48 +4,48 @@ export const categories: Category[] = [
   {
     id: "cat-1",
     name: "Pressure Cookers",
-    description: "Traditional & Smart IoT pressure cookers designed for safety and speed.",
-    image: "https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?q=80&w=600&auto=format&fit=crop",
+    description: "Traditional and smart pressure cookers crafted for faster cooking, superior safety, and everyday convenience.",
+    image: "/sd-smart-ecommerce/Categories-1.png",
     href: "/shop/pressure-cookers",
     isActive: true
   },
   {
     id: "cat-2",
-    name: "Wet Grinders",
-    description: "Ultra-quiet stone grinders for idli, dosa, and vada batters.",
-    image: "https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?q=80&w=600&auto=format&fit=crop",
+    name: "Non-Stick Cookware",
+    description: "Premium non-stick cookware designed for healthier meals, effortless cooking, and easy cleaning.",
+    image: "/sd-smart-ecommerce/Categories-2.png",
     href: "/shop/wet-grinders",
     isActive: true
   },
   {
     id: "cat-3",
-    name: "Kitchen Chimneys",
-    description: "Gesture-controlled, filterless chimneys with auto-clean tech.",
-    image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=600&auto=format&fit=crop",
+    name: "Mixer Grinders",
+    description: "Powerful grinding and blending appliances built to simplify every kitchen task with precision.",
+    image: "/sd-smart-ecommerce/Categories-3.png",
     href: "/shop",
     isActive: true
   },
   {
     id: "cat-4",
-    name: "Mixer Grinders",
-    description: "Heavy-duty mixing and grinding solutions for modern cooking.",
-    image: "https://images.unsplash.com/photo-1578643463396-0997cb5328c1?q=80&w=600&auto=format&fit=crop",
+    name: "LPG Stoves",
+    description: "High-performance stainless steel and glass-top stoves engineered for efficiency, durability, and style.",
+    image: "/sd-smart-ecommerce/Categories-4.png",
     href: "/shop",
     isActive: true
   },
   {
     id: "cat-5",
-    name: "Induction Cooktops",
-    description: "Energy-efficient electromagnetic cooktops with precise controls.",
-    image: "https://images.unsplash.com/photo-1506368249639-73a05d6f6488?q=80&w=600&auto=format&fit=crop",
+    name: "Stainless Steel Wet Grinders",
+    description: "Food-grade stainless steel grinders delivering smooth batter, consistent performance, and lasting reliability.",
+    image: "/sd-smart-ecommerce/Categories-5.png",
     href: "/shop",
     isActive: true
   },
   {
     id: "cat-6",
-    name: "Commercial Line",
-    description: "Heavy-capacity appliances customized for restaurants and hotels.",
-    image: "https://images.unsplash.com/photo-1581092921461-eab62e97a780?q=80&w=600&auto=format&fit=crop",
+    name: "Commercial Wet Grinders",
+    description: "Heavy-duty grinding solutions built for hotels, restaurants, catering units, and large-scale food production.",
+    image: "/sd-smart-ecommerce/Categories-6.png",
     href: "/shop/commercial",
     isActive: true
   }
