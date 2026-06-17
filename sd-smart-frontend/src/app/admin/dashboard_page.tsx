@@ -1,45 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
 import { 
-  Plus, Edit2, Trash2, Package, Loader2, RefreshCw, Layers
+  Loader2, Layers, TrendingUp, TrendingDown, Calendar as CalendarIcon, Filter
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import { cn } from "@/lib/utils";
 
-interface ProductType {
+interface Transaction {
   id: string;
-  name: string;
-  category: string;
-  categoryLabel: string;
-  image: string;
-  rating: number;
-  reviewCount: number;
-  price: number;
-  originalPrice: number;
-  discountPercent: number;
-  warranty: string;
-  capacity?: string | null;
-  badge?: string | null;
-  href: string;
-  inStock: boolean;
-  isBestSeller: boolean;
-  isFeatured: boolean;
+  productId: string;
+  type: "IN" | "OUT";
+  quantity: number;
+  createdAt: string;
+  product: {
+    name: string;
+    productId: string | null;
+    modelNumber: string | null;
+    categoryLabel: string;
+  };
 }
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   
-  const [products, setProducts] = useState<ProductType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isDeleteLoading, setIsDeleteLoading] = useState<string | null>(null);
-  
   // Theme state
   const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(true);
+
+  // Filters state
+  const [viewMode, setViewMode] = useState<"daily" | "monthly">("daily");
+  
+  // Default to today
+  const today = new Date();
+  const [selectedDate, setSelectedDate] = useState(today.toISOString().split("T")[0]);
+  const [selectedMonth, setSelectedMonth] = useState(today.toISOString().slice(0, 7)); // YYYY-MM
 
   // Load theme from localStorage on client side mount
   useEffect(() => {
@@ -59,86 +59,125 @@ export default function AdminDashboardPage() {
       if (!isAuthenticated || !user || (user.role !== "admin" && user.role !== "superadmin")) {
         toast.error("Access Denied. Admins only.");
         router.push("/auth/login");
-      } else {
-        fetchProducts();
       }
     }
   }, [isAuthenticated, user, authLoading, router]);
 
-  // Fetch products
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("http://localhost:5000/api/products");
-      if (!response.ok) throw new Error("Failed to load products");
-      const data = await response.json();
-      setProducts(data.products || []);
-    } catch (error: any) {
-      console.error(error);
-      toast.error(error.message || "Failed to fetch products");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Delete
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this product?")) return;
-
-    setIsDeleteLoading(id);
-    const token = localStorage.getItem("authToken");
-
-    try {
-      const response = await fetch(`http://localhost:5000/api/products/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.message || "Delete failed");
+  // Fetch transactions
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const token = localStorage.getItem("authToken");
+        if (!token) {
+          setLoadingTransactions(false);
+          return;
+        }
+        
+        const res = await fetch("http://localhost:5000/api/products/transactions", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          setTransactions(data.transactions);
+        } else {
+          toast.error(data.message || "Failed to fetch transactions");
+        }
+      } catch (err) {
+        console.error("Error fetching transactions:", err);
+        toast.error("Failed to load dashboard data");
+      } finally {
+        setLoadingTransactions(false);
       }
+    };
 
-      toast.success("Product deleted successfully");
-      fetchProducts();
-    } catch (error: any) {
-      console.error(error);
-      toast.error(error.message || "Failed to delete product");
-    } finally {
-      setIsDeleteLoading(null);
+    if (isAuthenticated) {
+      fetchTransactions();
     }
-  };
+  }, [isAuthenticated]);
 
   const isDark = theme === "dark";
 
-  if (authLoading || (loading && products.length === 0)) {
+  // Filter transactions based on view mode
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const date = new Date(t.createdAt);
+      if (viewMode === "daily") {
+        return date.toISOString().split("T")[0] === selectedDate;
+      } else {
+        return date.toISOString().slice(0, 7) === selectedMonth;
+      }
+    });
+  }, [transactions, viewMode, selectedDate, selectedMonth]);
+
+  // KPIs
+  const totalStockIn = filteredTransactions.filter(t => t.type === "IN").reduce((acc, t) => acc + t.quantity, 0);
+  const totalStockOut = filteredTransactions.filter(t => t.type === "OUT").reduce((acc, t) => acc + t.quantity, 0);
+
+  // Chart Data preparation
+  const chartData = useMemo(() => {
+    // Always show day progress for the month of the selected date or selected month
+    let targetMonthStr = selectedMonth;
+    if (viewMode === "daily") {
+      targetMonthStr = selectedDate.slice(0, 7); // Extract YYYY-MM from YYYY-MM-DD
+    }
+    
+    if (!targetMonthStr) return [];
+    
+    const [year, month] = targetMonthStr.split("-").map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    
+    return days.map(day => {
+      // Find transactions on this specific day
+      const trs = transactions.filter(t => {
+        const d = new Date(t.createdAt);
+        return d.getFullYear() === year && (d.getMonth() + 1) === month && d.getDate() === day;
+      });
+      
+      return {
+        label: `${day}`,
+        in: trs.filter(t => t.type === "IN").reduce((sum, t) => sum + t.quantity, 0),
+        out: trs.filter(t => t.type === "OUT").reduce((sum, t) => sum + t.quantity, 0)
+      };
+    });
+  }, [transactions, viewMode, selectedDate, selectedMonth]);
+
+  if (authLoading) {
     return (
       <div className={cn(
         "min-h-screen flex flex-col items-center justify-center font-sans",
         isDark ? "bg-[#0d0d0d] text-white" : "bg-[#fafafa] text-slate-950"
       )}>
         <Loader2 className="w-10 h-10 text-[#D71920] animate-spin" />
-        <p className={cn("mt-4 font-sans text-sm", isDark ? "text-neutral-400" : "text-neutral-500")}>
-          Verifying security credentials...
-        </p>
       </div>
     );
   }
+
+  // Calculate SVG Graph Dimensions & Scaling
+  const maxVal = Math.max(...chartData.map(d => Math.max(d.in, d.out)), 10); // Ensure min height of 10
+  const graphHeight = 250;
+  const graphWidth = 1000;
+  const paddingX = 40;
+  const paddingY = 20;
+
+  const getPoint = (val: number, index: number, total: number) => {
+    const x = paddingX + (index / (total - 1)) * (graphWidth - 2 * paddingX);
+    const y = graphHeight - paddingY - (val / maxVal) * (graphHeight - 2 * paddingY);
+    return `${x},${y}`;
+  };
+
+  const polylineIn = chartData.map((d, i) => getPoint(d.in, i, chartData.length)).join(" ");
+  const polylineOut = chartData.map((d, i) => getPoint(d.out, i, chartData.length)).join(" ");
 
   return (
     <div className={cn(
       "min-h-screen flex flex-col lg:flex-row transition-colors duration-300 font-sans selection:bg-[#D71920]/30 selection:text-white",
       isDark ? "dark bg-[#0d0d0d] text-white" : "bg-[#fafafa] text-slate-900"
     )}>
-      {/* Shared Sidebar Component */}
       <AdminSidebar currentPath="/admin/dashboard" theme={theme} toggleTheme={toggleTheme} />
 
-      {/* Main Panel Content Area */}
       <div className="flex-1 lg:pl-64 flex flex-col min-h-screen">
-        
-        {/* Dynamic Inner Dashboard Page Header */}
         <header className={cn(
           "px-6 py-6 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-colors duration-300",
           isDark ? "border-neutral-800 bg-[#0d0d0d]/80" : "border-neutral-200 bg-white"
@@ -146,197 +185,198 @@ export default function AdminDashboardPage() {
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-[#D71920] uppercase tracking-wider mb-1">
               <Layers size={14} />
-              <span>Smart Catalog</span>
+              <span>Analytics</span>
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Appliance Management</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight">Dashboard</h1>
             <p className={cn("text-xs mt-0.5", isDark ? "text-neutral-500" : "text-neutral-400")}>
-              Add, update, or remove smart appliances across customer category catalogs.
+              Inventory movements, stock in, and stock out progress.
             </p>
           </div>
-          
+
+          {/* Filters */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={fetchProducts}
-              className={cn(
-                "p-2.5 border rounded-lg transition-all cursor-pointer",
-                isDark 
-                  ? "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800" 
-                  : "bg-white border-neutral-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-              )}
-              title="Reload Products"
-            >
-              <RefreshCw size={18} className={loading ? "animate-spin text-[#D71920]" : ""} />
-            </button>
-            <button
-              onClick={() => router.push("/admin/manage-product")}
-              className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B91520] rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2 shadow-lg shadow-[#D71920]/20 hover:shadow-[#D71920]/30 cursor-pointer"
-            >
-              <Plus size={18} />
-              <span>Add New Appliance</span>
-            </button>
+            <div className={cn("flex items-center p-1 rounded-md border", isDark ? "border-neutral-800 bg-neutral-900" : "border-neutral-200 bg-white")}>
+              <button 
+                onClick={() => setViewMode("daily")}
+                className={cn("px-3 py-1.5 text-xs font-medium rounded transition-colors", viewMode === "daily" ? (isDark ? "bg-neutral-800 text-white" : "bg-neutral-100 text-slate-900") : "text-neutral-500")}
+              >
+                Daily
+              </button>
+              <button 
+                onClick={() => setViewMode("monthly")}
+                className={cn("px-3 py-1.5 text-xs font-medium rounded transition-colors", viewMode === "monthly" ? (isDark ? "bg-neutral-800 text-white" : "bg-neutral-100 text-slate-900") : "text-neutral-500")}
+              >
+                Monthly
+              </button>
+            </div>
+
+            {viewMode === "daily" ? (
+              <input 
+                type="date" 
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                className={cn(
+                  "px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-1 focus:ring-[#D71920]",
+                  isDark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
+                )}
+              />
+            ) : (
+              <input 
+                type="month" 
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(e.target.value)}
+                className={cn(
+                  "px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-1 focus:ring-[#D71920]",
+                  isDark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
+                )}
+              />
+            )}
           </div>
         </header>
 
-        {/* Dashboard Grid & List */}
-        <main className="flex-grow p-6">
-          <div className={cn(
-            "border rounded-2xl overflow-hidden shadow-xl backdrop-blur-md transition-all",
-            isDark ? "bg-neutral-950/60 border-neutral-800/80" : "bg-white border-neutral-200"
-          )}>
-            {products.length === 0 ? (
-              <div className="py-24 text-center">
-                <Package className={cn("w-16 h-16 mx-auto mb-4", isDark ? "text-neutral-800" : "text-neutral-300")} />
-                <p className="text-lg font-bold">No products found</p>
-                <p className={cn("text-sm mt-1", isDark ? "text-neutral-500" : "text-neutral-400")}>
-                  Get started by creating a new appliance above.
-                </p>
+        <main className="flex-grow p-6 space-y-6">
+          {loadingTransactions ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="w-8 h-8 text-[#D71920] animate-spin" />
+            </div>
+          ) : (
+            <>
+              {/* KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className={cn("p-6 rounded-xl border flex items-center gap-4", isDark ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200")}>
+                  <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-lg">
+                    <TrendingUp size={24} />
+                  </div>
+                  <div>
+                    <p className={cn("text-xs font-medium uppercase tracking-wider", isDark ? "text-neutral-400" : "text-slate-500")}>Total Stock In</p>
+                    <h3 className="text-2xl font-bold mt-1 text-emerald-500">{totalStockIn}</h3>
+                  </div>
+                </div>
+
+                <div className={cn("p-6 rounded-xl border flex items-center gap-4", isDark ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200")}>
+                  <div className="p-3 bg-red-500/10 text-red-500 rounded-lg">
+                    <TrendingDown size={24} />
+                  </div>
+                  <div>
+                    <p className={cn("text-xs font-medium uppercase tracking-wider", isDark ? "text-neutral-400" : "text-slate-500")}>Total Stock Out</p>
+                    <h3 className="text-2xl font-bold mt-1 text-red-500">{totalStockOut}</h3>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className={cn(
-                      "border-b text-xs font-bold uppercase tracking-wider transition-colors",
-                      isDark ? "border-neutral-800 bg-neutral-900/30 text-neutral-400" : "border-neutral-200 bg-neutral-50/70 text-slate-500"
-                    )}>
-                      <th className="py-4 px-6">Product Info</th>
-                      <th className="py-4 px-6">Category</th>
-                      <th className="py-4 px-6">Price (INR)</th>
-                      <th className="py-4 px-6 text-center">Status Flags</th>
-                      <th className="py-4 px-6 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className={cn(
-                    "divide-y transition-colors",
-                    isDark ? "divide-neutral-900" : "divide-neutral-100"
-                  )}>
-                    {products.map((product) => (
-                      <tr key={product.id} className={cn(
-                        "group transition-all",
-                        isDark ? "hover:bg-neutral-900/10" : "hover:bg-slate-50/50"
-                      )}>
-                        {/* Product details */}
-                        <td className="py-4 px-6 flex items-center gap-4 text-left">
-                          <div className={cn(
-                            "w-14 h-14 rounded-lg overflow-hidden border flex items-center justify-center flex-shrink-0 transition-colors bg-white",
-                            isDark ? "border-neutral-800 group-hover:border-neutral-700 bg-neutral-900" : "border-neutral-200 group-hover:border-neutral-300"
-                          )}>
-                            <img
-                              src={product.image}
-                              alt={product.name}
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = "/sd-smart-ecommerce/SD-logo.png";
-                              }}
-                            />
-                          </div>
-                          <div className="min-w-0">
-                            <h3 className={cn("font-bold truncate max-w-[200px] sm:max-w-[300px]", isDark ? "text-neutral-100" : "text-slate-800")}>
-                              {product.name}
-                            </h3>
-                            <div className="flex items-center gap-2 mt-1">
-                              {product.badge && (
-                                <span className="px-2 py-0.5 bg-[#D71920]/10 border border-[#D71920]/20 text-[#D71920] rounded text-[10px] font-bold uppercase tracking-wider">
-                                  {product.badge}
-                                </span>
-                              )}
-                              <span className={cn("text-xs", isDark ? "text-neutral-500" : "text-slate-400")}>
-                                {product.warranty} Warranty
-                              </span>
-                            </div>
-                          </div>
-                        </td>
 
-                        {/* Category */}
-                        <td className="py-4 px-6">
-                          <span className={cn(
-                            "px-2.5 py-1 border rounded-full text-xs font-semibold",
-                            isDark 
-                              ? "bg-neutral-900 border-neutral-800 text-neutral-300" 
-                              : "bg-slate-100 border-slate-200 text-slate-700"
-                          )}>
-                            {product.categoryLabel}
-                          </span>
-                        </td>
+              {/* Progress Line Chart */}
+              <div className={cn("p-6 rounded-xl border", isDark ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200")}>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-sm font-semibold">Inventory Movement Progress</h3>
+                  <div className="flex items-center gap-4 text-xs">
+                    <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-emerald-500"></div>Stock In</div>
+                    <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500"></div>Stock Out</div>
+                  </div>
+                </div>
+                
+                <div className="w-full overflow-x-auto relative">
+                  <svg width="100%" height={graphHeight} viewBox={`0 0 ${graphWidth} ${graphHeight}`} preserveAspectRatio="none" className="w-full min-w-[600px] bg-transparent">
+                    {/* Grid lines */}
+                    {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+                      const y = paddingY + ratio * (graphHeight - 2 * paddingY);
+                      return (
+                        <g key={`grid-${i}`}>
+                          <line x1={paddingX} y1={y} x2={graphWidth - paddingX} y2={y} stroke={isDark ? "#333" : "#e5e7eb"} strokeDasharray="4 4" />
+                          <text x={paddingX - 10} y={y + 4} fontSize="10" fill={isDark ? "#666" : "#999"} textAnchor="end">
+                            {Math.round(maxVal - ratio * maxVal)}
+                          </text>
+                        </g>
+                      );
+                    })}
 
-                        {/* Price */}
-                        <td className="py-4 px-6 font-sans">
-                          <p className={cn("font-bold", isDark ? "text-neutral-100" : "text-slate-800")}>
-                            ₹{product.price.toLocaleString("en-IN")}
-                          </p>
-                          <p className={cn("text-xs line-through", isDark ? "text-neutral-500" : "text-slate-400")}>
-                            ₹{product.originalPrice.toLocaleString("en-IN")}
-                          </p>
-                        </td>
-
-                        {/* Status */}
-                        <td className="py-4 px-6 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            {product.inStock ? (
-                              <span className="px-2 py-0.5 bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 rounded text-[10px] font-bold uppercase tracking-wider">
-                                In Stock
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 bg-red-500/10 border border-red-500/20 text-red-500 rounded text-[10px] font-bold uppercase tracking-wider">
-                                Out of Stock
-                              </span>
-                            )}
-
-                            {product.isBestSeller && (
-                              <span className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-400 rounded text-[10px] font-bold uppercase tracking-wider" title="Best Seller">
-                                Best Seller
-                              </span>
-                            )}
-
-                            {product.isFeatured && (
-                              <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded text-[10px] font-bold uppercase tracking-wider" title="Featured Showcase">
-                                Featured
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-4 px-6 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => router.push(`/admin/manage-product?id=${product.id}`)}
-                              className={cn(
-                                "p-2 border rounded-lg transition-all cursor-pointer",
-                                isDark
-                                  ? "bg-neutral-900 border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 hover:bg-neutral-800"
-                                  : "bg-white border-neutral-200 text-slate-600 hover:text-[#D71920] hover:border-neutral-300 hover:bg-slate-50"
-                              )}
-                              title="Edit Appliance"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(product.id)}
-                              disabled={isDeleteLoading === product.id}
-                              className={cn(
-                                "p-2 border rounded-lg transition-all cursor-pointer disabled:opacity-50",
-                                isDark
-                                  ? "bg-neutral-900 border-neutral-800 text-red-500 hover:text-white hover:border-red-900 hover:bg-red-950/20"
-                                  : "bg-white border-neutral-200 text-red-500 hover:text-white hover:border-red-600 hover:bg-red-500"
-                              )}
-                              title="Delete Appliance"
-                            >
-                              {isDeleteLoading === product.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 size={14} />
-                              )}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                    {/* Stock In Line */}
+                    <polyline points={polylineIn} fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    {chartData.map((d, i) => (
+                      <circle key={`in-${i}`} cx={getPoint(d.in, i, chartData.length).split(',')[0]} cy={getPoint(d.in, i, chartData.length).split(',')[1]} r="4" fill="#10b981" />
                     ))}
-                  </tbody>
-                </table>
+
+                    {/* Stock Out Line */}
+                    <polyline points={polylineOut} fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    {chartData.map((d, i) => (
+                      <circle key={`out-${i}`} cx={getPoint(d.out, i, chartData.length).split(',')[0]} cy={getPoint(d.out, i, chartData.length).split(',')[1]} r="4" fill="#ef4444" />
+                    ))}
+
+                    {/* X-axis labels */}
+                    {chartData.map((d, i) => {
+                      // Show fewer labels if too many
+                      if (chartData.length > 20 && i % 3 !== 0) return null;
+                      const x = paddingX + (i / (chartData.length - 1)) * (graphWidth - 2 * paddingX);
+                      return (
+                        <text key={`label-${i}`} x={x} y={graphHeight - 2} fontSize="10" fill={isDark ? "#666" : "#999"} textAnchor="middle">
+                          {d.label}
+                        </text>
+                      );
+                    })}
+                  </svg>
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Transaction History Table */}
+              <div className={cn("rounded-xl border overflow-hidden", isDark ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200")}>
+                <div className="p-4 border-b border-inherit">
+                  <h3 className="text-sm font-semibold">Transaction History</h3>
+                </div>
+                
+                {filteredTransactions.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-neutral-500">
+                    No transactions found for the selected period.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className={cn("text-xs uppercase bg-black/5 dark:bg-white/5", isDark ? "text-neutral-400" : "text-neutral-500")}>
+                        <tr>
+                          <th className="px-6 py-3 font-medium">Date & Time</th>
+                          <th className="px-6 py-3 font-medium">Product</th>
+                          <th className="px-6 py-3 font-medium">Model</th>
+                          <th className="px-6 py-3 font-medium">Type</th>
+                          <th className="px-6 py-3 font-medium text-right">Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                        {filteredTransactions.map((tx) => (
+                          <tr key={tx.id} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {new Date(tx.createdAt).toLocaleString(undefined, {
+                                year: 'numeric', month: 'short', day: 'numeric',
+                                hour: '2-digit', minute: '2-digit'
+                              })}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="font-medium text-slate-900 dark:text-white truncate max-w-[200px]">{tx.product.name}</div>
+                              <div className="text-xs text-neutral-500">{tx.product.categoryLabel}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-neutral-500">
+                              {tx.product.modelNumber || "-"}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={cn(
+                                "px-2.5 py-0.5 rounded text-xs font-semibold",
+                                tx.type === "IN" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                              )}>
+                                {tx.type === "IN" ? "STOCK IN" : "STOCK OUT"}
+                              </span>
+                            </td>
+                            <td className={cn(
+                              "px-6 py-4 whitespace-nowrap text-right font-bold",
+                              tx.type === "IN" ? "text-emerald-500" : "text-red-500"
+                            )}>
+                              {tx.type === "IN" ? "+" : "-"}{tx.quantity}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </main>
       </div>
     </div>

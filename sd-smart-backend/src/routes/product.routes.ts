@@ -5,10 +5,14 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  getInventoryTransactions,
 } from "../controllers/product.controller";
 import { authenticateToken } from "../middleware/auth.middleware";
 
 const router = Router();
+
+// Protected analytics route
+router.get("/transactions", authenticateToken, getInventoryTransactions);
 
 // Public routes
 router.get("/", getProducts);

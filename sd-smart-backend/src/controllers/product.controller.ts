@@ -71,7 +71,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       originalPrice,
       discountPercent,
       warranty,
-      capacity,
+      productDescription,
       badge,
       href,
       inStock,
@@ -86,9 +86,11 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       secondaryCTALabel,
       secondaryCTAHref,
       imagePosition,
+      modelNumber,
+      productId,
     } = req.body;
 
-    if (!name || !category || !categoryLabel || !image || price === undefined || originalPrice === undefined) {
+    if (!name || !category || !categoryLabel || !image || price === undefined || originalPrice === undefined || !modelNumber || !productId) {
       res.status(400).json({ success: false, message: "Missing required product fields" });
       return;
     }
@@ -105,7 +107,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
         originalPrice: Number(originalPrice),
         discountPercent: discountPercent !== undefined ? Number(discountPercent) : 0,
         warranty: warranty || "1 Year",
-        capacity: capacity || null,
+        productDescription: productDescription || null,
         badge: badge || null,
         href: href || "",
         inStock: inStock !== undefined ? Boolean(inStock) : true,
@@ -120,7 +122,9 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
         secondaryCTALabel: secondaryCTALabel || null,
         secondaryCTAHref: secondaryCTAHref || null,
         imagePosition: imagePosition || "left",
-      },
+        modelNumber,
+        productId,
+      } as any,
     });
 
     res.status(201).json({ success: true, product });
@@ -146,17 +150,18 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     const parsedData: any = {};
     const allowedFields = [
       "name", "category", "categoryLabel", "image", "rating", "reviewCount",
-      "price", "originalPrice", "discountPercent", "warranty", "capacity",
+      "price", "originalPrice", "discountPercent", "warranty", "productDescription",
       "badge", "href", "inStock", "isBestSeller", "isFeatured", "eyebrow",
       "description", "specs", "startingPrice", "primaryCTALabel", "primaryCTAHref",
-      "secondaryCTALabel", "secondaryCTAHref", "imagePosition"
+      "secondaryCTALabel", "secondaryCTAHref", "imagePosition", "modelNumber", "productId",
+      "availableStock", "stockIn", "stockOut"
     ];
 
     for (const key of allowedFields) {
       if (updateData[key] !== undefined) {
         if (["rating", "price", "originalPrice", "startingPrice"].includes(key) && updateData[key] !== null) {
           parsedData[key] = Number(updateData[key]);
-        } else if (["reviewCount", "discountPercent"].includes(key) && updateData[key] !== null) {
+        } else if (["reviewCount", "discountPercent", "availableStock", "stockIn", "stockOut"].includes(key) && updateData[key] !== null) {
           parsedData[key] = Math.round(Number(updateData[key]));
         } else if (["inStock", "isBestSeller", "isFeatured"].includes(key)) {
           parsedData[key] = Boolean(updateData[key]);
@@ -166,7 +171,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       }
     }
 
-    const existingProduct = await prisma.product.findUnique({ where: { id } });
+    const existingProduct: any = await prisma.product.findUnique({ where: { id } });
     if (!existingProduct) {
       res.status(404).json({ success: false, message: "Product not found" });
       return;
@@ -176,6 +181,27 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       where: { id },
       data: parsedData,
     });
+
+    // Log Inventory Transactions if stockIn or stockOut increased
+    if (parsedData.stockIn !== undefined && parsedData.stockIn > existingProduct.stockIn) {
+      await (prisma as any).inventoryTransaction.create({
+        data: {
+          productId: id,
+          type: "IN",
+          quantity: parsedData.stockIn - existingProduct.stockIn,
+        }
+      });
+    }
+    
+    if (parsedData.stockOut !== undefined && parsedData.stockOut > existingProduct.stockOut) {
+      await (prisma as any).inventoryTransaction.create({
+        data: {
+          productId: id,
+          type: "OUT",
+          quantity: parsedData.stockOut - existingProduct.stockOut,
+        }
+      });
+    }
 
     res.json({ success: true, product: updatedProduct });
   } catch (error: any) {
@@ -209,5 +235,35 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
   } catch (error: any) {
     console.error("Delete product error:", error);
     res.status(500).json({ success: false, message: "Failed to delete product" });
+  }
+};
+
+// Get Inventory Transactions (Admin only)
+export const getInventoryTransactions = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    const transactions = await (prisma as any).inventoryTransaction.findMany({
+      include: {
+        product: {
+          select: {
+            name: true,
+            productId: true,
+            modelNumber: true,
+            categoryLabel: true,
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    res.json({ success: true, transactions });
+  } catch (error: any) {
+    console.error("Get transactions error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch transactions" });
   }
 };

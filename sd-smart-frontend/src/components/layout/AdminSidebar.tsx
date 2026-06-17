@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { 
   LayoutDashboard, PlusCircle, LogOut, Sun, Moon, 
-  Home, Shield, Menu, X, ArrowLeftRight
+  Home, Shield, Menu, X, ArrowLeftRight, Package
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -29,9 +29,9 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       href: "/admin/dashboard",
     },
     {
-      label: "Add Appliance",
-      icon: PlusCircle,
-      href: "/admin/manage-product",
+      label: "Products",
+      icon: Package,
+      href: "/admin/products",
     },
   ];
 
