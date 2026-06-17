@@ -43,7 +43,7 @@ model Product {
   originalPrice    Float
   discountPercent  Int      @default(0)
   warranty         String   @default("1 Year")
-  capacity         String?
+  productDescription String?
   badge            String?
   href             String   @default("")
   inStock          Boolean  @default(true)
@@ -58,6 +58,21 @@ model Product {
   secondaryCTALabel String?
   secondaryCTAHref  String?
   imagePosition    String?  @default("left")
+  modelNumber      String?
+  productId        String?
+  availableStock   Int      @default(0)
+  stockIn          Int      @default(0)
+  stockOut         Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  transactions     InventoryTransaction[]
+}
+
+model InventoryTransaction {
+  id        String   @id @default(uuid())
+  productId String
+  type      String   // "IN" or "OUT"
+  quantity  Int
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }

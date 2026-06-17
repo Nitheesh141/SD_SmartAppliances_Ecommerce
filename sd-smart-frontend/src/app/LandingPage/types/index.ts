@@ -37,6 +37,11 @@ export interface Product {
   badge?: "Best Seller" | "Top Rated" | "New" | "Sale";
   href: string;
   inStock: boolean;
+  modelNumber?: string;
+  productId?: string;
+  availableStock?: number;
+  stockIn?: number;
+  stockOut?: number;
 }
 
 // ─── Feature / Why Choose ────────────────────────────────────────────────────

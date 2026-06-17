@@ -71,6 +71,11 @@ export interface Product {
   inStock: boolean;
   quantity: number;
   specifications?: Record<string, string>;
+  modelNumber?: string;
+  productId?: string;
+  availableStock?: number;
+  stockIn?: number;
+  stockOut?: number;
   createdAt: string;
   updatedAt: string;
 }

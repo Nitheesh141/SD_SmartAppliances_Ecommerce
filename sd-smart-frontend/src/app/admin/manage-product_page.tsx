@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
-import { 
-  Check, X, Loader2, ArrowLeft, Trash2, Plus, Settings, Layers
+import {
+  Check, X, Loader2, ArrowLeft, Trash2, Plus, Settings, Layers, UploadCloud
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ interface SpecItem {
 export default function AdminManagePage() {
   const router = useRouter();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  
+
   const [productId, setProductId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSubmitLoading, setIsSubmitLoading] = useState(false);
@@ -41,18 +41,21 @@ export default function AdminManagePage() {
 
   // Form Fields State
   const [name, setName] = useState("");
+  const [modelNumber, setModelNumber] = useState("");
+  const [product_id, setproduct_id] = useState("");
   const [category, setCategory] = useState("pressure-cookers");
   const [categoryLabel, setCategoryLabel] = useState("Pressure Cookers");
   const [image, setImage] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [price, setPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
   const [warranty, setWarranty] = useState("1 Year");
-  const [capacity, setCapacity] = useState("");
+  const [productDescription, setProductDescription] = useState("");
   const [badge, setBadge] = useState("");
   const [inStock, setInStock] = useState(true);
   const [isBestSeller, setIsBestSeller] = useState(false);
   const [isFeatured, setIsFeatured] = useState(false);
-  
+
   // Featured-specific Fields
   const [eyebrow, setEyebrow] = useState("");
   const [description, setDescription] = useState("");
@@ -60,6 +63,108 @@ export default function AdminManagePage() {
   const [newSpecLabel, setNewSpecLabel] = useState("");
   const [newSpecValue, setNewSpecValue] = useState("");
   const [imagePosition, setImagePosition] = useState("left");
+
+  // Keep the primary image synced with the first element of images list
+  useEffect(() => {
+    setImage(images[0] || "");
+  }, [images]);
+
+  // Image helpers
+  const handleFiles = async (files: FileList) => {
+    const fileArray = Array.from(files);
+
+    const formData = new FormData();
+    fileArray.forEach(file => {
+      console.log("Appending file:", file.name, file.size, file.type);
+      formData.append("files", file);
+    });
+
+    console.log("FormData entries:");
+    for (let pair of formData.entries()) {
+      console.log(pair[0], pair[1]);
+    }
+
+    try {
+      toast.info(`Uploading ${fileArray.length} image(s)...`);
+      const response = await fetch("http://localhost:5000/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to upload images");
+      }
+
+      const data = await response.json();
+      if (data.success && data.urls) {
+        setImages((prev) => [...prev, ...data.urls]);
+        toast.success(`${data.urls.length} image(s) uploaded successfully`);
+      } else {
+        throw new Error(data.message || "Upload failed");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload one or more images");
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+    toast.success("Image removed");
+  };
+
+  const makePrimary = (index: number) => {
+    setImages((prev) => {
+      const copy = [...prev];
+      const [item] = copy.splice(index, 1);
+      return [item, ...copy];
+    });
+    toast.success("Image set as primary");
+  };
+
+  const compressAndConvertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(event.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressed = canvas.toDataURL("image/jpeg", 0.75);
+          resolve(compressed);
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
 
   // Route protection & Query param check
   useEffect(() => {
@@ -90,13 +195,22 @@ export default function AdminManagePage() {
       const product = data.product;
 
       setName(product.name);
+      setModelNumber(product.modelNumber || "");
+      setproduct_id(product.productId || "");
       setCategory(product.category);
       setCategoryLabel(product.categoryLabel);
       setImage(product.image);
+      if (product.images && product.images.length > 0) {
+        setImages(product.images);
+      } else if (product.image) {
+        setImages([product.image]);
+      } else {
+        setImages([]);
+      }
       setPrice(String(product.price));
       setOriginalPrice(String(product.originalPrice));
       setWarranty(product.warranty);
-      setCapacity(product.capacity || "");
+      setProductDescription(product.productDescription || "");
       setBadge(product.badge || "");
       setInStock(product.inStock);
       setIsBestSeller(product.isBestSeller);
@@ -104,7 +218,7 @@ export default function AdminManagePage() {
       setEyebrow(product.eyebrow || "");
       setDescription(product.description || "");
       setImagePosition(product.imagePosition || "left");
-      
+
       let parsedSpecs: SpecItem[] = [];
       if (product.specs) {
         if (typeof product.specs === "string") {
@@ -173,19 +287,21 @@ export default function AdminManagePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || !image || !price || !originalPrice) {
+    if (!name || !image || !price || !originalPrice || !modelNumber || !product_id) {
       toast.error("Please fill in all required fields.");
       return;
     }
 
     const priceNum = Number(price);
     const originalPriceNum = Number(originalPrice);
-    const discountPercent = originalPriceNum > 0 
+    const discountPercent = originalPriceNum > 0
       ? Math.round(((originalPriceNum - priceNum) / originalPriceNum) * 100)
       : 0;
 
     const payload: any = {
       name,
+      modelNumber,
+      productId: product_id,
       category,
       categoryLabel,
       image,
@@ -193,7 +309,7 @@ export default function AdminManagePage() {
       originalPrice: originalPriceNum,
       discountPercent: discountPercent > 0 ? discountPercent : 0,
       warranty,
-      capacity: capacity || null,
+      productDescription: productDescription || null,
       badge: badge || null,
       inStock,
       isBestSeller,
@@ -217,7 +333,7 @@ export default function AdminManagePage() {
     const token = localStorage.getItem("authToken");
 
     try {
-      const url = productId 
+      const url = productId
         ? `http://localhost:5000/api/products/${productId}`
         : "http://localhost:5000/api/products";
       const method = productId ? "PUT" : "POST";
@@ -303,7 +419,7 @@ export default function AdminManagePage() {
 
       {/* Main Panel Content Area */}
       <div className="flex-grow lg:pl-64 flex flex-col min-h-screen">
-        
+
         {/* Dynamic Inner Page Header */}
         <header className={cn(
           "px-6 py-6 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-colors duration-300",
@@ -321,7 +437,7 @@ export default function AdminManagePage() {
               {productId ? "Update appliance specifications, prices, and visual hero properties." : "Publish a new smart kitchen product catalog appliance."}
             </p>
           </div>
-          
+
           <button
             onClick={() => router.push("/admin/dashboard")}
             className={cn(
@@ -343,7 +459,7 @@ export default function AdminManagePage() {
             isDark ? "bg-neutral-950/60 border-neutral-800/80" : "bg-white border-neutral-200"
           )}>
             <form onSubmit={handleSubmit} className="space-y-6">
-              
+
               {/* General Specs */}
               <div className="space-y-4">
                 <h3 className={cn(
@@ -353,7 +469,7 @@ export default function AdminManagePage() {
                   <Settings size={14} />
                   <span>General Specifications</span>
                 </h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Name */}
                   <div className="md:col-span-2">
@@ -371,11 +487,60 @@ export default function AdminManagePage() {
                       placeholder="e.g. SD Intelli-Flame 3-Burner LPG Stove"
                       className={cn(
                         "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
-                        isDark 
-                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600" 
+                        isDark
+                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
                           : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
                       )}
                     />
+                  </div>
+
+                  {/* Model Number and Product ID */}
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Model Number */}
+                    <div>
+                      <label className={cn(
+                        "block text-xs font-bold uppercase tracking-wider mb-1.5",
+                        isDark ? "text-neutral-400" : "text-slate-600"
+                      )}>
+                        Model Number *
+                      </label>
+                      <input
+                        type="text"
+                        value={modelNumber}
+                        onChange={(e) => setModelNumber(e.target.value)}
+                        required
+                        placeholder="e.g. SD-IF-3B"
+                        className={cn(
+                          "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
+                          isDark
+                            ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
+                            : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+                        )}
+                      />
+                    </div>
+
+                    {/* Product ID */}
+                    <div>
+                      <label className={cn(
+                        "block text-xs font-bold uppercase tracking-wider mb-1.5",
+                        isDark ? "text-neutral-400" : "text-slate-600"
+                      )}>
+                        Product ID *
+                      </label>
+                      <input
+                        type="text"
+                        value={product_id}
+                        onChange={(e) => setproduct_id(e.target.value)}
+                        required
+                        placeholder="e.g. APPL-COOK-001"
+                        className={cn(
+                          "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
+                          isDark
+                            ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
+                            : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+                        )}
+                      />
+                    </div>
                   </div>
 
                   {/* Category Selection */}
@@ -391,8 +556,8 @@ export default function AdminManagePage() {
                       onChange={(e) => handleCategoryChange(e.target.value)}
                       className={cn(
                         "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all cursor-pointer",
-                        isDark 
-                          ? "bg-neutral-900 border-neutral-800 text-white" 
+                        isDark
+                          ? "bg-neutral-900 border-neutral-800 text-white"
                           : "bg-white border-slate-300 text-slate-900"
                       )}
                     >
@@ -405,27 +570,126 @@ export default function AdminManagePage() {
                     </select>
                   </div>
 
-                  {/* Image Path/URL */}
-                  <div>
+                  {/* Image Upload Area */}
+                  <div className="md:col-span-2 space-y-3">
                     <label className={cn(
                       "block text-xs font-bold uppercase tracking-wider mb-1.5",
                       isDark ? "text-neutral-400" : "text-slate-600"
                     )}>
-                      Image Path or URL *
+                      Appliance Images *
                     </label>
-                    <input
-                      type="text"
-                      value={image}
-                      onChange={(e) => setImage(e.target.value)}
-                      required
-                      placeholder="e.g. /sd-smart-ecommerce/Categories-1.png"
+
+                    {/* Drag and drop upload zone */}
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const files = e.dataTransfer.files;
+                        if (files) handleFiles(files);
+                      }}
+                      onClick={() => document.getElementById("file-upload-input")?.click()}
                       className={cn(
-                        "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
-                        isDark 
-                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600" 
-                          : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+                        "border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5",
+                        isDark
+                          ? "bg-neutral-900/40 border-neutral-800 hover:border-[#D71920]/50 hover:bg-neutral-900/60"
+                          : "bg-neutral-50/55 border-slate-300 hover:border-[#D71920]/50 hover:bg-neutral-50/80"
                       )}
-                    />
+                    >
+                      <input
+                        id="file-upload-input"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files) handleFiles(e.target.files);
+                        }}
+                        className="hidden"
+                      />
+                      <div className={cn(
+                        "w-12 h-12 rounded-full flex items-center justify-center transition-transform duration-300 hover:scale-110",
+                        isDark ? "bg-neutral-800 text-neutral-400" : "bg-slate-100 text-slate-500"
+                      )}>
+                        <UploadCloud className="w-6 h-6 text-[#D71920]" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold">
+                          Click to upload or drag & drop
+                        </p>
+                        <p className={cn("text-xs", isDark ? "text-neutral-500" : "text-slate-400")}>
+                          SVG, PNG, JPG or WEBP (Max width/height 800px)
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Preview list */}
+                    {images.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 animate-fade-in">
+                        {images.map((imgSrc, index) => (
+                          <div
+                            key={index}
+                            className={cn(
+                              "group relative aspect-square rounded-xl overflow-hidden border transition-all duration-300 shadow-md",
+                              index === 0
+                                ? "border-[#D71920] ring-2 ring-[#D71920]/20"
+                                : isDark ? "border-neutral-800 bg-neutral-900" : "border-slate-200 bg-white"
+                            )}
+                          >
+                            <img
+                              src={imgSrc}
+                              alt={`Appliance image ${index + 1}`}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+
+                            {/* Overlay Controls */}
+                            <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-2">
+                              {/* Top Bar: Delete action */}
+                              <div className="flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeImage(index);
+                                  }}
+                                  className="w-7 h-7 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center transition-colors shadow cursor-pointer"
+                                  title="Delete image"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+
+                              {/* Bottom Bar: Primary / Make Primary action */}
+                              <div>
+                                {index === 0 ? (
+                                  <span className="w-full block text-center py-1 bg-[#D71920] text-white text-[10px] font-bold uppercase tracking-wider rounded-md">
+                                    Primary
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      makePrimary(index);
+                                    }}
+                                    className="w-full py-1 bg-white hover:bg-slate-100 text-slate-900 text-[10px] font-bold uppercase tracking-wider rounded-md shadow transition-colors cursor-pointer"
+                                  >
+                                    Set Primary
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Non-hover Badges */}
+                            {index === 0 && (
+                              <div className="absolute top-2 left-2 pointer-events-none">
+                                <span className="px-1.5 py-0.5 bg-[#D71920] text-white text-[9px] font-bold uppercase tracking-wider rounded">
+                                  Primary
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Price (Selling Price) */}
@@ -445,8 +709,8 @@ export default function AdminManagePage() {
                       placeholder="6499"
                       className={cn(
                         "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
-                        isDark 
-                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600" 
+                        isDark
+                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
                           : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
                       )}
                     />
@@ -469,8 +733,8 @@ export default function AdminManagePage() {
                       placeholder="8499"
                       className={cn(
                         "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
-                        isDark 
-                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600" 
+                        isDark
+                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
                           : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
                       )}
                     />
@@ -491,30 +755,29 @@ export default function AdminManagePage() {
                       placeholder="e.g. 5 Years"
                       className={cn(
                         "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
-                        isDark 
-                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600" 
+                        isDark
+                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
                           : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
                       )}
                     />
                   </div>
 
-                  {/* Capacity */}
+                  {/* Product-description */}
                   <div>
                     <label className={cn(
                       "block text-xs font-bold uppercase tracking-wider mb-1.5",
                       isDark ? "text-neutral-400" : "text-slate-600"
                     )}>
-                      Capacity <span className="text-[10px] text-neutral-500 font-semibold">(e.g. 5 Litres, 3 Burners)</span>
+                      Product-description <span className="text-[10px] text-neutral-500 font-semibold"></span>
                     </label>
-                    <input
-                      type="text"
-                      value={capacity}
-                      onChange={(e) => setCapacity(e.target.value)}
-                      placeholder="e.g. 5 Litres"
+                    <textarea
+                      value={productDescription}
+                      onChange={(e) => setProductDescription(e.target.value)}
+                      placeholder="Enter product-description"
                       className={cn(
                         "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
-                        isDark 
-                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600" 
+                        isDark
+                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
                           : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
                       )}
                     />
@@ -533,8 +796,8 @@ export default function AdminManagePage() {
                       onChange={(e) => setBadge(e.target.value)}
                       className={cn(
                         "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all cursor-pointer",
-                        isDark 
-                          ? "bg-neutral-900 border-neutral-800 text-white" 
+                        isDark
+                          ? "bg-neutral-900 border-neutral-800 text-white"
                           : "bg-white border-slate-300 text-slate-900"
                       )}
                     >
@@ -609,8 +872,8 @@ export default function AdminManagePage() {
                         placeholder="e.g. APP CONTROLLED"
                         className={cn(
                           "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
-                          isDark 
-                            ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600" 
+                          isDark
+                            ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
                             : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
                         )}
                       />
@@ -629,8 +892,8 @@ export default function AdminManagePage() {
                         onChange={(e) => setImagePosition(e.target.value)}
                         className={cn(
                           "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all cursor-pointer",
-                          isDark 
-                            ? "bg-neutral-900 border-neutral-800 text-white" 
+                          isDark
+                            ? "bg-neutral-900 border-neutral-800 text-white"
                             : "bg-white border-slate-300 text-slate-900"
                         )}
                       >
@@ -655,8 +918,8 @@ export default function AdminManagePage() {
                         placeholder="Our flagship smart cooker combines safety, efficiency, and smart connectivity..."
                         className={cn(
                           "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all resize-none",
-                          isDark 
-                            ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600" 
+                          isDark
+                            ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
                             : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
                         )}
                       />
@@ -679,8 +942,8 @@ export default function AdminManagePage() {
                               key={index}
                               className={cn(
                                 "px-2.5 py-1 border rounded-lg flex items-center gap-2 text-xs font-medium",
-                                isDark 
-                                  ? "bg-neutral-900 border-neutral-850 text-neutral-300" 
+                                isDark
+                                  ? "bg-neutral-900 border-neutral-850 text-neutral-300"
                                   : "bg-slate-100 border-slate-200 text-slate-700"
                               )}
                             >
@@ -707,8 +970,8 @@ export default function AdminManagePage() {
                           placeholder="Spec Name (e.g. Sensors)"
                           className={cn(
                             "flex-1 px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#D71920] transition-all",
-                            isDark 
-                              ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600" 
+                            isDark
+                              ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
                               : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
                           )}
                         />
@@ -719,8 +982,8 @@ export default function AdminManagePage() {
                           placeholder="Spec Value (e.g. Temp & Pressure)"
                           className={cn(
                             "flex-1 px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#D71920] transition-all",
-                            isDark 
-                              ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600" 
+                            isDark
+                              ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
                               : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
                           )}
                         />
@@ -729,8 +992,8 @@ export default function AdminManagePage() {
                           onClick={handleAddSpec}
                           className={cn(
                             "px-3 py-2 border rounded-lg text-xs font-bold hover:text-white transition-all flex items-center gap-1 cursor-pointer flex-shrink-0",
-                            isDark 
-                              ? "bg-neutral-900 border-neutral-800 text-[#D71920] hover:bg-neutral-800" 
+                            isDark
+                              ? "bg-neutral-900 border-neutral-800 text-[#D71920] hover:bg-neutral-800"
                               : "bg-slate-50 border-slate-200 text-[#D71920] hover:bg-[#D71920]"
                           )}
                         >
