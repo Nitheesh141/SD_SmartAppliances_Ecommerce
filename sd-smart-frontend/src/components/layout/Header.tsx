@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Search, User, Heart, ShoppingCart, ChevronDown, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "../../app/LandingPage/types";
 import { THEME_CLASSES } from "@/config/themes";
 import { useAuth } from "@/providers/AuthProvider";
+import { useDynamicProducts } from "@/hooks/useDynamicProducts";
 
 interface HeaderProps {
   navLinks?: NavLink[];
@@ -25,12 +26,12 @@ const defaultNavLinks = [
 ];
 
 const shopDropdownLinks = [
-  { label: "Pressure Cookers", href: "/shop/pressure-cookers" },
-  { label: "Wet Grinders", href: "/shop/wet-grinders" },
-  { label: "Gas Stoves", href: "/shop/gas-stoves" },
-  { label: "Non-Stick Cookware", href: "/shop/non-stick" },
-  { label: "Kitchen Accessories", href: "/shop/accessories" },
-  { label: "Commercial Products", href: "/shop/commercial" },
+  { label: "Pressure Cookers", href: "/shop?category=pressure-cookers" },
+  { label: "Wet Grinders", href: "/shop?category=wet-grinders" },
+  { label: "Gas Stoves", href: "/shop?category=gas-stoves" },
+  { label: "Non-Stick Cookware", href: "/shop?category=non-stick" },
+  { label: "Kitchen Accessories", href: "/shop?category=accessories" },
+  { label: "Commercial Products", href: "/shop?category=commercial" },
 ];
 
 export default function Header({ navLinks = defaultNavLinks, isAuthenticated: propIsAuthenticated, userProfile: propUserProfile }: HeaderProps) {
@@ -46,6 +47,11 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
   const [isLoaded, setIsLoaded] = useState(false);
   const pathname = usePathname() || "";
 
+  const router = useRouter();
+  const allProducts = useDynamicProducts();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+
   useEffect(() => {
     setIsLoaded(true);
     const handleScroll = () => {
@@ -55,12 +61,44 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    if (value.trim().length >= 2) {
+      const filtered = allProducts.filter((product) =>
+        product.name.toLowerCase().includes(value.toLowerCase()) ||
+        product.categoryLabel?.toLowerCase().includes(value.toLowerCase())
+      );
+      setSuggestions(filtered.slice(0, 5));
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const handleSearchSubmit = (query: string) => {
+    if (query.trim()) {
+      router.push(`/shop?search=${encodeURIComponent(query)}`);
+      setSearchOpen(false);
+      setSearchQuery("");
+      setSuggestions([]);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearchSubmit(searchQuery);
+    }
+  };
+
+  const handleSuggestionClick = (productName: string) => {
+    handleSearchSubmit(productName);
+  };
+
   return (
     <header className={cn(
       "sticky top-0 z-50 transition-all duration-500 will-change-transform",
       isScrolled
-        ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-b border-neutral-200/50 shadow-[0_5px_22px_rgba(215,25,32,0.22)] dark:shadow-[0_5px_25px_rgba(215,25,32,0.38)] py-1"
-        : "bg-red-50 dark:bg-[#1A090A] border-b border-neutral-200/20 shadow-[0_3px_16px_rgba(215,25,32,0.15)] dark:shadow-[0_3px_20px_rgba(215,25,32,0.28)] py-1",
+        ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-b border-neutral-200/50 shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] py-1"
+        : "bg-red-50 dark:bg-[#1A090A] border-b border-neutral-200/20 shadow-[0_2px_8px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)] py-1",
       isLoaded ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
     )}>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
@@ -131,19 +169,51 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
             )}
           </nav>
 
-          {/* Search — desktop (Icon Only) */}
-          <div className="hidden md:flex ml-auto">
+          {/* Search & Actions Group */}
+          <div className="flex items-center gap-2.5 ml-auto">
+            
+            {/* Search Input inline */}
+            {searchOpen && (
+              <div className="hidden md:block relative w-64 animate-in fade-in slide-in-from-right-4 duration-200">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Search pressure cookers, wet grinders..."
+                  autoFocus
+                  className="w-full pl-9 pr-4 py-1.5 text-xs font-semibold border border-[#D71920] rounded-xl bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 text-slate-800 dark:text-neutral-100 shadow-sm"
+                />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                
+                {/* Suggestions List dropdown */}
+                {suggestions.length > 0 && (
+                  <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-2 z-50 max-h-60 overflow-y-auto">
+                    {suggestions.map((product) => (
+                      <button
+                        key={product.id}
+                        onClick={() => handleSuggestionClick(product.name)}
+                        className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-red-50/50 dark:hover:bg-red-950/20 text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 flex items-center justify-between border-b border-neutral-50 dark:border-neutral-800/40 last:border-0 cursor-pointer"
+                      >
+                        <span className="truncate">{product.name}</span>
+                        <span className="text-[10px] text-neutral-400 font-bold bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">{product.categoryLabel}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Search Icon */}
             <button
               onClick={() => setSearchOpen(!searchOpen)}
-              className="p-2 text-neutral-600 hover:text-[#D71920] rounded-lg transition-colors"
+              className="p-2 text-neutral-600 hover:text-[#D71920] rounded-lg transition-colors cursor-pointer"
               aria-label="Search"
             >
               <Search size={18} />
             </button>
-          </div>
 
-          {/* Auth Actions */}
-          <div className="flex items-center gap-2 ml-auto lg:ml-2">
+            {/* Auth Actions */}
             {isAuthenticated ? (
               <>
                 {/* Authenticated: Profile, Wishlist, Cart */}
@@ -185,7 +255,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
 
             {/* Mobile menu toggle */}
             <button
-              className="lg:hidden p-2 text-neutral-600 hover:text-[#D71920] rounded-lg transition-colors"
+              className="lg:hidden p-2 text-neutral-600 hover:text-[#D71920] rounded-lg transition-colors cursor-pointer"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label="Menu"
             >
@@ -193,21 +263,6 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
             </button>
           </div>
         </div>
-
-        {/* Search Bar (Hidden, Shows on Click) */}
-        {searchOpen && (
-          <div className="hidden md:flex py-3 border-t border-neutral-100">
-            <div className="relative w-full max-w-xs">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-              <input
-                type="text"
-                placeholder="Search pressure cookers, wet grinders..."
-                autoFocus
-                className="w-full pl-9 pr-4 py-2 text-sm border border-neutral-200 rounded-md bg-neutral-50 outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all"
-              />
-            </div>
-          </div>
-        )}
 
         {/* Mobile menu */}
         {mobileOpen && (

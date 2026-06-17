@@ -84,37 +84,6 @@ const ShopPage = dynamic(() => import("../app/shop/shoppage"), {
   ssr: true,
 });
 
-// Category components
-const PressureCookersPage = dynamic(() => import("../app/shop/pressure-cookers/pressure-cookerspage"), {
-  loading: PageLoader,
-  ssr: true,
-});
-
-const WetGrindersPage = dynamic(() => import("../app/shop/wet-grinders/wet-grinderspage"), {
-  loading: PageLoader,
-  ssr: true,
-});
-
-const GasStovesPage = dynamic(() => import("../app/shop/gas-stoves/gas-stovespage"), {
-  loading: PageLoader,
-  ssr: true,
-});
-
-const NonStickPage = dynamic(() => import("../app/shop/non-stick/non-stickpage"), {
-  loading: PageLoader,
-  ssr: true,
-});
-
-const CommercialPage = dynamic(() => import("../app/shop/commercial/commercialpage"), {
-  loading: PageLoader,
-  ssr: true,
-});
-
-const AccessoriesPage = dynamic(() => import("../app/shop/accessories/accessoriespage"), {
-  loading: PageLoader,
-  ssr: true,
-});
-
 // Support & policies
 const SupportPage = dynamic(() => import("../app/support/supportpage"), {
   loading: PageLoader,
@@ -162,12 +131,6 @@ export const routes: Record<string, React.ComponentType<any>> = {
   "/account": AccountPage,
   "/checkout": CheckoutPage,
   "/shop": ShopPage,
-  "/shop/pressure-cookers": PressureCookersPage,
-  "/shop/wet-grinders": WetGrindersPage,
-  "/shop/gas-stoves": GasStovesPage,
-  "/shop/non-stick": NonStickPage,
-  "/shop/commercial": CommercialPage,
-  "/shop/accessories": AccessoriesPage,
   "/support": SupportPage,
   "/warranty-registration": WarrantyRegistrationPage,
   "/service-request": ServiceRequestPage,
