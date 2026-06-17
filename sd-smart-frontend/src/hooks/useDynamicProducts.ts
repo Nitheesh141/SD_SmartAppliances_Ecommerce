@@ -1,15 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { bestSellingProducts } from "../app/LandingPage/data/products";
-
 export function useDynamicProducts(category?: string) {
-  const [products, setProducts] = useState<any[]>(() => {
-    if (category) {
-      return bestSellingProducts.filter(p => p.category === category);
-    }
-    return bestSellingProducts;
-  });
+  const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {
     const loadProducts = async () => {

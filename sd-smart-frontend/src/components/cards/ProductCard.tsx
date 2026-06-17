@@ -70,20 +70,15 @@ export default function ProductCard({ product, className }: ProductCardProps) {
         }}
       />
       {/* Image area */}
-      <Link href={product.href} className="block relative aspect-[4/3] overflow-hidden bg-neutral-50">
-        {product.image.startsWith("/") ? (
-          <div className="w-full h-full flex items-center justify-center bg-neutral-100 text-neutral-300 text-sm">
-            {product.name}
-          </div>
-        ) : (
-          <Image
-            src={product.image}
-            alt={product.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-          />
-        )}
+      <Link href={product.href} className="block relative aspect-[4/3] overflow-hidden bg-neutral-50 flex items-center justify-center">
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "/sd-smart-ecommerce/SD-logo.png";
+          }}
+        />
 
         {/* Overlay action buttons (show on hover) */}
         <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
