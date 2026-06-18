@@ -42,6 +42,7 @@ export interface Product {
   availableStock?: number;
   stockIn?: number;
   stockOut?: number;
+  variantDetails?: Record<string, any>;
 }
 
 // ─── Feature / Why Choose ────────────────────────────────────────────────────

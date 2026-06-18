@@ -114,7 +114,7 @@ export default function ShopPage() {
     }
 
     // Availability Filter
-    if (inStockOnly && !product.inStock) {
+    if (inStockOnly && (!product.inStock || product.availableStock === 0)) {
       return false;
     }
 

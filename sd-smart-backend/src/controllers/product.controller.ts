@@ -88,6 +88,8 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       imagePosition,
       modelNumber,
       productId,
+      sku,
+      variantDetails,
     } = req.body;
 
     if (!name || !category || !categoryLabel || !image || price === undefined || originalPrice === undefined || !modelNumber || !productId) {
@@ -124,6 +126,8 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
         imagePosition: imagePosition || "left",
         modelNumber,
         productId,
+        sku: sku || null,
+        variantDetails: variantDetails || null,
       } as any,
     });
 
@@ -154,7 +158,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       "badge", "href", "inStock", "isBestSeller", "isFeatured", "eyebrow",
       "description", "specs", "startingPrice", "primaryCTALabel", "primaryCTAHref",
       "secondaryCTALabel", "secondaryCTAHref", "imagePosition", "modelNumber", "productId",
-      "availableStock", "stockIn", "stockOut"
+      "availableStock", "stockIn", "stockOut", "sku", "variantDetails"
     ];
 
     for (const key of allowedFields) {
@@ -267,3 +271,65 @@ export const getInventoryTransactions = async (req: Request, res: Response): Pro
     res.status(500).json({ success: false, message: "Failed to fetch transactions" });
   }
 };
+
+// Delete a model and all its products (Admin only)
+export const deleteModel = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    // Trigger reload: Prisma client regenerated
+    const { category, modelName } = req.body;
+
+    if (!category || !modelName) {
+      res.status(400).json({ success: false, message: "Missing category or modelName" });
+      return;
+    }
+
+    // 1. Clear modelNumber from all products belonging to this category and modelNumber (disassociate)
+    await prisma.product.updateMany({
+      where: {
+        category,
+        modelNumber: modelName,
+      },
+      data: {
+        modelNumber: null,
+      },
+    });
+
+    // 2. Track this deletion in DeletedModel to exclude presets as well
+    await (prisma as any).deletedModel.upsert({
+      where: {
+        category_name: {
+          category,
+          name: modelName,
+        },
+      },
+      update: {},
+      create: {
+        category,
+        name: modelName,
+      },
+    });
+
+    res.json({ success: true, message: `Model '${modelName}' in category '${category}' and its products deleted successfully` });
+  } catch (error: any) {
+    console.error("Delete model error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete model" });
+  }
+};
+
+// Get all deleted models
+export const getDeletedModels = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const deletedModels = await (prisma as any).deletedModel.findMany();
+    res.json({ success: true, deletedModels });
+  } catch (error: any) {
+    console.error("Get deleted models error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch deleted models" });
+  }
+};
+

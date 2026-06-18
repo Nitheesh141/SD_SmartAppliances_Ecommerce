@@ -60,6 +60,8 @@ model Product {
   imagePosition    String?  @default("left")
   modelNumber      String?
   productId        String?
+  sku              String?  @unique
+  variantDetails   Json?
   availableStock   Int      @default(0)
   stockIn          Int      @default(0)
   stockOut         Int      @default(0)
@@ -76,3 +78,13 @@ model InventoryTransaction {
   createdAt DateTime @default(now())
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
+
+model DeletedModel {
+  id        String   @id @default(uuid())
+  category  String
+  name      String
+  createdAt DateTime @default(now())
+
+  @@unique([category, name])
+}
+
