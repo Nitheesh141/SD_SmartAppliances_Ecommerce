@@ -35,6 +35,27 @@ export default function ProductCard({ product, className }: ProductCardProps) {
   const [wishlisted, setWishlisted] = useState(false);
   const specTags = getSpecTags(product.categoryLabel);
 
+  // Extract display attribute dynamically from variantDetails or fallback to product.capacity
+  const displayAttribute = (() => {
+    if (product.capacity) return product.capacity;
+    const details = product.variantDetails;
+    if (details && typeof details === "object") {
+      const keys = Object.keys(details);
+      if (keys.length > 0) {
+        // Prefer Capacity, Size, Burner Count, Type if they exist (case-insensitive)
+        const preferredKey = keys.find(k => 
+          /capacity|size|burner|type/i.test(k)
+        );
+        if (preferredKey) {
+          return details[preferredKey];
+        }
+        // Fallback to first attribute value
+        return details[keys[0]];
+      }
+    }
+    return null;
+  })();
+
   return (
     <div
       onMouseMove={(e) => {
@@ -159,10 +180,10 @@ export default function ProductCard({ product, className }: ProductCardProps) {
         <div className="flex items-center gap-1 text-xs text-neutral-500 mb-4">
           <ShieldCheck size={12} className="text-neutral-400" />
           <span>{product.warranty}</span>
-          {product.capacity && (
+          {displayAttribute && (
             <>
               <span className="text-neutral-300">·</span>
-              <span>{product.capacity}</span>
+              <span>{displayAttribute}</span>
             </>
           )}
         </div>

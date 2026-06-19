@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
@@ -14,6 +14,68 @@ interface SpecItem {
   label: string;
   value: string;
 }
+
+// Preset attributes and values based on category to assist data entry
+const attributePresets: Record<string, Array<{ name: string; values: string[] }>> = {
+  "pressure-cookers": [
+    { name: "Capacity", values: ["2L", "3L", "5L", "7L", "10L", "12L"] },
+    { name: "Material", values: ["Aluminium", "Stainless Steel"] },
+    { name: "Base Type", values: ["Induction Base", "Standard Base"] }
+  ],
+  "gas-stoves": [
+    { name: "Burner Count", values: ["2B", "3B", "4B"] },
+    { name: "Top Type", values: ["Glass Top", "Steel"] },
+    { name: "Ignition Type", values: ["Manual", "Auto Ignition"] }
+  ],
+  "mixer-grinders": [
+    { name: "Wattage", values: ["500W", "750W", "1000W"] },
+    { name: "Jar Count", values: ["3 Jars", "4 Jars"] }
+  ],
+  "wet-grinders": [
+    { name: "Capacity", values: ["2L", "3L"] },
+    { name: "Type", values: ["Tilting", "Table Top", "Short Body", "Height Body"] }
+  ],
+  "commercial": [
+    { name: "Capacity", values: ["3L", "5L", "7L", "10L", "15L", "20L", "25L", "30L", "40L", "50L"] },
+    { name: "Type", values: ["Tilting", "Table Top", "Commercial"] }
+  ],
+  "non-stick": [
+    { name: "Size", values: ["200mm", "240mm", "280mm"] },
+    { name: "Material", values: ["Aluminium", "Non-Stick Coated"] }
+  ]
+};
+
+// Preset model names based on category
+const categoryModels: Record<string, string[]> = {
+  "pressure-cookers": ["Deluxe", "Lexus", "Max", "Suxus"],
+  "gas-stoves": ["Jumbo", "Lexus"],
+  "mixer-grinders": ["Quad-Blade", "Smart"],
+  "wet-grinders": ["Smart Lakshmi", "Java", "Bullet", "Short Body", "Height Body"],
+  "commercial": ["Standard Commercial", "Tilting Commercial"],
+  "non-stick": ["Yummy"]
+};
+
+const categoryOptions = [
+  { value: "pressure-cookers", label: "Pressure Cookers" },
+  { value: "non-stick", label: "Non-Stick Cookware" },
+  { value: "mixer-grinders", label: "Mixer Grinders" },
+  { value: "gas-stoves", label: "LPG Stoves" },
+  { value: "wet-grinders", label: "Wet Grinders" },
+  { value: "commercial", label: "Commercial Wet Grinders" }
+];
+
+const badgeOptions = [
+  { value: "", label: "No Badge" },
+  { value: "Best Seller", label: "Best Seller" },
+  { value: "Top Rated", label: "Top Rated" },
+  { value: "New", label: "New Arrival" },
+  { value: "Sale", label: "Special Sale" }
+];
+
+const imagePositionOptions = [
+  { value: "left", label: "Left Side (Text Right)" },
+  { value: "right", label: "Right Side (Text Left)" }
+];
 
 export default function AdminManagePage() {
   const router = useRouter();
@@ -42,6 +104,7 @@ export default function AdminManagePage() {
   // Form Fields State
   const [name, setName] = useState("");
   const [modelNumber, setModelNumber] = useState("");
+  const [isCustomModel, setIsCustomModel] = useState(false);
   const [product_id, setproduct_id] = useState("");
   const [category, setCategory] = useState("pressure-cookers");
   const [categoryLabel, setCategoryLabel] = useState("Pressure Cookers");
@@ -63,6 +126,173 @@ export default function AdminManagePage() {
   const [newSpecLabel, setNewSpecLabel] = useState("");
   const [newSpecValue, setNewSpecValue] = useState("");
   const [imagePosition, setImagePosition] = useState("left");
+
+  // Variant & Multi-Step Fields
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const [attributes, setAttributes] = useState<Array<{ name: string; value: string }>>([]);
+  const [generatedSku, setGeneratedSku] = useState("");
+  const [dynamicModels, setDynamicModels] = useState<string[]>([]);
+  const [deletedPresetModels, setDeletedPresetModels] = useState<Array<{ category: string; name: string }>>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [isBadgeDropdownOpen, setIsBadgeDropdownOpen] = useState(false);
+  const [isImagePositionDropdownOpen, setIsImagePositionDropdownOpen] = useState(false);
+
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const badgeDropdownRef = useRef<HTMLDivElement>(null);
+  const imagePositionDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Helper to get category initials for SKU prefix
+  const getCategoryCode = (cat: string) => {
+    if (!cat) return "XX";
+    if (cat === "pressure-cookers") return "PC";
+    if (cat === "gas-stoves") return "GS";
+    if (cat === "mixer-grinders") return "MG";
+    if (cat === "wet-grinders") return "WG";
+    if (cat === "non-stick") return "NS";
+    if (cat === "commercial") return "CM";
+    
+    // Fallback: Split by hyphens/spaces and take first letters
+    const parts = cat.split(/[^a-zA-Z0-9]+/);
+    const initials = parts
+      .map(part => part.charAt(0))
+      .filter(Boolean)
+      .join("")
+      .toUpperCase();
+    return initials || "XX";
+  };
+
+  // Helper to sanitize attribute values for SKU
+  const sanitizeValueForSku = (val: string) => {
+    if (!val) return "";
+    const trimmed = val.trim().toLowerCase();
+    if (trimmed === "glass top") return "GT";
+    if (trimmed === "steel") return "ST";
+    
+    return trimmed
+      .replace(/\s+/g, "")
+      .replace(/[^a-z0-9-]/g, "")
+      .toUpperCase();
+  };
+
+  // SKU Auto-generation logic
+  useEffect(() => {
+    let sku = "SD";
+    const catCode = getCategoryCode(category);
+    sku += `${catCode}001`;
+
+    const modelPart = modelNumber ? modelNumber.trim().substring(0, 2).toUpperCase() : "XX";
+    sku += `-${modelPart}`;
+
+    // Append each defined attribute's sanitized value
+    attributes.forEach(attr => {
+      const sanitized = sanitizeValueForSku(attr.value);
+      if (sanitized) {
+        sku += `-${sanitized}`;
+      }
+    });
+
+    setGeneratedSku(sku);
+    setproduct_id(sku); // Sync with product_id (used as SKU in backend)
+  }, [category, modelNumber, attributes]);
+
+  // Fetch all existing models in the database for the selected category & deleted models
+  useEffect(() => {
+    const fetchCategoryModels = async () => {
+      try {
+        // Fetch all products to extract dynamic models
+        const prodResponse = await fetch("http://localhost:5000/api/products");
+        if (prodResponse.ok) {
+          const data = await prodResponse.json();
+          const list = data.products || [];
+          const catModels = list
+            .filter((p: any) => p.category === category)
+            .map((p: any) => p.modelNumber)
+            .filter(Boolean)
+            .map((m: string) => m.trim());
+          const uniqueModels = Array.from(new Set(catModels)) as string[];
+          setDynamicModels(uniqueModels);
+        }
+
+        // Fetch deleted models
+        const delResponse = await fetch("http://localhost:5000/api/products/deleted-models");
+        if (delResponse.ok) {
+          const data = await delResponse.json();
+          setDeletedPresetModels(data.deletedModels || []);
+        }
+      } catch (err) {
+        console.error("Failed to load category models:", err);
+      }
+    };
+    fetchCategoryModels();
+  }, [category]);
+
+  // Click outside listener for custom dropdown menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+      if (badgeDropdownRef.current && !badgeDropdownRef.current.contains(event.target as Node)) {
+        setIsBadgeDropdownOpen(false);
+      }
+      if (imagePositionDropdownRef.current && !imagePositionDropdownRef.current.contains(event.target as Node)) {
+        setIsImagePositionDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Handle Delete Model Name from UI & Database
+  const handleDeleteModel = async (modelName: string) => {
+    if (!window.confirm(`Are you sure you want to delete the model "${modelName}"? This will disassociate the model name from all products, but will NOT delete the products themselves.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch("http://localhost:5000/api/products/models", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          category,
+          modelName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || "Failed to delete model name");
+      }
+
+      toast.success(`Model "${modelName}" deleted successfully`);
+
+      // Add to local state of deleted models
+      setDeletedPresetModels((prev) => [...prev, { category, name: modelName }]);
+      // If the currently selected model is the one deleted, clear it
+      if (modelNumber === modelName) {
+        setModelNumber("");
+        setIsCustomModel(false);
+      }
+      
+      // Update dynamicModels to remove the deleted model
+      setDynamicModels((prev) => prev.filter((m) => m !== modelName));
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Failed to delete model name");
+    }
+  };
 
   // Keep the primary image synced with the first element of images list
   useEffect(() => {
@@ -196,6 +426,14 @@ export default function AdminManagePage() {
 
       setName(product.name);
       setModelNumber(product.modelNumber || "");
+      
+      const models = categoryModels[product.category] || [];
+      if (product.modelNumber && !models.includes(product.modelNumber)) {
+        setIsCustomModel(true);
+      } else {
+        setIsCustomModel(false);
+      }
+
       setproduct_id(product.productId || "");
       setCategory(product.category);
       setCategoryLabel(product.categoryLabel);
@@ -218,6 +456,24 @@ export default function AdminManagePage() {
       setEyebrow(product.eyebrow || "");
       setDescription(product.description || "");
       setImagePosition(product.imagePosition || "left");
+      
+      const vDetails = product.variantDetails || {};
+      const loadedAttributes: Array<{ name: string; value: string }> = [];
+      const legacyKeys = {
+        capacity: "Capacity",
+        burners: "Burner Count",
+        topType: "Top Type",
+        wattage: "Wattage",
+        jars: "Jar Count"
+      };
+      Object.entries(vDetails).forEach(([key, val]) => {
+        if (val) {
+          const name = legacyKeys[key as keyof typeof legacyKeys] || key;
+          loadedAttributes.push({ name, value: String(val) });
+        }
+      });
+      setAttributes(loadedAttributes);
+      if (product.sku) setGeneratedSku(product.sku);
 
       let parsedSpecs: SpecItem[] = [];
       if (product.specs) {
@@ -235,7 +491,7 @@ export default function AdminManagePage() {
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Failed to load product details");
-      router.push("/admin/dashboard");
+      router.push("/admin/products");
     } finally {
       setLoading(false);
     }
@@ -244,6 +500,8 @@ export default function AdminManagePage() {
   // Sync categoryLabel when category changes
   const handleCategoryChange = (cat: string) => {
     setCategory(cat);
+    setModelNumber("");
+    setIsCustomModel(false);
     switch (cat) {
       case "pressure-cookers":
         setCategoryLabel("Pressure Cookers");
@@ -315,6 +573,13 @@ export default function AdminManagePage() {
       isBestSeller,
       isFeatured,
       href: `#product-${Date.now()}`,
+      sku: generatedSku || product_id,
+      variantDetails: attributes.reduce((acc, curr) => {
+        if (curr.name.trim()) {
+          acc[curr.name.trim()] = curr.value.trim();
+        }
+        return acc;
+      }, {} as Record<string, string>),
     };
 
     if (isFeatured) {
@@ -353,7 +618,7 @@ export default function AdminManagePage() {
       }
 
       toast.success(productId ? "Product updated successfully" : "Product added successfully");
-      router.push("/admin/dashboard");
+      router.push("/admin/products");
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Failed to save product");
@@ -384,7 +649,7 @@ export default function AdminManagePage() {
       }
 
       toast.success("Product deleted successfully");
-      router.push("/admin/dashboard");
+      router.push("/admin/products");
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Failed to delete product");
@@ -460,56 +725,91 @@ export default function AdminManagePage() {
           )}>
             <form onSubmit={handleSubmit} className="space-y-6">
 
-              {/* General Specs */}
-              <div className="space-y-4">
-                <h3 className={cn(
-                  "text-xs font-bold uppercase tracking-widest border-b pb-2 flex items-center gap-1.5",
-                  isDark ? "text-neutral-400 border-neutral-800/60" : "text-slate-500 border-neutral-200"
-                )}>
-                  <Settings size={14} />
-                  <span>General Specifications</span>
-                </h3>
+              {currentStep === 1 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {/* General Specs Header */}
+                  <h3 className={cn(
+                    "text-xs font-bold uppercase tracking-widest border-b pb-2 flex items-center gap-1.5",
+                    isDark ? "text-neutral-400 border-neutral-800/60" : "text-slate-500 border-neutral-200"
+                  )}>
+                    <Settings size={14} />
+                    <span>Step 1: Appliance & Variant Details</span>
+                  </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Name */}
-                  <div className="md:col-span-2">
-                    <label className={cn(
-                      "block text-xs font-bold uppercase tracking-wider mb-1.5",
-                      isDark ? "text-neutral-400" : "text-slate-600"
-                    )}>
-                      Appliance Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                      placeholder="e.g. SD Intelli-Flame 3-Burner LPG Stove"
-                      className={cn(
-                        "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
-                        isDark
-                          ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
-                          : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
-                      )}
-                    />
-                  </div>
-
-                  {/* Model Number and Product ID */}
-                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Model Number */}
-                    <div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Category Selection */}
+                    <div ref={categoryDropdownRef} className="md:col-span-2 relative">
                       <label className={cn(
                         "block text-xs font-bold uppercase tracking-wider mb-1.5",
                         isDark ? "text-neutral-400" : "text-slate-600"
                       )}>
-                        Model Number *
+                        Appliance Category *
+                      </label>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                          className={cn(
+                            "w-full px-4 py-2.5 border rounded-lg text-sm flex items-center justify-between transition-all cursor-pointer text-left focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920]",
+                            isDark
+                              ? "bg-neutral-900 border-neutral-800 text-white"
+                              : "bg-white border-slate-300 text-slate-900"
+                          )}
+                        >
+                          <span className="truncate">
+                            {categoryOptions.find(o => o.value === category)?.label || "Select Category"}
+                          </span>
+                          <span className={cn("transition-transform duration-200 shrink-0 ml-2 text-xs", isCategoryDropdownOpen ? "rotate-180" : "")}>
+                            ▼
+                          </span>
+                        </button>
+
+                        {isCategoryDropdownOpen && (
+                          <div
+                            className={cn(
+                              "absolute z-10 mt-1.5 w-full border rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150 py-1",
+                              isDark
+                                ? "bg-neutral-950 border-neutral-800 text-white"
+                                : "bg-white border-slate-300 text-slate-900"
+                            )}
+                          >
+                            {categoryOptions.map((opt) => (
+                              <div
+                                key={opt.value}
+                                onClick={() => {
+                                  handleCategoryChange(opt.value);
+                                  setIsCategoryDropdownOpen(false);
+                                }}
+                                className={cn(
+                                  "px-4 py-2 text-sm cursor-pointer transition-colors text-left select-none",
+                                  isDark ? "hover:bg-neutral-900" : "hover:bg-slate-50",
+                                  category === opt.value
+                                    ? (isDark ? "bg-[#D71920]/10 text-[#D71920] font-semibold" : "bg-slate-100 text-[#D71920] font-semibold")
+                                    : ""
+                                )}
+                              >
+                                {opt.label}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Name */}
+                    <div className="md:col-span-2">
+                      <label className={cn(
+                        "block text-xs font-bold uppercase tracking-wider mb-1.5",
+                        isDark ? "text-neutral-400" : "text-slate-600"
+                      )}>
+                        Appliance Name *
                       </label>
                       <input
                         type="text"
-                        value={modelNumber}
-                        onChange={(e) => setModelNumber(e.target.value)}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
                         required
-                        placeholder="e.g. SD-IF-3B"
+                        placeholder="e.g. SD Smart Pressure Cooker"
                         className={cn(
                           "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
                           isDark
@@ -519,57 +819,418 @@ export default function AdminManagePage() {
                       />
                     </div>
 
-                    {/* Product ID */}
-                    <div>
+                    {/* Model Name */}
+                    <div className="md:col-span-2">
                       <label className={cn(
                         "block text-xs font-bold uppercase tracking-wider mb-1.5",
                         isDark ? "text-neutral-400" : "text-slate-600"
                       )}>
-                        Product ID *
+                        Model Name *
+                      </label>
+                      {(() => {
+                        const presets = categoryModels[category] || [];
+                        const activePresets = presets.filter(
+                          (p) => !deletedPresetModels.some((dm) => dm.category === category && dm.name.toLowerCase() === p.toLowerCase())
+                        );
+                        const allAvailableModels = Array.from(new Set([...activePresets, ...dynamicModels])).filter(Boolean);
+                        
+                        if (allAvailableModels.length > 0) {
+                          return (
+                            <div ref={dropdownRef} className="space-y-3 relative">
+                              <div className="relative">
+                                {/* Trigger Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                  className={cn(
+                                    "w-full px-4 py-2.5 border rounded-lg text-sm flex items-center justify-between transition-all cursor-pointer text-left focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920]",
+                                    isDark
+                                      ? "bg-neutral-900 border-neutral-800 text-white"
+                                      : "bg-white border-slate-300 text-slate-900"
+                                  )}
+                                >
+                                  <span className="truncate">
+                                    {isCustomModel ? "Custom..." : (modelNumber || "Select Model")}
+                                  </span>
+                                  <span className={cn("transition-transform duration-200 shrink-0 ml-2 text-xs", isDropdownOpen ? "rotate-180" : "")}>
+                                    ▼
+                                  </span>
+                                </button>
+
+                                {/* Dropdown Menu Panel */}
+                                {isDropdownOpen && (
+                                  <div
+                                    className={cn(
+                                      "absolute z-10 mt-1.5 w-full border rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150 py-1",
+                                      isDark
+                                        ? "bg-neutral-950 border-neutral-800 text-white"
+                                        : "bg-white border-slate-300 text-slate-900"
+                                    )}
+                                  >
+                                    {/* Default Select Option */}
+                                    <div
+                                      onClick={() => {
+                                        setIsCustomModel(false);
+                                        setModelNumber("");
+                                        setIsDropdownOpen(false);
+                                      }}
+                                      className={cn(
+                                        "px-4 py-2 text-sm cursor-pointer transition-colors text-left",
+                                        isDark ? "hover:bg-neutral-900 text-neutral-500" : "hover:bg-slate-50 text-slate-400"
+                                      )}
+                                    >
+                                      Select Model
+                                    </div>
+
+                                    {/* Available Model Options */}
+                                    {allAvailableModels.map((m) => (
+                                      <div
+                                        key={m}
+                                        className={cn(
+                                          "px-4 py-2 text-sm flex items-center justify-between cursor-pointer transition-colors text-left select-none group/item",
+                                          isDark ? "hover:bg-neutral-900" : "hover:bg-slate-50",
+                                          modelNumber === m && !isCustomModel
+                                            ? (isDark ? "bg-[#D71920]/10 text-[#D71920] font-semibold" : "bg-slate-100 text-[#D71920] font-semibold")
+                                            : ""
+                                        )}
+                                      >
+                                        <span
+                                          onClick={() => {
+                                            setIsCustomModel(false);
+                                            setModelNumber(m);
+                                            setIsDropdownOpen(false);
+                                          }}
+                                          className="flex-grow py-0.5"
+                                        >
+                                          {m}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteModel(m);
+                                          }}
+                                          className="text-neutral-450 hover:text-red-500 hover:bg-red-500/10 p-1 rounded-full transition-colors cursor-pointer shrink-0"
+                                          title={`Delete Model ${m}`}
+                                        >
+                                          <X size={14} />
+                                        </button>
+                                      </div>
+                                    ))}
+
+                                    {/* Custom... Option */}
+                                    <div
+                                      onClick={() => {
+                                        setIsCustomModel(true);
+                                        setModelNumber("");
+                                        setIsDropdownOpen(false);
+                                      }}
+                                      className={cn(
+                                        "px-4 py-2 text-sm cursor-pointer transition-colors border-t text-left",
+                                        isDark ? "hover:bg-neutral-900 border-neutral-850" : "hover:bg-slate-50 border-slate-100",
+                                        isCustomModel ? (isDark ? "bg-neutral-900/50" : "bg-slate-100") : ""
+                                      )}
+                                    >
+                                      Custom...
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Show custom input if "Custom..." is selected */}
+                              {isCustomModel && (
+                                <input
+                                  type="text"
+                                  value={modelNumber}
+                                  onChange={(e) => setModelNumber(e.target.value)}
+                                  required
+                                  placeholder="Enter custom model name (e.g. Deluxe)"
+                                  className={cn(
+                                    "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all animate-in fade-in slide-in-from-top-1 duration-200",
+                                    isDark
+                                      ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
+                                      : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+                                  )}
+                                />
+                              )}
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div className="space-y-3">
+                              <input
+                                type="text"
+                                value={modelNumber}
+                                onChange={(e) => setModelNumber(e.target.value)}
+                                required
+                                placeholder="e.g. Deluxe"
+                                className={cn(
+                                  "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
+                                  isDark
+                                    ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
+                                    : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+                                )}
+                              />
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
+
+                    {/* Dynamic Variant Attributes System */}
+                    <div className="md:col-span-2 space-y-4">
+                      <div className="flex items-center justify-between border-b pb-2 border-neutral-800/60">
+                        <label className={cn(
+                          "block text-xs font-bold uppercase tracking-wider",
+                          isDark ? "text-neutral-400" : "text-slate-600"
+                        )}>
+                          Appliance Attributes / Variants
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setAttributes([...attributes, { name: "", value: "" }])}
+                          className={cn(
+                            "px-2.5 py-1 border rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer",
+                            isDark
+                              ? "bg-neutral-900 border-neutral-800 text-[#D71920] hover:bg-neutral-800"
+                              : "bg-slate-50 border-slate-200 text-[#D71920] hover:bg-[#D71920]"
+                          )}
+                        >
+                          <Plus size={12} />
+                          <span>Add Attribute</span>
+                        </button>
+                      </div>
+
+                      {attributes.length === 0 ? (
+                        <div className={cn(
+                          "p-6 text-center border-2 border-dashed rounded-xl",
+                          isDark ? "border-neutral-900 text-neutral-500" : "border-slate-200 text-slate-450"
+                        )}>
+                          <p className="text-xs">No attributes defined yet.</p>
+                          <p className="text-[10px] mt-1">Attributes will be used to dynamically generate the SKU.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {attributes.map((attr, idx) => {
+                            // Get suggested values based on attribute name
+                            const presets = attributePresets[category] || [];
+                            const matchedPreset = presets.find(p => p.name.toLowerCase() === attr.name.toLowerCase());
+                            const suggestedValues = matchedPreset ? matchedPreset.values : [];
+                            
+                            // Get suggested names that are not already added
+                            const suggestedNames = presets
+                              .map(p => p.name)
+                              .filter(name => !attributes.some((a, aIdx) => aIdx !== idx && a.name.toLowerCase() === name.toLowerCase()));
+
+                            return (
+                              <div
+                                key={idx}
+                                className={cn(
+                                  "p-4 border rounded-xl space-y-3 relative group transition-all",
+                                  isDark ? "bg-neutral-900/30 border-neutral-850" : "bg-slate-50/50 border-slate-200"
+                                )}
+                              >
+                                {/* Remove button */}
+                                <button
+                                  type="button"
+                                  onClick={() => setAttributes(attributes.filter((_, i) => i !== idx))}
+                                  className="absolute top-3 right-3 text-neutral-500 hover:text-red-500 transition-colors cursor-pointer"
+                                  title="Remove attribute"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-6">
+                                  {/* Attribute Name Input */}
+                                  <div>
+                                    <label className={cn(
+                                      "block text-[10px] font-bold uppercase tracking-wider mb-1",
+                                      isDark ? "text-neutral-500" : "text-slate-500"
+                                    )}>
+                                      Attribute Name
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={attr.name}
+                                      onChange={(e) => {
+                                        const newAttrs = [...attributes];
+                                        newAttrs[idx].name = e.target.value;
+                                        setAttributes(newAttrs);
+                                      }}
+                                      placeholder="e.g. Capacity, Size, Material"
+                                      className={cn(
+                                        "w-full px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
+                                        isDark
+                                          ? "bg-neutral-950 border-neutral-800 text-white placeholder-neutral-700"
+                                          : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+                                      )}
+                                    />
+                                    {/* Suggested Names */}
+                                    {suggestedNames.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        <span className="text-[9px] text-neutral-500 mr-1 self-center">Suggestions:</span>
+                                        {suggestedNames.map(name => (
+                                          <button
+                                            key={name}
+                                            type="button"
+                                            onClick={() => {
+                                              const newAttrs = [...attributes];
+                                              newAttrs[idx].name = name;
+                                              const p = presets.find(pr => pr.name === name);
+                                              if (p && p.values.length > 0) {
+                                                newAttrs[idx].value = p.values[0];
+                                              }
+                                              setAttributes(newAttrs);
+                                            }}
+                                            className={cn(
+                                              "px-1.5 py-0.5 rounded text-[9px] font-semibold transition-all border",
+                                              isDark
+                                                ? "bg-neutral-900 border-neutral-800 text-neutral-450 hover:text-white hover:bg-neutral-800"
+                                                : "bg-white border-slate-200 text-slate-650 hover:bg-slate-100 hover:text-slate-900"
+                                            )}
+                                          >
+                                            {name}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Attribute Value Input */}
+                                  <div>
+                                    <label className={cn(
+                                      "block text-[10px] font-bold uppercase tracking-wider mb-1",
+                                      isDark ? "text-neutral-500" : "text-slate-500"
+                                    )}>
+                                      Attribute Value
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={attr.value}
+                                      onChange={(e) => {
+                                        const newAttrs = [...attributes];
+                                        newAttrs[idx].value = e.target.value;
+                                        setAttributes(newAttrs);
+                                      }}
+                                      placeholder="e.g. 3L, 280mm, Glass Top"
+                                      className={cn(
+                                        "w-full px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
+                                        isDark
+                                          ? "bg-neutral-950 border-neutral-800 text-white placeholder-neutral-700"
+                                          : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+                                      )}
+                                    />
+                                    {/* Suggested Values */}
+                                    {suggestedValues.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        <span className="text-[9px] text-neutral-500 mr-1 self-center">Suggestions:</span>
+                                        {suggestedValues.map(val => (
+                                          <button
+                                            key={val}
+                                            type="button"
+                                            onClick={() => {
+                                              const newAttrs = [...attributes];
+                                              newAttrs[idx].value = val;
+                                              setAttributes(newAttrs);
+                                            }}
+                                            className={cn(
+                                              "px-1.5 py-0.5 rounded text-[9px] font-semibold transition-all border",
+                                              isDark
+                                                ? "bg-neutral-900 border-neutral-800 text-neutral-450 hover:text-white hover:bg-neutral-800"
+                                                : "bg-white border-slate-200 text-slate-650 hover:bg-slate-100 hover:text-slate-900"
+                                            )}
+                                          >
+                                            {val}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Auto-Generated SKU */}
+                    <div className="md:col-span-2 mt-2">
+                      <label className={cn(
+                        "block text-xs font-bold uppercase tracking-wider mb-1.5",
+                        isDark ? "text-neutral-400" : "text-slate-600"
+                      )}>
+                        Generated SKU (Auto)
                       </label>
                       <input
                         type="text"
-                        value={product_id}
-                        onChange={(e) => setproduct_id(e.target.value)}
-                        required
-                        placeholder="e.g. APPL-COOK-001"
+                        value={generatedSku}
+                        readOnly
                         className={cn(
-                          "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
+                          "w-full px-4 py-2.5 border rounded-lg text-sm opacity-70 cursor-not-allowed",
                           isDark
-                            ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
-                            : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+                            ? "bg-neutral-900 border-neutral-800 text-neutral-400"
+                            : "bg-neutral-100 border-slate-300 text-slate-500"
                         )}
                       />
                     </div>
                   </div>
 
-                  {/* Category Selection */}
-                  <div>
-                    <label className={cn(
-                      "block text-xs font-bold uppercase tracking-wider mb-1.5",
-                      isDark ? "text-neutral-400" : "text-slate-600"
+                  {/* Summary Preview */}
+                  {name && modelNumber && generatedSku !== "SDXX001-XX" && (
+                    <div className={cn(
+                      "mt-6 p-4 border rounded-xl shadow-sm",
+                      isDark ? "bg-neutral-900/50 border-neutral-800" : "bg-slate-50 border-slate-200"
                     )}>
-                      Appliance Category
-                    </label>
-                    <select
-                      value={category}
-                      onChange={(e) => handleCategoryChange(e.target.value)}
-                      className={cn(
-                        "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all cursor-pointer",
-                        isDark
-                          ? "bg-neutral-900 border-neutral-800 text-white"
-                          : "bg-white border-slate-300 text-slate-900"
-                      )}
+                      <h4 className={cn("text-xs font-bold uppercase tracking-wider mb-3", isDark ? "text-neutral-400" : "text-slate-500")}>
+                        Variant Summary Preview
+                      </h4>
+                      <div className="grid grid-cols-2 gap-y-2 text-sm">
+                        <span className={isDark ? "text-neutral-500" : "text-slate-500"}>Category:</span>
+                        <span className="font-semibold">{categoryLabel}</span>
+                        
+                        <span className={isDark ? "text-neutral-500" : "text-slate-500"}>Appliance Name:</span>
+                        <span className="font-semibold">{name}</span>
+                        
+                        <span className={isDark ? "text-neutral-500" : "text-slate-500"}>Model Name:</span>
+                        <span className="font-semibold">{modelNumber}</span>
+
+                        <span className={isDark ? "text-neutral-500" : "text-slate-500"}>Variant Details:</span>
+                        <span className="font-semibold">
+                          {attributes.map(a => `${a.name}: ${a.value}`).join(" | ") || "N/A"}
+                        </span>
+                        
+                        <span className={isDark ? "text-neutral-500" : "text-slate-500"}>Generated SKU:</span>
+                        <span className="font-bold text-[#D71920]">{generatedSku}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Next Button */}
+                  <div className="flex justify-end pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(2)}
+                      className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B91520] rounded-lg text-sm font-bold text-white transition-all shadow-lg shadow-[#D71920]/15"
                     >
-                      <option value="pressure-cookers">Pressure Cookers</option>
-                      <option value="non-stick">Non-Stick Cookware</option>
-                      <option value="mixer-grinders">Mixer Grinders</option>
-                      <option value="gas-stoves">LPG Stoves</option>
-                      <option value="wet-grinders">Wet Grinders</option>
-                      <option value="commercial">Commercial Wet Grinders</option>
-                    </select>
+                      Next Step &rarr;
+                    </button>
                   </div>
+                </div>
+              )}
 
+              {currentStep === 2 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
+                  {/* Step 2 Section Wrapper */}
+                  <div className="space-y-4">
+                    <h3 className={cn(
+                      "text-xs font-bold uppercase tracking-widest border-b pb-2 flex items-center gap-1.5",
+                      isDark ? "text-neutral-400 border-neutral-800/60" : "text-slate-500 border-neutral-200"
+                    )}>
+                      <Settings size={14} />
+                      <span>Step 2: Media & Pricing Configuration</span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Image Upload Area */}
                   <div className="md:col-span-2 space-y-3">
                     <label className={cn(
@@ -784,29 +1445,62 @@ export default function AdminManagePage() {
                   </div>
 
                   {/* Badge Text */}
-                  <div>
+                  <div ref={badgeDropdownRef} className="relative">
                     <label className={cn(
                       "block text-xs font-bold uppercase tracking-wider mb-1.5",
                       isDark ? "text-neutral-400" : "text-slate-600"
                     )}>
                       Appliance Pill Badge
                     </label>
-                    <select
-                      value={badge}
-                      onChange={(e) => setBadge(e.target.value)}
-                      className={cn(
-                        "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all cursor-pointer",
-                        isDark
-                          ? "bg-neutral-900 border-neutral-800 text-white"
-                          : "bg-white border-slate-300 text-slate-900"
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setIsBadgeDropdownOpen(!isBadgeDropdownOpen)}
+                        className={cn(
+                          "w-full px-4 py-2.5 border rounded-lg text-sm flex items-center justify-between transition-all cursor-pointer text-left focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920]",
+                          isDark
+                            ? "bg-neutral-900 border-neutral-800 text-white"
+                            : "bg-white border-slate-300 text-slate-900"
+                        )}
+                      >
+                        <span className="truncate">
+                          {badgeOptions.find(o => o.value === badge)?.label || "No Badge"}
+                        </span>
+                        <span className={cn("transition-transform duration-200 shrink-0 ml-2 text-xs", isBadgeDropdownOpen ? "rotate-180" : "")}>
+                          ▼
+                        </span>
+                      </button>
+
+                      {isBadgeDropdownOpen && (
+                        <div
+                          className={cn(
+                            "absolute z-10 mt-1.5 w-full border rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150 py-1",
+                            isDark
+                              ? "bg-neutral-950 border-neutral-800 text-white"
+                              : "bg-white border-slate-300 text-slate-900"
+                          )}
+                        >
+                          {badgeOptions.map((opt) => (
+                            <div
+                              key={opt.value}
+                              onClick={() => {
+                                setBadge(opt.value);
+                                setIsBadgeDropdownOpen(false);
+                              }}
+                              className={cn(
+                                "px-4 py-2 text-sm cursor-pointer transition-colors text-left select-none",
+                                isDark ? "hover:bg-neutral-900" : "hover:bg-slate-50",
+                                badge === opt.value
+                                  ? (isDark ? "bg-[#D71920]/10 text-[#D71920] font-semibold" : "bg-slate-100 text-[#D71920] font-semibold")
+                                  : ""
+                              )}
+                            >
+                              {opt.label}
+                            </div>
+                          ))}
+                        </div>
                       )}
-                    >
-                      <option value="">No Badge</option>
-                      <option value="Best Seller">Best Seller</option>
-                      <option value="Top Rated">Top Rated</option>
-                      <option value="New">New Arrival</option>
-                      <option value="Sale">Special Sale</option>
-                    </select>
+                    </div>
                   </div>
 
                   {/* Checkboxes */}
@@ -880,26 +1574,62 @@ export default function AdminManagePage() {
                     </div>
 
                     {/* Image Position */}
-                    <div>
+                    <div ref={imagePositionDropdownRef} className="relative">
                       <label className={cn(
                         "block text-xs font-bold uppercase tracking-wider mb-1.5",
                         isDark ? "text-neutral-400" : "text-slate-600"
                       )}>
                         Image Side *
                       </label>
-                      <select
-                        value={imagePosition}
-                        onChange={(e) => setImagePosition(e.target.value)}
-                        className={cn(
-                          "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all cursor-pointer",
-                          isDark
-                            ? "bg-neutral-900 border-neutral-800 text-white"
-                            : "bg-white border-slate-300 text-slate-900"
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setIsImagePositionDropdownOpen(!isImagePositionDropdownOpen)}
+                          className={cn(
+                            "w-full px-4 py-2.5 border rounded-lg text-sm flex items-center justify-between transition-all cursor-pointer text-left focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920]",
+                            isDark
+                              ? "bg-neutral-900 border-neutral-800 text-white"
+                              : "bg-white border-slate-300 text-slate-900"
+                          )}
+                        >
+                          <span className="truncate">
+                            {imagePositionOptions.find(o => o.value === imagePosition)?.label || "Left Side (Text Right)"}
+                          </span>
+                          <span className={cn("transition-transform duration-200 shrink-0 ml-2 text-xs", isImagePositionDropdownOpen ? "rotate-180" : "")}>
+                            ▼
+                          </span>
+                        </button>
+
+                        {isImagePositionDropdownOpen && (
+                          <div
+                            className={cn(
+                              "absolute z-10 mt-1.5 w-full border rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150 py-1",
+                              isDark
+                                ? "bg-neutral-950 border-neutral-800 text-white"
+                                : "bg-white border-slate-300 text-slate-900"
+                            )}
+                          >
+                            {imagePositionOptions.map((opt) => (
+                              <div
+                                key={opt.value}
+                                onClick={() => {
+                                  setImagePosition(opt.value);
+                                  setIsImagePositionDropdownOpen(false);
+                                }}
+                                className={cn(
+                                  "px-4 py-2 text-sm cursor-pointer transition-colors text-left select-none",
+                                  isDark ? "hover:bg-neutral-900" : "hover:bg-slate-50",
+                                  imagePosition === opt.value
+                                    ? (isDark ? "bg-[#D71920]/10 text-[#D71920] font-semibold" : "bg-slate-100 text-[#D71920] font-semibold")
+                                    : ""
+                                )}
+                              >
+                                {opt.label}
+                              </div>
+                            ))}
+                          </div>
                         )}
-                      >
-                        <option value="left">Left Side (Text Right)</option>
-                        <option value="right">Right Side (Text Left)</option>
-                      </select>
+                      </div>
                     </div>
 
                     {/* Description */}
@@ -1043,6 +1773,18 @@ export default function AdminManagePage() {
                     Cancel
                   </button>
                   <button
+                    type="button"
+                    onClick={() => setCurrentStep(1)}
+                    className={cn(
+                      "px-4.5 py-2.5 border rounded-lg text-sm font-semibold transition-all cursor-pointer",
+                      isDark
+                        ? "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800"
+                        : "bg-white border-slate-300 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                    )}
+                  >
+                    &larr; Back
+                  </button>
+                  <button
                     type="submit"
                     disabled={isSubmitLoading}
                     className="px-5.5 py-2.5 bg-[#D71920] hover:bg-[#B91520] rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-[#D71920]/15"
@@ -1061,6 +1803,8 @@ export default function AdminManagePage() {
                   </button>
                 </div>
               </div>
+            </div>
+            )}
             </form>
           </div>
         </main>

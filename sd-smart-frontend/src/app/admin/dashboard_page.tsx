@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
 import { 
-  Loader2, Layers, TrendingUp, TrendingDown, Calendar as CalendarIcon, Filter
+  Loader2, Layers, TrendingUp, TrendingDown, Calendar as CalendarIcon, Filter, ChevronLeft, ChevronRight
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import { cn } from "@/lib/utils";
@@ -40,6 +40,54 @@ export default function AdminDashboardPage() {
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(today.toISOString().split("T")[0]);
   const [selectedMonth, setSelectedMonth] = useState(today.toISOString().slice(0, 7)); // YYYY-MM
+
+  // Custom calendar selector states & refs
+  const [calDate, setCalDate] = useState(new Date());
+  const [isCalOpen, setIsCalOpen] = useState(false);
+  const calRef = useRef<HTMLDivElement>(null);
+
+  // Click outside listener to close calendar dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (calRef.current && !calRef.current.contains(event.target as Node)) {
+        setIsCalOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Calculate day cells for the mini-calendar grid
+  const calendarDays = useMemo(() => {
+    const year = calDate.getFullYear();
+    const month = calDate.getMonth();
+    
+    // First day of the month (0 = Sunday, 1 = Monday, etc.)
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    // Total days in the month
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    
+    const days: Array<{ day: number | null; dateStr: string }> = [];
+    
+    // Padding before the first day of the week
+    for (let i = 0; i < firstDayIndex; i++) {
+      days.push({ day: null, dateStr: "" });
+    }
+    
+    // Days of the month
+    for (let d = 1; d <= totalDays; d++) {
+      const paddedMonth = String(month + 1).padStart(2, "0");
+      const paddedDay = String(d).padStart(2, "0");
+      days.push({
+        day: d,
+        dateStr: `${year}-${paddedMonth}-${paddedDay}`
+      });
+    }
+    
+    return days;
+  }, [calDate]);
 
   // Load theme from localStorage on client side mount
   useEffect(() => {
@@ -210,27 +258,158 @@ export default function AdminDashboardPage() {
               </button>
             </div>
 
-            {viewMode === "daily" ? (
-              <input 
-                type="date" 
-                value={selectedDate}
-                onChange={e => setSelectedDate(e.target.value)}
+            {/* Custom Calendar Dropdown Select */}
+            <div ref={calRef} className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCalOpen(!isCalOpen);
+                  // Sync calendar view date with currently selected date or month
+                  if (viewMode === "daily") {
+                    setCalDate(new Date(selectedDate));
+                  } else {
+                    const [y, m] = selectedMonth.split("-").map(Number);
+                    setCalDate(new Date(y, m - 1, 1));
+                  }
+                }}
                 className={cn(
-                  "px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-1 focus:ring-[#D71920]",
-                  isDark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
+                  "px-3 py-2 text-sm rounded-md border flex items-center gap-2 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#D71920]",
+                  isDark ? "bg-neutral-900 border-neutral-800 text-white hover:bg-neutral-850" : "bg-white border-neutral-200 text-slate-900 hover:bg-slate-50"
                 )}
-              />
-            ) : (
-              <input 
-                type="month" 
-                value={selectedMonth}
-                onChange={e => setSelectedMonth(e.target.value)}
-                className={cn(
-                  "px-3 py-2 text-sm rounded-md border focus:outline-none focus:ring-1 focus:ring-[#D71920]",
-                  isDark ? "bg-neutral-900 border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
-                )}
-              />
-            )}
+              >
+                <CalendarIcon size={16} className="text-[#D71920]" />
+                <span>
+                  {viewMode === "daily" 
+                    ? new Date(selectedDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                    : new Date(selectedMonth + "-01").toLocaleDateString(undefined, { year: 'numeric', month: 'long' })
+                  }
+                </span>
+                <span className="text-[10px] text-neutral-500">▼</span>
+              </button>
+
+              {isCalOpen && (
+                <div
+                  className={cn(
+                    "absolute right-0 z-20 mt-1.5 w-72 p-4 border rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-1 duration-150",
+                    isDark ? "bg-neutral-950 border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
+                  )}
+                >
+                  {viewMode === "daily" ? (
+                    <div className="space-y-3">
+                      {/* Month Navigation */}
+                      <div className="flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() - 1, 1))}
+                          className={cn("p-1 rounded-md transition-colors cursor-pointer", isDark ? "hover:bg-neutral-900 text-neutral-400 hover:text-white" : "hover:bg-slate-100 text-slate-500 hover:text-slate-900")}
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <span className="font-bold text-sm select-none">
+                          {calDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() + 1, 1))}
+                          className={cn("p-1 rounded-md transition-colors cursor-pointer", isDark ? "hover:bg-neutral-900 text-neutral-400 hover:text-white" : "hover:bg-slate-100 text-slate-500 hover:text-slate-900")}
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+
+                      {/* Weekday Titles */}
+                      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase tracking-wider text-neutral-500 select-none">
+                        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => (
+                          <div key={d} className="py-1">{d}</div>
+                        ))}
+                      </div>
+
+                      {/* Day Cells Grid */}
+                      <div className="grid grid-cols-7 gap-1 text-center">
+                        {calendarDays.map((cell, idx) => {
+                          if (!cell.day) {
+                            return <div key={`empty-${idx}`} />;
+                          }
+                          const isSelected = cell.dateStr === selectedDate;
+                          return (
+                            <button
+                              key={`day-${cell.day}`}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDate(cell.dateStr);
+                                setIsCalOpen(false);
+                              }}
+                              className={cn(
+                                "py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer",
+                                isSelected
+                                  ? "bg-[#D71920] text-white shadow-md shadow-[#D71920]/25"
+                                  : isDark
+                                    ? "hover:bg-neutral-900 text-neutral-200"
+                                    : "hover:bg-slate-100 text-slate-700"
+                              )}
+                            >
+                              {cell.day}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Year Navigation */}
+                      <div className="flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => setCalDate(new Date(calDate.getFullYear() - 1, calDate.getMonth(), 1))}
+                          className={cn("p-1 rounded-md transition-colors cursor-pointer", isDark ? "hover:bg-neutral-900 text-neutral-400 hover:text-white" : "hover:bg-slate-100 text-slate-500 hover:text-slate-900")}
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <span className="font-bold text-sm select-none">
+                          {calDate.getFullYear()}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setCalDate(new Date(calDate.getFullYear() + 1, calDate.getMonth(), 1))}
+                          className={cn("p-1 rounded-md transition-colors cursor-pointer", isDark ? "hover:bg-neutral-900 text-neutral-400 hover:text-white" : "hover:bg-slate-100 text-slate-500 hover:text-slate-900")}
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+
+                      {/* Month Cells Grid */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, idx) => {
+                          const year = calDate.getFullYear();
+                          const monthStr = `${year}-${String(idx + 1).padStart(2, "0")}`;
+                          const isSelected = monthStr === selectedMonth;
+                          return (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => {
+                                setSelectedMonth(monthStr);
+                                setIsCalOpen(false);
+                              }}
+                              className={cn(
+                                "py-2.5 text-xs font-semibold rounded-md transition-all cursor-pointer",
+                                isSelected
+                                  ? "bg-[#D71920] text-white shadow-md shadow-[#D71920]/25"
+                                  : isDark
+                                    ? "hover:bg-neutral-900 text-neutral-200"
+                                    : "hover:bg-slate-100 text-slate-700"
+                              )}
+                            >
+                              {m}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
