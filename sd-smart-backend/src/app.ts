@@ -3,6 +3,8 @@ import cors from "cors";
 import authRoutes from "./routes/auth.routes";
 import productRoutes from "./routes/product.routes";
 import uploadRoutes from "./routes/upload.routes";
+import cartRoutes from "./routes/cart.routes";
+import wishlistRoutes from "./routes/wishlist.routes";
 import path from "path";
 
 const app = express();
@@ -13,6 +15,8 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/wishlist", wishlistRoutes);
 
 // Serve static files from the uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
@@ -25,3 +29,4 @@ app.get("/", (_, res) => {
 });
 
 export default app;
+// Trigger restart

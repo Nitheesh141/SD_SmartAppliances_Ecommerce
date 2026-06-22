@@ -65,14 +65,19 @@ export interface Product {
   price: number;
   discountPrice?: number;
   images: string[];
+  image?: string;
   category: string;
+  categoryLabel?: string;
   rating: number;
   reviews: number;
   inStock: boolean;
   quantity: number;
   specifications?: Record<string, string>;
+  specs?: any;
+  variantDetails?: Record<string, string>;
   modelNumber?: string;
   productId?: string;
+  sku?: string;
   availableStock?: number;
   stockIn?: number;
   stockOut?: number;
@@ -179,17 +184,18 @@ export interface Address {
  */
 export interface WishlistItem {
   id: string;
-  userId: string;
+  wishlistId: string;
   productId: string;
   product: Product;
-  addedAt: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Wishlist {
   id: string;
   userId: string;
   items: WishlistItem[];
-  totalItems: number;
+  createdAt: string;
   updatedAt: string;
 }
 

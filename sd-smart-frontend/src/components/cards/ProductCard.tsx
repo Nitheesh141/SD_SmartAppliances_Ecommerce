@@ -4,6 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { Heart, Eye, ArrowLeftRight, ShoppingCart, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/providers/AuthProvider";
+import { useCart } from "@/providers/CartProvider";
+import { useWishlist } from "@/providers/WishlistProvider";
 import { cn } from "@/lib/utils";
 import type { Product } from "../../app/LandingPage/types";
 import RatingStars from "../shared/RatingStars";
@@ -32,8 +36,43 @@ const getSpecTags = (category: string) => {
 };
 
 export default function ProductCard({ product, className }: ProductCardProps) {
-  const [wishlisted, setWishlisted] = useState(false);
   const specTags = getSpecTags(product.categoryLabel);
+  const { isAuthenticated } = useAuth();
+  const { addToCart } = useCart();
+  const { wishlistItems, addToWishlist, removeFromWishlist } = useWishlist();
+  const router = useRouter();
+
+  const isWishlisted = wishlistItems.some(item => item.productId === product.id);
+
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      router.push("/auth/login");
+      return;
+    }
+    try {
+      if (isWishlisted) {
+        await removeFromWishlist(product.id);
+      } else {
+        await addToWishlist(product.id);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      router.push("/auth/login");
+      return;
+    }
+    try {
+      await addToCart(product.id, 1);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Extract display attribute dynamically from variantDetails or fallback to product.capacity
   const displayAttribute = (() => {
@@ -104,13 +143,13 @@ export default function ProductCard({ product, className }: ProductCardProps) {
         {/* Overlay action buttons (show on hover) */}
         <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <button
-            onClick={(e) => { e.preventDefault(); setWishlisted(!wishlisted); }}
+            onClick={handleWishlistToggle}
             className="w-9 h-9 bg-white rounded-full shadow flex items-center justify-center hover:bg-red-50 transition-colors"
             aria-label="Add to wishlist"
           >
             <Heart
               size={16}
-              className={cn(wishlisted ? "fill-[#D71920] text-[#D71920]" : "text-neutral-600")}
+              className={cn(isWishlisted ? "fill-[#D71920] text-[#D71920]" : "text-neutral-600")}
             />
           </button>
           <button
@@ -189,7 +228,10 @@ export default function ProductCard({ product, className }: ProductCardProps) {
         </div>
 
         {/* Add to Cart */}
-        <button className="w-full flex items-center justify-center gap-2 bg-[#D71920] hover:bg-[#b8141a] text-white text-sm font-semibold py-3 rounded-xl transition-colors duration-200 cursor-pointer">
+        <button 
+          onClick={handleAddToCart}
+          className="w-full flex items-center justify-center gap-2 bg-[#D71920] hover:bg-[#b8141a] text-white text-sm font-semibold py-3 rounded-xl transition-colors duration-200 cursor-pointer"
+        >
           <ShoppingCart size={16} />
           Add to Cart
         </button>

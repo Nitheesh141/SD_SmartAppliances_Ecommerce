@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { NavLink } from "../../app/LandingPage/types";
 import { THEME_CLASSES } from "@/config/themes";
 import { useAuth } from "@/providers/AuthProvider";
+import { useCart } from "@/providers/CartProvider";
 import { useDynamicProducts } from "@/hooks/useDynamicProducts";
 
 interface HeaderProps {
@@ -39,6 +40,15 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
 
   const isAuthenticated = propIsAuthenticated !== undefined ? propIsAuthenticated : contextIsAuthenticated;
   const userProfile = propUserProfile !== undefined ? propUserProfile : contextUser;
+
+  // Use optional chaining or try-catch in case it's used outside provider (though it shouldn't be)
+  let cartCount = 0;
+  try {
+    const cartContext = useCart();
+    cartCount = cartContext.cartCount;
+  } catch (e) {
+    console.warn("Header used outside CartProvider");
+  }
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
@@ -230,9 +240,11 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                 </Link>
                 <Link href="/cart" className="relative p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Cart">
                   <ShoppingCart size={18} />
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-[#D71920] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                    0
-                  </span>
+                  {cartCount > 0 && (
+                    <span className="absolute top-1 right-1 w-4 h-4 bg-[#D71920] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
                 </Link>
               </>
             ) : (

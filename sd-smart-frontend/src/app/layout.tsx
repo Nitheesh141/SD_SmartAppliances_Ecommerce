@@ -3,6 +3,9 @@ import { Geist, Geist_Mono, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { CartProvider } from "@/providers/CartProvider";
+import { WishlistProvider } from "@/providers/WishlistProvider";
+import { Toaster } from "sonner";
 
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
@@ -33,7 +36,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          {children}
+          <WishlistProvider>
+            <CartProvider>
+              {children}
+              <Toaster position="bottom-right" richColors />
+            </CartProvider>
+          </WishlistProvider>
         </AuthProvider>
       </body>
     </html>
