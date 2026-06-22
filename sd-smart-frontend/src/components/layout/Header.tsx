@@ -107,8 +107,8 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
     <header className={cn(
       "sticky top-0 z-50 transition-all duration-500 will-change-transform",
       isScrolled
-        ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-b border-neutral-200/50 shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] py-1"
-        : "bg-red-50 dark:bg-[#1A090A] border-b border-neutral-200/20 shadow-[0_2px_8px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.25)] py-1",
+        ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-b border-neutral-200/60 shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.55)] py-1.5"
+        : "bg-red-50 dark:bg-[#1A090A] border-b border-neutral-200/30 shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)] py-2",
       isLoaded ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
     )}>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
@@ -120,7 +120,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
             <img
               src="/sd-smart-ecommerce/SD-logo.png"
               alt="SD Smart Appliances"
-              className="h-15 w-auto object-contain mix-blend-multiply"
+              className="h-14 w-auto object-contain mix-blend-multiply"
             />
           </Link>
 
@@ -181,7 +181,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
 
           {/* Search & Actions Group */}
           <div className="flex items-center gap-2.5 ml-auto">
-            
+
             {/* Search Input inline */}
             {searchOpen && (
               <div className="hidden md:block relative w-64 animate-in fade-in slide-in-from-right-4 duration-200">
@@ -195,7 +195,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                   className="w-full pl-9 pr-4 py-1.5 text-xs font-semibold border border-[#D71920] rounded-xl bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 text-slate-800 dark:text-neutral-100 shadow-sm"
                 />
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-                
+
                 {/* Suggestions List dropdown */}
                 {suggestions.length > 0 && (
                   <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-2 z-50 max-h-60 overflow-y-auto">
