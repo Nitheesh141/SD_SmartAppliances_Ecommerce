@@ -138,45 +138,72 @@ export interface UpdateCartItemRequest {
  * Order Types
  */
 export interface OrderItem {
+  id: string;
+  orderId: string;
   productId: string;
-  productName: string;
+  product?: Product;
   quantity: number;
-  price: number;
-  totalPrice: number;
+  unitPrice: number;
+  createdAt: string;
 }
 
 export interface Order {
   id: string;
-  userId: string;
   orderNumber: string;
+  userId: string;
+  addressId: string;
+  address?: Address;
+  poNumber?: string;
+  paymentMethod: string;
+  status: string;
+  subtotal: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  deliveryCharges: number;
+  discount: number;
+  grandTotal: number;
   items: OrderItem[];
-  totalAmount: number;
-  shippingAddress: Address;
-  billingAddress: Address;
-  paymentMethod: "card" | "upi" | "netbanking";
-  paymentStatus: "pending" | "completed" | "failed";
-  orderStatus: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateOrderRequest {
-  items: CartItem[];
-  shippingAddress: Address;
-  billingAddress: Address;
-  paymentMethod: "card" | "upi" | "netbanking";
+  addressId: string;
+  paymentMethod: string;
+  poNumber?: string;
 }
 
 export interface Address {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  street: string;
+  id: string;
+  userId: string;
+  fullName: string;
+  emailAddress?: string;
+  mobileNumber: string;
+  companyName?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  landmark?: string;
   city: string;
   state: string;
-  postalCode: string;
-  country: string;
+  pincode: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAddressRequest {
+  fullName: string;
+  emailAddress?: string;
+  mobileNumber: string;
+  companyName?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault?: boolean;
 }
 
 /**

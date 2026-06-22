@@ -19,12 +19,31 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       whereClause.isFeatured = isFeatured === "true";
     }
 
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
     const products = await prisma.product.findMany({
       where: whereClause,
       orderBy: { createdAt: "desc" },
+      include: {
+        transactions: {
+          where: {
+            createdAt: {
+              gte: todayStart,
+            }
+          }
+        }
+      }
     });
 
-    res.json({ success: true, products });
+    const formattedProducts = products.map((p: any) => {
+      const todayStockIn = p.transactions.filter((t: any) => t.type === "IN").reduce((sum: number, t: any) => sum + t.quantity, 0);
+      const todayStockOut = p.transactions.filter((t: any) => t.type === "OUT").reduce((sum: number, t: any) => sum + t.quantity, 0);
+      const { transactions, ...rest } = p;
+      return { ...rest, todayStockIn, todayStockOut };
+    });
+
+    res.json({ success: true, products: formattedProducts });
   } catch (error: any) {
     console.error("Get products error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch products" });
@@ -35,8 +54,20 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 export const getProductById = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const product = await prisma.product.findUnique({
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const product: any = await prisma.product.findUnique({
       where: { id },
+      include: {
+        transactions: {
+          where: {
+            createdAt: {
+              gte: todayStart,
+            }
+          }
+        }
+      }
     });
 
     if (!product) {
@@ -44,7 +75,11 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    res.json({ success: true, product });
+    const todayStockIn = product.transactions.filter((t: any) => t.type === "IN").reduce((sum: number, t: any) => sum + t.quantity, 0);
+    const todayStockOut = product.transactions.filter((t: any) => t.type === "OUT").reduce((sum: number, t: any) => sum + t.quantity, 0);
+    const { transactions, ...rest } = product;
+
+    res.json({ success: true, product: { ...rest, todayStockIn, todayStockOut } });
   } catch (error: any) {
     console.error("Get product by id error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch product" });
@@ -148,7 +183,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     }
 
     const id = req.params.id as string;
-    const updateData = req.body;
+    const { stockInDelta, stockOutDelta, ...updateData } = req.body;
 
     // Remove immutable fields or convert types safely
     const parsedData: any = {};
@@ -158,14 +193,14 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       "badge", "href", "inStock", "isBestSeller", "isFeatured", "eyebrow",
       "description", "specs", "startingPrice", "primaryCTALabel", "primaryCTAHref",
       "secondaryCTALabel", "secondaryCTAHref", "imagePosition", "modelNumber", "productId",
-      "availableStock", "stockIn", "stockOut", "sku", "variantDetails"
+      "availableStock", "sku", "variantDetails"
     ];
 
     for (const key of allowedFields) {
       if (updateData[key] !== undefined) {
         if (["rating", "price", "originalPrice", "startingPrice"].includes(key) && updateData[key] !== null) {
           parsedData[key] = Number(updateData[key]);
-        } else if (["reviewCount", "discountPercent", "availableStock", "stockIn", "stockOut"].includes(key) && updateData[key] !== null) {
+        } else if (["reviewCount", "discountPercent", "availableStock"].includes(key) && updateData[key] !== null) {
           parsedData[key] = Math.round(Number(updateData[key]));
         } else if (["inStock", "isBestSeller", "isFeatured"].includes(key)) {
           parsedData[key] = Boolean(updateData[key]);
@@ -173,6 +208,15 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
           parsedData[key] = updateData[key];
         }
       }
+    }
+
+    // Apply cumulative deltas explicitly if provided
+    const incrementData: any = {};
+    if (stockInDelta && typeof stockInDelta === 'number' && stockInDelta > 0) {
+      incrementData.stockIn = { increment: stockInDelta };
+    }
+    if (stockOutDelta && typeof stockOutDelta === 'number' && stockOutDelta > 0) {
+      incrementData.stockOut = { increment: stockOutDelta };
     }
 
     const existingProduct: any = await prisma.product.findUnique({ where: { id } });
@@ -183,26 +227,29 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
 
     const updatedProduct = await prisma.product.update({
       where: { id },
-      data: parsedData,
+      data: {
+        ...parsedData,
+        ...incrementData,
+      },
     });
 
-    // Log Inventory Transactions if stockIn or stockOut increased
-    if (parsedData.stockIn !== undefined && parsedData.stockIn > existingProduct.stockIn) {
+    // Log Inventory Transactions for deltas
+    if (stockInDelta && typeof stockInDelta === 'number' && stockInDelta > 0) {
       await (prisma as any).inventoryTransaction.create({
         data: {
           productId: id,
           type: "IN",
-          quantity: parsedData.stockIn - existingProduct.stockIn,
+          quantity: stockInDelta,
         }
       });
     }
     
-    if (parsedData.stockOut !== undefined && parsedData.stockOut > existingProduct.stockOut) {
+    if (stockOutDelta && typeof stockOutDelta === 'number' && stockOutDelta > 0) {
       await (prisma as any).inventoryTransaction.create({
         data: {
           productId: id,
           type: "OUT",
-          quantity: parsedData.stockOut - existingProduct.stockOut,
+          quantity: stockOutDelta,
         }
       });
     }

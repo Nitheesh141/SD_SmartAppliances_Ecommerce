@@ -189,3 +189,24 @@ export const removeFromCart = async (req: AuthenticatedRequest, res: Response): 
     res.status(500).json({ success: false, message: "Error removing cart item" });
   }
 };
+
+export const clearCart = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    const cart = await prisma.cart.findUnique({ where: { userId } });
+    if (cart) {
+      await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+    }
+
+    res.json({ success: true, message: "Cart cleared successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Error clearing cart" });
+  }
+};
+

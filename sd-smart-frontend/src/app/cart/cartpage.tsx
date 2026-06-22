@@ -227,11 +227,11 @@ export default function CartPage() {
                   <p className="text-[10px] text-neutral-400 mt-1 text-right">Inclusive of all taxes</p>
                 </div>
 
-                <button className="w-full relative group overflow-hidden bg-[#1C1C1C] hover:bg-black text-white py-4 rounded-xl font-bold text-sm transition-all duration-300 shadow-lg shadow-black/10 flex items-center justify-center gap-2 cursor-pointer">
+                <Link href="/checkout" className="w-full relative group overflow-hidden bg-[#1C1C1C] hover:bg-black text-white py-4 rounded-xl font-bold text-sm transition-all duration-300 shadow-lg shadow-black/10 flex items-center justify-center gap-2 cursor-pointer">
                   <span className="relative z-10">Proceed to Checkout</span>
                   <ArrowRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform" />
                   <div className="absolute inset-0 h-full w-0 bg-[#D71920] transition-all duration-300 ease-out group-hover:w-full z-0"></div>
-                </button>
+                </Link>
                 
                 <div className="mt-4 flex items-center justify-center gap-2 text-xs text-neutral-500 font-medium">
                   <ShieldCheck size={14} className="text-green-600" />

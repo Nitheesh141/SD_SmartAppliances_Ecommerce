@@ -167,13 +167,14 @@ export default function AdminManagePage() {
   // Helper to sanitize attribute values for SKU
   const sanitizeValueForSku = (val: string) => {
     if (!val) return "";
-    const trimmed = val.trim().toLowerCase();
-    if (trimmed === "glass top") return "GT";
-    if (trimmed === "steel") return "ST";
+    const trimmed = val.trim();
+    if (trimmed.toLowerCase() === "glass top") return "GT";
+    if (trimmed.toLowerCase() === "steel") return "ST";
     
     return trimmed
       .replace(/\s+/g, "")
-      .replace(/[^a-z0-9-]/g, "")
+      .replace(/[^a-zA-Z0-9-]/g, "")
+      .substring(0, 2)
       .toUpperCase();
   };
 

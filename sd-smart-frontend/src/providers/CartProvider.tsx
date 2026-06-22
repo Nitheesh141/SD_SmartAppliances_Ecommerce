@@ -15,6 +15,7 @@ export interface CartContextType {
   addToCart: (productId: string, quantity?: number) => Promise<void>;
   updateQuantity: (cartItemId: string, quantity: number) => Promise<void>;
   removeFromCart: (cartItemId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
   refreshCart: () => Promise<void>;
 }
 
@@ -32,7 +33,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setCartItems([]);
       return;
     }
-    
+
     try {
       setIsLoading(true);
       const res = await cartService.getCart();
@@ -91,15 +92,28 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const clearCart = async () => {
+    try {
+      const res = await cartService.clearCart();
+      if (res.success) {
+        setCart(null);
+        setCartItems([]);
+      }
+    } catch (error) {
+      console.error("Failed to clear cart:", error);
+      throw error;
+    }
+  };
+
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
-  
+
   const cartTotal = cartItems.reduce((acc, item) => {
     const price = item.product?.price || 0;
     return acc + (price * item.quantity);
   }, 0);
 
   return (
-    <CartContext.Provider value={{ cart, cartItems, cartTotal, cartCount, isLoading, addToCart, updateQuantity, removeFromCart, refreshCart }}>
+    <CartContext.Provider value={{ cart, cartItems, cartTotal, cartCount, isLoading, addToCart, updateQuantity, removeFromCart, clearCart, refreshCart }}>
       {children}
     </CartContext.Provider>
   );
