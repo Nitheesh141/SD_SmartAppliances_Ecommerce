@@ -1,4 +1,4 @@
-"us e client";
+"use client";
 
 import React from "react";
 import { Filter, Check, RotateCcw } from "lucide-react";
