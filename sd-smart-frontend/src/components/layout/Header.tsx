@@ -107,12 +107,12 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
     <header className={cn(
       "sticky top-0 z-50 transition-all duration-500 will-change-transform",
       isScrolled
-        ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-b border-neutral-200/60 shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.55)] py-1.5"
-        : "bg-red-50 dark:bg-[#1A090A] border-b border-neutral-200/30 shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)] py-2",
+        ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-b-2 border-neutral-200/80 shadow-[0_15px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.7)] py-1.5"
+        : "bg-red-50 dark:bg-[#1A090A] border-b border-neutral-200/40 shadow-[0_6px_25px_rgba(0,0,0,0.1)] dark:shadow-[0_6px_25px_rgba(0,0,0,0.45)] py-2",
       isLoaded ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
     )}>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
-        <div className="flex items-center h-15 gap-4 lg:gap-8">
+        <div className="flex items-center h-16 gap-4 lg:gap-8">
 
           {/* Logo */}
           <Link href="/" className="flex items-center flex-shrink-0 ml-[-80px]">
