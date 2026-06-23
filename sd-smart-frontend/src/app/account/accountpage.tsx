@@ -26,6 +26,8 @@ import {
   AlertCircle
 } from "lucide-react";
 import { useAuth } from "@/providers/AuthProvider";
+import { checkoutService } from "@/services/checkoutService";
+import { Order } from "@/types/api";
 
 interface Address {
   id: string;
@@ -87,6 +89,10 @@ export default function AccountPage() {
   const [panUploadedFile, setPanUploadedFile] = useState<string | null>(null);
   const [panDeclared, setPanDeclared] = useState(false);
   const [panStatus, setPanStatus] = useState<string | null>(null);
+
+  // Orders state
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
   // Redirect to login if user is not authenticated
   useEffect(() => {
@@ -159,6 +165,25 @@ export default function AccountPage() {
         setPanStatus("UPLOADED");
       }
     }
+  }, [user]);
+
+  // Fetch real user orders
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (!user) return;
+      setOrdersLoading(true);
+      try {
+        const res = await checkoutService.getOrders();
+        if (res.success && res.data?.orders) {
+          setOrders(res.data.orders);
+        }
+      } catch (error) {
+        console.error("Failed to fetch orders:", error);
+      } finally {
+        setOrdersLoading(false);
+      }
+    };
+    fetchOrders();
   }, [user]);
 
   if (loading) {
@@ -1037,44 +1062,49 @@ export default function AccountPage() {
               <div>
                 <h3 className="text-lg font-bold text-neutral-800 dark:text-white mb-6">My Orders</h3>
                 <div className="space-y-4">
-                  <div className="border border-neutral-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-left">
-                    <div className="flex gap-4">
-                      <div className="w-16 h-16 bg-neutral-100 dark:bg-slate-800 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Package size={28} className="text-neutral-400" />
+                  {ordersLoading ? (
+                    <div className="py-12 flex justify-center">
+                      <div className="w-8 h-8 border-4 border-[#D71920]/25 border-t-[#D71920] rounded-full animate-spin"></div>
+                    </div>
+                  ) : orders.length === 0 ? (
+                    <div className="text-center py-16 space-y-4">
+                      <div className="w-16 h-16 bg-neutral-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto text-neutral-400">
+                        <Package size={28} />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-neutral-800 dark:text-white">SD Smart Premium Wet Grinder</p>
-                        <p className="text-xs text-neutral-500 mt-1">Color: Cherry Red</p>
-                        <p className="text-xs text-neutral-500">Seller: SD Smart Retail</p>
+                        <h4 className="text-base font-bold text-neutral-800 dark:text-white">No Orders Found</h4>
+                        <p className="text-sm text-neutral-500 mt-1">You haven't placed any orders yet.</p>
                       </div>
                     </div>
-                    <div className="text-left sm:text-right">
-                      <p className="text-sm font-bold text-neutral-800 dark:text-white">₹4,499</p>
-                      <p className="text-xs text-green-600 font-bold mt-1 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse"></span>
-                        Delivered on June 08, 2026
-                      </p>
-                    </div>
-                  </div>
-                  <div className="border border-neutral-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-left">
-                    <div className="flex gap-4">
-                      <div className="w-16 h-16 bg-neutral-100 dark:bg-slate-800 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Package size={28} className="text-neutral-400" />
+                  ) : (
+                    orders.map(order => (
+                      <div key={order.id} className="border border-neutral-200 dark:border-slate-800 p-6 bg-white dark:bg-slate-900 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-left">
+                        <div className="flex gap-4">
+                          <div className="w-16 h-16 bg-neutral-100 dark:bg-slate-800 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Package size={28} className="text-neutral-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-neutral-800 dark:text-white">Order: {order.orderNumber}</p>
+                            <p className="text-xs text-neutral-500 mt-1">{order.items.length} Product{order.items.length > 1 ? 's' : ''}</p>
+                            <p className="text-xs text-neutral-500">Date: {new Date(order.createdAt).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <div className="text-left sm:text-right flex flex-col sm:items-end w-full sm:w-auto">
+                          <p className="text-sm font-bold text-neutral-800 dark:text-white mb-1">₹{order.grandTotal.toLocaleString()}</p>
+                          <p className="text-xs text-neutral-600 font-bold mb-3 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block animate-pulse"></span>
+                            Status: {order.status}
+                          </p>
+                          <button 
+                            onClick={() => router.push(`/account/orders/${order.id}`)}
+                            className="text-xs font-bold bg-[#1C1C1C] hover:bg-black text-white px-4 py-2 rounded-lg transition-colors w-full sm:w-auto text-center"
+                          >
+                            View Details
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-neutral-800 dark:text-white">SD Smart Gas Stove (3 Burner)</p>
-                        <p className="text-xs text-neutral-500 mt-1">Body: Toughened Glass</p>
-                        <p className="text-xs text-neutral-500">Seller: SD Smart Retail</p>
-                      </div>
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <p className="text-sm font-bold text-neutral-800 dark:text-white">₹3,299</p>
-                      <p className="text-xs text-green-600 font-bold mt-1 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse"></span>
-                        Delivered on May 24, 2026
-                      </p>
-                    </div>
-                  </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}

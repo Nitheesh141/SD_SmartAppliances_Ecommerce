@@ -33,6 +33,8 @@ interface ProductType {
   availableStock?: number;
   stockIn?: number;
   stockOut?: number;
+  todayStockIn?: number;
+  todayStockOut?: number;
 }
 
 export default function AdminProductsPage() {
@@ -71,8 +73,8 @@ export default function AdminProductsPage() {
   const handleOpenInventory = (product: ProductType) => {
     setSelectedProduct(product);
     setTempAvailableStock(product.availableStock || 0);
-    setTempStockIn(product.stockIn || 0);
-    setTempStockOut(product.stockOut || 0);
+    setTempStockIn(product.todayStockIn || 0);
+    setTempStockOut(product.todayStockOut || 0);
     setStockInQty("");
     setStockOutQty("");
     setValidationError(null);
@@ -110,6 +112,10 @@ export default function AdminProductsPage() {
     if (!selectedProduct) return;
     setIsSaving(true);
     const token = localStorage.getItem("authToken");
+
+    const stockInDelta = tempStockIn - (selectedProduct.todayStockIn || 0);
+    const stockOutDelta = tempStockOut - (selectedProduct.todayStockOut || 0);
+
     try {
       const response = await fetch(`http://localhost:5000/api/products/${selectedProduct.id}`, {
         method: "PUT",
@@ -119,8 +125,8 @@ export default function AdminProductsPage() {
         },
         body: JSON.stringify({
           availableStock: tempAvailableStock,
-          stockIn: tempStockIn,
-          stockOut: tempStockOut,
+          stockInDelta: stockInDelta > 0 ? stockInDelta : undefined,
+          stockOutDelta: stockOutDelta > 0 ? stockOutDelta : undefined,
         }),
       });
 
