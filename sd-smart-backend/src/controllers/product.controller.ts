@@ -5,12 +5,15 @@ import { AuthenticatedRequest } from "../middleware/auth.middleware";
 // Get all products with optional filters
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { category, isBestSeller, isFeatured } = req.query;
+    const { category, isBestSeller, isFeatured, variantGroup } = req.query;
 
     const whereClause: any = {};
 
     if (category) {
       whereClause.category = String(category);
+    }
+    if (variantGroup) {
+      whereClause.variantGroup = String(variantGroup);
     }
     if (isBestSeller) {
       whereClause.isBestSeller = isBestSeller === "true";
@@ -124,6 +127,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       modelNumber,
       productId,
       sku,
+      variantGroup,
       variantDetails,
     } = req.body;
 
@@ -138,6 +142,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
         category,
         categoryLabel,
         image,
+        images: req.body.images || [],
         rating: rating !== undefined ? Number(rating) : 5.0,
         reviewCount: reviewCount !== undefined ? Number(reviewCount) : 0,
         price: Number(price),
@@ -162,14 +167,15 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
         modelNumber,
         productId,
         sku: sku || null,
+        variantGroup: variantGroup || null,
         variantDetails: variantDetails || null,
       } as any,
     });
 
     res.status(201).json({ success: true, product });
   } catch (error: any) {
-    console.error("Create product error:", error);
-    res.status(500).json({ success: false, message: "Failed to create product" });
+    console.error("Create product error (detailed):", error);
+    res.status(500).json({ success: false, message: "Failed to create product", details: error.message || error });
   }
 };
 
@@ -188,12 +194,12 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     // Remove immutable fields or convert types safely
     const parsedData: any = {};
     const allowedFields = [
-      "name", "category", "categoryLabel", "image", "rating", "reviewCount",
+      "name", "category", "categoryLabel", "image", "images", "rating", "reviewCount",
       "price", "originalPrice", "discountPercent", "warranty", "productDescription",
       "badge", "href", "inStock", "isBestSeller", "isFeatured", "eyebrow",
       "description", "specs", "startingPrice", "primaryCTALabel", "primaryCTAHref",
       "secondaryCTALabel", "secondaryCTAHref", "imagePosition", "modelNumber", "productId",
-      "availableStock", "sku", "variantDetails"
+      "availableStock", "sku", "variantGroup", "variantDetails"
     ];
 
     for (const key of allowedFields) {
@@ -285,7 +291,11 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
     res.json({ success: true, message: "Product deleted successfully" });
   } catch (error: any) {
     console.error("Delete product error:", error);
-    res.status(500).json({ success: false, message: "Failed to delete product" });
+    if (error.code === 'P2003' || (error.message && error.message.includes('P2003')) || (error.message && error.message.includes('constraint'))) {
+      res.status(400).json({ success: false, message: "Cannot delete product because it is part of existing orders. Please mark it as Out of Stock instead." });
+      return;
+    }
+    res.status(500).json({ success: false, message: "Failed to delete product", errorStr: String(error), errorCode: error.code });
   }
 };
 

@@ -51,6 +51,7 @@ model Product {
   category           String
   categoryLabel      String
   image              String
+  images             String[]               @default([])
   rating             Float                  @default(5.0)
   reviewCount        Int                    @default(0)
   price              Float
@@ -75,6 +76,7 @@ model Product {
   modelNumber        String?
   productId          String?
   sku                String?                @unique
+  variantGroup       String?
   variantDetails     Json?
   availableStock     Int                    @default(0)
   stockIn            Int                    @default(0)
@@ -230,7 +232,7 @@ model OrderItem {
   orderId     String
   order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId   String
-  product     Product  @relation(fields: [productId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   quantity    Int
   unitPrice   Float
   createdAt   DateTime @default(now())

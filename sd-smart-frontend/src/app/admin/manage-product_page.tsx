@@ -118,6 +118,7 @@ export default function AdminManagePage() {
   const [inStock, setInStock] = useState(true);
   const [isBestSeller, setIsBestSeller] = useState(false);
   const [isFeatured, setIsFeatured] = useState(false);
+  const [variantGroup, setVariantGroup] = useState("");
 
   // Featured-specific Fields
   const [eyebrow, setEyebrow] = useState("");
@@ -178,7 +179,7 @@ export default function AdminManagePage() {
       .toUpperCase();
   };
 
-  // SKU Auto-generation logic
+  // SKU & Variant Group Auto-generation logic
   useEffect(() => {
     let sku = "SD";
     const catCode = getCategoryCode(category);
@@ -197,6 +198,10 @@ export default function AdminManagePage() {
 
     setGeneratedSku(sku);
     setproduct_id(sku); // Sync with product_id (used as SKU in backend)
+    
+    // Auto-generate Variant Group: <Category Code>-<Model Name>
+    const modelNameSafe = modelNumber ? modelNumber.trim().toUpperCase().replace(/\s+/g, "-").replace(/[^A-Z0-9-]/g, "") : "UNKNOWN";
+    setVariantGroup(`${catCode}-${modelNameSafe}`);
   }, [category, modelNumber, attributes]);
 
   // Fetch all existing models in the database for the selected category & deleted models
@@ -475,6 +480,7 @@ export default function AdminManagePage() {
       });
       setAttributes(loadedAttributes);
       if (product.sku) setGeneratedSku(product.sku);
+      setVariantGroup(product.variantGroup || "");
 
       let parsedSpecs: SpecItem[] = [];
       if (product.specs) {
@@ -564,6 +570,7 @@ export default function AdminManagePage() {
       category,
       categoryLabel,
       image,
+      images: images.length > 0 ? images : (image ? [image] : []),
       price: priceNum,
       originalPrice: originalPriceNum,
       discountPercent: discountPercent > 0 ? discountPercent : 0,
@@ -575,6 +582,7 @@ export default function AdminManagePage() {
       isFeatured,
       href: `#product-${Date.now()}`,
       sku: generatedSku || product_id,
+      variantGroup: variantGroup || null,
       variantDetails: attributes.reduce((acc, curr) => {
         if (curr.name.trim()) {
           acc[curr.name.trim()] = curr.value.trim();
@@ -976,6 +984,32 @@ export default function AdminManagePage() {
                           );
                         }
                       })()}
+                    </div>
+
+                    {/* Variant Group */}
+                    <div className="md:col-span-2">
+                      <label className={cn(
+                        "block text-xs font-bold uppercase tracking-wider mb-1.5",
+                        isDark ? "text-neutral-400" : "text-slate-600"
+                      )}>
+                        Variant Group Name (Auto-Generated)
+                      </label>
+                      <input
+                        type="text"
+                        value={variantGroup}
+                        readOnly
+                        disabled
+                        placeholder="Auto-generated from Category and Model Name"
+                        className={cn(
+                          "w-full px-4 py-2.5 border rounded-lg text-sm transition-all cursor-not-allowed opacity-70",
+                          isDark
+                            ? "bg-neutral-800 border-neutral-700 text-neutral-400"
+                            : "bg-slate-100 border-slate-200 text-slate-500"
+                        )}
+                      />
+                      <p className="text-[10px] mt-1 text-slate-500">
+                        This is the single source of truth for linking variants together. It is calculated automatically.
+                      </p>
                     </div>
 
                     {/* Dynamic Variant Attributes System */}
@@ -1504,6 +1538,7 @@ export default function AdminManagePage() {
                     </div>
                   </div>
 
+
                   {/* Checkboxes */}
                   <div className="flex flex-wrap items-center gap-6 py-2 col-span-1 md:col-span-2">
                     <label className="flex items-center gap-2 cursor-pointer text-xs font-bold uppercase tracking-wider">
@@ -1656,83 +1691,7 @@ export default function AdminManagePage() {
                       />
                     </div>
 
-                    {/* Specs List Builder */}
-                    <div className="md:col-span-2 space-y-3">
-                      <label className={cn(
-                        "block text-xs font-bold uppercase tracking-wider border-b pb-1.5",
-                        isDark ? "text-neutral-400 border-neutral-850" : "text-slate-600 border-slate-100"
-                      )}>
-                        Appliance Specs Key-Value Table
-                      </label>
 
-                      {/* Existing Specs */}
-                      {specs.length > 0 && (
-                        <div className="flex flex-wrap gap-2 py-1">
-                          {specs.map((item, index) => (
-                            <div
-                              key={index}
-                              className={cn(
-                                "px-2.5 py-1 border rounded-lg flex items-center gap-2 text-xs font-medium",
-                                isDark
-                                  ? "bg-neutral-900 border-neutral-850 text-neutral-300"
-                                  : "bg-slate-100 border-slate-200 text-slate-700"
-                              )}
-                            >
-                              <span className="text-neutral-500">{item.label}:</span>
-                              <span>{item.value}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveSpec(index)}
-                                className="text-neutral-500 hover:text-red-500 cursor-pointer"
-                              >
-                                <X size={12} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Specs Builder Inputs */}
-                      <div className="flex gap-3 items-center">
-                        <input
-                          type="text"
-                          value={newSpecLabel}
-                          onChange={(e) => setNewSpecLabel(e.target.value)}
-                          placeholder="Spec Name (e.g. Sensors)"
-                          className={cn(
-                            "flex-1 px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#D71920] transition-all",
-                            isDark
-                              ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
-                              : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
-                          )}
-                        />
-                        <input
-                          type="text"
-                          value={newSpecValue}
-                          onChange={(e) => setNewSpecValue(e.target.value)}
-                          placeholder="Spec Value (e.g. Temp & Pressure)"
-                          className={cn(
-                            "flex-1 px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#D71920] transition-all",
-                            isDark
-                              ? "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600"
-                              : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
-                          )}
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAddSpec}
-                          className={cn(
-                            "px-3 py-2 border rounded-lg text-xs font-bold hover:text-white transition-all flex items-center gap-1 cursor-pointer flex-shrink-0",
-                            isDark
-                              ? "bg-neutral-900 border-neutral-800 text-[#D71920] hover:bg-neutral-800"
-                              : "bg-slate-50 border-slate-200 text-[#D71920] hover:bg-[#D71920]"
-                          )}
-                        >
-                          <Plus size={14} />
-                          <span>Add</span>
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
