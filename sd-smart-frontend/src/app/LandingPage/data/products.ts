@@ -78,8 +78,8 @@ export const featuredProducts: FeaturedProduct[] = [
     description: "Our flagship smart cooker combines safety, efficiency, and smart connectivity. Designed for modern Indian kitchens, it syncs with our mobile app to automatically execute recipes. The multi-layer thermal design retains nutrients, while safety sensors monitor pressure in real-time.",
     startingPrice: 6499,
     image: "https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?q=80&w=600&auto=format&fit=crop",
-    primaryCTA: { label: "Buy Now", href: "#buy-now" },
-    secondaryCTA: { label: "Compare Specs", href: "#compare" },
+    primaryCTA: { label: "Buy Now", href: "/product/prod-featured-1" },
+    secondaryCTA: { label: "Compare Specs", href: "/product/prod-featured-1" },
     imagePosition: "left",
     specs: [
       { label: "Capacity", value: "5 Litres" },
@@ -96,8 +96,8 @@ export const featuredProducts: FeaturedProduct[] = [
     description: "Redefining wet grinding. Operating under 55dB, this grinder lets you prepare fresh batters in peace. Equipped with premium black granite grinding stones and a digital timer with auto-cut-off, it guarantees perfect consistency for fluffy idlis and crispy dosas.",
     startingPrice: 7999,
     image: "https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?q=80&w=600&auto=format&fit=crop",
-    primaryCTA: { label: "Buy Now", href: "#buy-now" },
-    secondaryCTA: { label: "Compare Specs", href: "#compare" },
+    primaryCTA: { label: "Buy Now", href: "/product/prod-featured-2" },
+    secondaryCTA: { label: "Compare Specs", href: "/product/prod-featured-2" },
     imagePosition: "right",
     specs: [
       { label: "Stones", value: "Dual Granite Rollers" },

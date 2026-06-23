@@ -84,6 +84,11 @@ const ShopPage = dynamic(() => import("../app/shop/shoppage"), {
   ssr: true,
 });
 
+const ProductDetailPage = dynamic(() => import("../app/product/productpage"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 // Support & policies
 const SupportPage = dynamic(() => import("../app/support/supportpage"), {
   loading: PageLoader,
@@ -141,5 +146,8 @@ export const routes: Record<string, React.ComponentType<any>> = {
 
 export function getRouteComponent(path: string) {
   const cleanPath = path === "/" ? "/" : path.replace(/\/$/, "");
+  if (cleanPath.startsWith("/product/")) {
+    return ProductDetailPage;
+  }
   return routes[cleanPath] || null;
 }

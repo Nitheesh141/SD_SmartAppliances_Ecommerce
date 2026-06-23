@@ -130,7 +130,7 @@ export default function ProductCard({ product, className }: ProductCardProps) {
         }}
       />
       {/* Image area */}
-      <Link href={product.href} className="block relative aspect-[4/3] overflow-hidden bg-neutral-50 flex items-center justify-center">
+      <Link href={`/product/${product.id}`} className="block relative aspect-[4/3] overflow-hidden bg-neutral-50 flex items-center justify-center">
         <img
           src={product.image}
           alt={product.name}
@@ -200,7 +200,7 @@ export default function ProductCard({ product, className }: ProductCardProps) {
         <p className="text-xs font-semibold text-[#D71920] tracking-widest uppercase mb-1">
           {product.categoryLabel}
         </p>
-        <Link href={product.href}>
+        <Link href={`/product/${product.id}`}>
           <h3 className="text-[15px] font-bold text-[#1C1C1C] leading-snug mb-2 hover:text-[#D71920] transition-colors line-clamp-2">
             {product.name}
           </h3>

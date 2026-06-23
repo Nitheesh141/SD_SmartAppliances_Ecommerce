@@ -62,11 +62,11 @@ export default function LandingPage() {
             startingPrice: p.startingPrice || p.price,
             primaryCTA: {
               label: p.primaryCTALabel || "Buy Now",
-              href: p.primaryCTAHref || "#buy-now"
+              href: `/product/${p.id}`
             },
             secondaryCTA: {
               label: p.secondaryCTALabel || "Compare Specs",
-              href: p.secondaryCTAHref || "#compare"
+              href: `/product/${p.id}`
             },
             specs: parsedSpecs
           };
