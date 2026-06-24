@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import { prisma } from "../utils/db";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
+import { matchProduct } from "../utils/search";
 
 // Get all products with optional filters
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { category, isBestSeller, isFeatured, variantGroup } = req.query;
+    const { category, isBestSeller, isFeatured, variantGroup, search } = req.query;
 
     const whereClause: any = {};
 
@@ -39,12 +40,17 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       }
     });
 
-    const formattedProducts = products.map((p: any) => {
+    let formattedProducts = products.map((p: any) => {
       const todayStockIn = p.transactions.filter((t: any) => t.type === "IN").reduce((sum: number, t: any) => sum + t.quantity, 0);
       const todayStockOut = p.transactions.filter((t: any) => t.type === "OUT").reduce((sum: number, t: any) => sum + t.quantity, 0);
       const { transactions, ...rest } = p;
       return { ...rest, todayStockIn, todayStockOut };
     });
+
+    if (search) {
+      const queryStr = String(search);
+      formattedProducts = formattedProducts.filter((p: any) => matchProduct(p, queryStr));
+    }
 
     res.json({ success: true, products: formattedProducts });
   } catch (error: any) {

@@ -7,6 +7,7 @@ import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/naviga
 import ProductCard from "@/components/cards/ProductCard";
 import { useDynamicProducts } from "@/hooks/useDynamicProducts";
 import ShopSidebar from "@/components/layout/ShopSidebar";
+import { matchProduct } from "../../utils/search";
 import {
   SlidersHorizontal, ArrowUpDown, Filter, ShieldCheck, X
 } from "lucide-react";
@@ -90,20 +91,7 @@ export default function ShopPage() {
 
     // Search Query Filter
     if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase();
-      const matchesName = product.name.toLowerCase().includes(query);
-      const matchesCategory = product.categoryLabel.toLowerCase().includes(query);
-      const matchesBadge = product.badge ? product.badge.toLowerCase().includes(query) : false;
-
-      let matchesSpecs = false;
-      if (product.specs) {
-        const specsStr = typeof product.specs === "string"
-          ? product.specs.toLowerCase()
-          : JSON.stringify(product.specs).toLowerCase();
-        matchesSpecs = specsStr.includes(query);
-      }
-
-      if (!matchesName && !matchesCategory && !matchesBadge && !matchesSpecs) {
+      if (!matchProduct(product, searchQuery)) {
         return false;
       }
     }

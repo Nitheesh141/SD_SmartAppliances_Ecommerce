@@ -10,6 +10,7 @@ import { THEME_CLASSES } from "@/config/themes";
 import { useAuth } from "@/providers/AuthProvider";
 import { useCart } from "@/providers/CartProvider";
 import { useDynamicProducts } from "@/hooks/useDynamicProducts";
+import { matchProduct } from "../../utils/search";
 
 interface HeaderProps {
   navLinks?: NavLink[];
@@ -215,10 +216,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     if (value.trim().length >= 2) {
-      const filtered = allProducts.filter((product) =>
-        product.name.toLowerCase().includes(value.toLowerCase()) ||
-        product.categoryLabel?.toLowerCase().includes(value.toLowerCase())
-      );
+      const filtered = allProducts.filter((product) => matchProduct(product, value));
       setSuggestions(filtered.slice(0, 5));
     } else {
       setSuggestions([]);
