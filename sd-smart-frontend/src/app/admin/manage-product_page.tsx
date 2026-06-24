@@ -1724,7 +1724,7 @@ export default function AdminManagePage() {
                     type="button"
                     onClick={() => router.push("/admin/dashboard")}
                     className={cn(
-                      "px-4.5 py-2.5 border rounded-lg text-sm font-semibold transition-all cursor-pointer",
+                      "px-6 py-2.5 border rounded-lg text-sm font-semibold transition-all cursor-pointer",
                       isDark
                         ? "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800"
                         : "bg-white border-slate-300 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
@@ -1736,7 +1736,7 @@ export default function AdminManagePage() {
                     type="button"
                     onClick={() => setCurrentStep(1)}
                     className={cn(
-                      "px-4.5 py-2.5 border rounded-lg text-sm font-semibold transition-all cursor-pointer",
+                      "px-6 py-2.5 border rounded-lg text-sm font-semibold transition-all cursor-pointer",
                       isDark
                         ? "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800"
                         : "bg-white border-slate-300 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
@@ -1747,7 +1747,7 @@ export default function AdminManagePage() {
                   <button
                     type="submit"
                     disabled={isSubmitLoading}
-                    className="px-5.5 py-2.5 bg-[#D71920] hover:bg-[#B91520] rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-[#D71920]/15"
+                    className="px-6 py-2.5 bg-[#D71920] hover:bg-[#B91520] rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-[#D71920]/15"
                   >
                     {isSubmitLoading ? (
                       <>

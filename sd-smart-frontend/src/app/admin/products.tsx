@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
 import { 
-  Plus, Edit2, Trash2, Package, Loader2, RefreshCw, Layers
+  Plus, Edit2, Trash2, Package, Loader2, RefreshCw, Layers, Search
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import { cn } from "@/lib/utils";
+import { matchProduct } from "../../utils/search";
 
 interface ProductType {
   id: string;
@@ -30,6 +31,7 @@ interface ProductType {
   isFeatured: boolean;
   modelNumber?: string | null;
   productId?: string | null;
+  sku?: string | null;
   availableStock?: number;
   stockIn?: number;
   stockOut?: number;
@@ -45,6 +47,14 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [isDeleteLoading, setIsDeleteLoading] = useState<string | null>(null);
   
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Memoized filtered products list
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => matchProduct(product, searchQuery));
+  }, [products, searchQuery]);
+
   // Theme state
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
@@ -276,12 +286,48 @@ export default function AdminProductsPage() {
             "border rounded-2xl overflow-hidden shadow-xl backdrop-blur-md transition-all",
             isDark ? "bg-neutral-950/60 border-neutral-800/80" : "bg-white border-neutral-200"
           )}>
+            {/* Filter / Search Bar */}
+            {products.length > 0 && (
+              <div className={cn(
+                "p-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-4",
+                isDark ? "border-neutral-800/50 bg-neutral-900/10" : "border-slate-100 bg-slate-50/40"
+              )}>
+                <div className="relative w-full md:w-80">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search products by name, category, SKU..."
+                    className={cn(
+                      "w-full pl-10 pr-4 py-2.5 text-xs font-semibold border rounded-xl bg-white dark:bg-neutral-900 focus:outline-none focus:ring-4 text-slate-800 dark:text-neutral-100 shadow-sm transition-colors placeholder-neutral-400 dark:placeholder-neutral-500",
+                      isDark
+                        ? "border-neutral-800 focus:ring-[#D71920]/20 focus:border-[#D71920]"
+                        : "border-slate-200 focus:ring-[#D71920]/15 focus:border-[#D71920]"
+                    )}
+                  />
+                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#D71920]" />
+                </div>
+
+                <div className={cn("text-xs font-bold", isDark ? "text-neutral-500" : "text-slate-400")}>
+                  Showing {filteredProducts.length} of {products.length} Products
+                </div>
+              </div>
+            )}
+
             {products.length === 0 ? (
               <div className="py-24 text-center">
                 <Package className={cn("w-16 h-16 mx-auto mb-4", isDark ? "text-neutral-800" : "text-neutral-300")} />
                 <p className="text-lg font-bold">No products found</p>
                 <p className={cn("text-sm mt-1", isDark ? "text-neutral-500" : "text-neutral-400")}>
                   Get started by creating a new appliance above.
+                </p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="py-24 text-center">
+                <Search className={cn("w-16 h-16 mx-auto mb-4 text-[#D71920]/70", isDark ? "text-neutral-800" : "text-neutral-300")} />
+                <p className="text-lg font-bold">No matching products found</p>
+                <p className={cn("text-sm mt-1", isDark ? "text-neutral-500" : "text-slate-400")}>
+                  Your search query "{searchQuery}" did not match any catalog items.
                 </p>
               </div>
             ) : (
@@ -303,7 +349,7 @@ export default function AdminProductsPage() {
                     "divide-y transition-colors",
                     isDark ? "divide-neutral-900" : "divide-neutral-100"
                   )}>
-                    {products.map((product) => (
+                    {filteredProducts.map((product) => (
                       <tr
                         key={product.id}
                         onClick={() => handleOpenInventory(product)}
@@ -331,6 +377,11 @@ export default function AdminProductsPage() {
                             <h3 className={cn("font-bold truncate max-w-[200px] sm:max-w-[300px]", isDark ? "text-neutral-100" : "text-slate-800")}>
                               {product.name}
                             </h3>
+                            {(product.sku || product.productId) && (
+                              <p className={cn("text-[11px] font-mono font-bold mt-0.5", isDark ? "text-neutral-400" : "text-slate-500")}>
+                                SKU: {product.sku || product.productId}
+                              </p>
+                            )}
                             <div className="flex items-center gap-2 mt-1">
                               {product.badge && (
                                 <span className="px-2 py-0.5 bg-[#D71920]/10 border border-[#D71920]/20 text-[#D71920] rounded text-[10px] font-bold uppercase tracking-wider">

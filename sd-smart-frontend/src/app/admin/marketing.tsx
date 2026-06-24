@@ -6,7 +6,8 @@ import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
 import {
   Percent, Plus, Edit2, Trash2, Loader2, RefreshCw, Megaphone,
-  Tag, Calendar, Sparkles, AlertCircle, ShoppingBag, Award, Truck, Check, HelpCircle
+  Tag, Calendar, Sparkles, AlertCircle, ShoppingBag, Award, Truck, Check, HelpCircle,
+  ChevronDown
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,169 @@ interface ProductType {
   price: number;
   originalPrice: number;
   modelNumber?: string | null;
+}
+
+const badgeColorOptions = [
+  { value: "red", label: "Vibrant Red" },
+  { value: "orange", label: "Bright Orange" },
+  { value: "green", label: "Eco Green" },
+  { value: "blue", label: "Blue Wave" },
+  { value: "purple", label: "Royal Purple" },
+];
+
+const offerTypeOptions = [
+  { value: "PRODUCT_DISCOUNT", label: "Product Discount" },
+  { value: "CATEGORY_DISCOUNT", label: "Category Discount" },
+  { value: "BRAND_DISCOUNT", label: "Brand Discount" },
+  { value: "QUANTITY_DISCOUNT", label: "Quantity / Bulk Discount" },
+  { value: "CART_VALUE_DISCOUNT", label: "Cart Value Discount" },
+  { value: "COUPON", label: "Promo Code / Coupon" },
+  { value: "FLAT_DISCOUNT", label: "Flat Amount Discount" },
+  { value: "PERCENTAGE_DISCOUNT", label: "Percentage Discount" },
+  { value: "BOGO", label: "Buy One Get One (BOGO)" },
+  { value: "COMBO", label: "Combo Bundle Deal" },
+  { value: "BUNDLE", label: "Product Bundle Pack" },
+  { value: "FLASH_SALE", label: "Time-limited Flash Sale" },
+  { value: "SEASONAL", label: "Seasonal Campaign" },
+  { value: "NEW_USER", label: "First Order Discount" },
+  { value: "LOYALTY", label: "Membership Loyalty Tier" },
+  { value: "FREE_SHIPPING", label: "Free Shipping Waiver" },
+];
+
+const categoryOptionsList = [
+  { value: "", label: "-- Select Category --" },
+  { value: "pressure-cookers", label: "Pressure Cookers" },
+  { value: "non-stick", label: "Non-Stick Cookware" },
+  { value: "mixer-grinders", label: "Mixer Grinders" },
+  { value: "gas-stoves", label: "LPG Stoves" },
+  { value: "wet-grinders", label: "Wet Grinders" },
+  { value: "commercial", label: "Commercial Wet Grinders" },
+];
+
+const discountTypeOptions = [
+  { value: "PERCENTAGE", label: "Percentage (%)" },
+  { value: "FLAT", label: "Flat Amount (INR)" },
+];
+
+const bogoModeOptions = [
+  { value: "SAME", label: "Discount the same buy item" },
+  { value: "DIFFERENT", label: "Give different promotional item" },
+];
+
+const bulkRuleTypeOptions = [
+  { value: "PERCENTAGE", label: "% Off" },
+  { value: "FLAT", label: "Flat INR Off" },
+];
+
+const seasonalTagOptions = [
+  { value: "DIWALI", label: "Diwali Festival" },
+  { value: "PONGAL", label: "Pongal Festival" },
+  { value: "NEW_YEAR", label: "New Year Sale" },
+  { value: "INDEPENDENCE_DAY", label: "Independence Day" },
+  { value: "CUSTOM", label: "Custom Theme" },
+];
+
+const loyaltyTierOptions = [
+  { value: "SILVER", label: "Silver (0-2 Orders)" },
+  { value: "GOLD", label: "Gold (3-5 Orders)" },
+  { value: "PLATINUM", label: "Platinum (6+ Orders)" },
+];
+
+const customerEligibilityOptions = [
+  { value: "ALL", label: "All Customers" },
+  { value: "NEW", label: "New Customers (First Order Only)" },
+  { value: "EXISTING", label: "Returning Customers (1+ Previous Orders)" },
+];
+
+interface CustomSelectOption {
+  value: string;
+  label: string;
+}
+
+interface CustomSelectProps {
+  options: CustomSelectOption[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  isDark: boolean;
+  className?: string;
+}
+
+function CustomDropdown({
+  options,
+  value,
+  onChange,
+  placeholder = "Select option...",
+  disabled = false,
+  isDark,
+  className
+}: CustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const selectedOption = options.find(o => o.value === value);
+  const displayLabel = selectedOption ? selectedOption.label : placeholder;
+
+  return (
+    <div className={cn("relative w-full", className)}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "w-full px-3 py-2 border rounded-lg text-sm font-semibold focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 focus:border-[#D71920] cursor-pointer text-left transition-all relative flex items-center justify-between shadow-sm disabled:opacity-50 disabled:cursor-not-allowed",
+          isDark
+            ? "bg-neutral-900 border-neutral-800 text-white"
+            : "bg-slate-50 border-slate-200 text-slate-900"
+        )}
+      >
+        <span className="truncate pr-4">{displayLabel}</span>
+        <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-200 shrink-0", isOpen ? "rotate-180" : "")} />
+      </button>
+
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 cursor-default"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className={cn(
+            "absolute left-0 right-0 mt-1.5 border rounded-xl shadow-xl py-1.5 z-50 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-200",
+            isDark
+              ? "bg-neutral-950 border-neutral-800 text-white"
+              : "bg-white border-neutral-200 text-slate-900"
+          )}>
+            {options.map((option) => {
+              const isSelected = option.value === value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(option.value);
+                    setIsOpen(false);
+                  }}
+                  className={cn(
+                    "w-full text-left px-4 py-2 text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer border-b border-transparent last:border-0",
+                    isDark
+                      ? isSelected
+                        ? "bg-red-950/20 text-red-400"
+                        : "text-neutral-300 hover:bg-neutral-900/50 hover:text-white"
+                      : isSelected
+                        ? "bg-red-50 text-[#D71920]"
+                        : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  )}
+                >
+                  <span className="truncate mr-2">{option.label}</span>
+                  {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#D71920] dark:bg-red-400 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function AdminMarketingPage() {
@@ -962,28 +1126,12 @@ export default function AdminMarketingPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex flex-col">
                     <label className={modalLabelClass}>Offer Type</label>
-                    <select
+                    <CustomDropdown
+                      options={offerTypeOptions}
                       value={formOfferType}
-                      onChange={(e) => setFormOfferType(e.target.value)}
-                      className={modalSelectClass}
-                    >
-                      <option value="PRODUCT_DISCOUNT">Product Discount</option>
-                      <option value="CATEGORY_DISCOUNT">Category Discount</option>
-                      <option value="BRAND_DISCOUNT">Brand Discount</option>
-                      <option value="QUANTITY_DISCOUNT">Quantity / Bulk Discount</option>
-                      <option value="CART_VALUE_DISCOUNT">Cart Value Discount</option>
-                      <option value="COUPON">Promo Code / Coupon</option>
-                      <option value="FLAT_DISCOUNT">Flat Amount Discount</option>
-                      <option value="PERCENTAGE_DISCOUNT">Percentage Discount</option>
-                      <option value="BOGO">Buy One Get One (BOGO)</option>
-                      <option value="COMBO">Combo Bundle Deal</option>
-                      <option value="BUNDLE">Product Bundle Pack</option>
-                      <option value="FLASH_SALE">Time-limited Flash Sale</option>
-                      <option value="SEASONAL">Seasonal Campaign</option>
-                      <option value="NEW_USER">First Order Discount</option>
-                      <option value="LOYALTY">Membership Loyalty Tier</option>
-                      <option value="FREE_SHIPPING">Free Shipping Waiver</option>
-                    </select>
+                      onChange={(val) => setFormOfferType(val)}
+                      isDark={isDark}
+                    />
                   </div>
 
                   <div className="flex flex-col">
@@ -1034,17 +1182,12 @@ export default function AdminMarketingPage() {
 
                   <div className="flex flex-col">
                     <label className={modalLabelClass}>Badge Theme Color</label>
-                    <select
+                    <CustomDropdown
+                      options={badgeColorOptions}
                       value={formBadgeColor}
-                      onChange={(e) => setFormBadgeColor(e.target.value)}
-                      className={modalSelectClass}
-                    >
-                      <option value="red">Vibrant Red</option>
-                      <option value="orange">Bright Orange</option>
-                      <option value="green">Eco Green</option>
-                      <option value="blue">Blue Wave</option>
-                      <option value="purple">Royal Purple</option>
-                    </select>
+                      onChange={(val) => setFormBadgeColor(val)}
+                      isDark={isDark}
+                    />
                   </div>
                 </div>
 
@@ -1101,65 +1244,60 @@ export default function AdminMarketingPage() {
                         {/* 1. Category Selector */}
                         <div className="flex flex-col">
                           <span className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400 mb-1">1. Category</span>
-                          <select
+                          <CustomDropdown
+                            options={categoryOptionsList}
                             value={targetSelCategory}
-                            onChange={(e) => {
-                              setTargetSelCategory(e.target.value);
+                            onChange={(val) => {
+                              setTargetSelCategory(val);
                               setTargetSelModel("");
                               setTargetSelProductId("");
                             }}
-                            className={modalSelectClass}
-                          >
-                            <option value="">-- Select Category --</option>
-                            <option value="pressure-cookers">Pressure Cookers</option>
-                            <option value="non-stick">Non-Stick Cookware</option>
-                            <option value="mixer-grinders">Mixer Grinders</option>
-                            <option value="gas-stoves">LPG Stoves</option>
-                            <option value="wet-grinders">Wet Grinders</option>
-                            <option value="commercial">Commercial Wet Grinders</option>
-                          </select>
+                            placeholder="-- Select Category --"
+                            isDark={isDark}
+                          />
                         </div>
 
                         {/* 2. Model Name Selector */}
                         <div className="flex flex-col">
                           <span className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400 mb-1">2. Model Name</span>
-                          <select
+                          <CustomDropdown
+                            options={[
+                              { value: "", label: "-- Select Model Name --" },
+                              ...Array.from(new Set(products
+                                .filter(p => p.category === targetSelCategory)
+                                .map(p => p.modelNumber)
+                                .filter(Boolean)
+                              )).map(model => ({ value: model!, label: model! }))
+                            ]}
                             value={targetSelModel}
                             disabled={!targetSelCategory}
-                            onChange={(e) => {
-                              setTargetSelModel(e.target.value);
+                            onChange={(val) => {
+                              setTargetSelModel(val);
                               setTargetSelProductId("");
                             }}
-                            className={modalSelectClass}
-                          >
-                            <option value="">-- Select Model Name --</option>
-                            {targetSelCategory && Array.from(new Set(products
-                              .filter(p => p.category === targetSelCategory)
-                              .map(p => p.modelNumber)
-                              .filter(Boolean)
-                            )).map((model) => (
-                              <option key={model} value={model!}>{model}</option>
-                            ))}
-                          </select>
+                            placeholder="-- Select Model Name --"
+                            isDark={isDark}
+                          />
                         </div>
 
                         {/* 3. Product Selector */}
                         <div className="flex flex-col">
                           <span className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400 mb-1">3. Product</span>
-                          <div className="flex gap-2">
-                            <select
+                          <div className="flex gap-2 w-full">
+                            <CustomDropdown
+                              options={[
+                                { value: "", label: "-- Select Product --" },
+                                ...products
+                                  .filter(p => p.category === targetSelCategory && p.modelNumber === targetSelModel)
+                                  .map(p => ({ value: p.id, label: p.name }))
+                              ]}
                               value={targetSelProductId}
                               disabled={!targetSelModel}
-                              onChange={(e) => setTargetSelProductId(e.target.value)}
-                              className={modalSelectClass}
-                            >
-                              <option value="">-- Select Product --</option>
-                              {targetSelCategory && targetSelModel && products
-                                .filter(p => p.category === targetSelCategory && p.modelNumber === targetSelModel)
-                                .map((p) => (
-                                  <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </select>
+                              onChange={(val) => setTargetSelProductId(val)}
+                              placeholder="-- Select Product --"
+                              isDark={isDark}
+                              className="flex-1"
+                            />
                             <button
                               type="button"
                               onClick={() => {
@@ -1265,14 +1403,12 @@ export default function AdminMarketingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="flex flex-col">
                         <label className={modalLabelClass}>Discount Type</label>
-                        <select
+                        <CustomDropdown
+                          options={discountTypeOptions}
                           value={configDiscountType}
-                          onChange={(e) => setConfigDiscountType(e.target.value)}
-                          className={modalSelectClass}
-                        >
-                          <option value="PERCENTAGE">Percentage (%)</option>
-                          <option value="FLAT">Flat Amount (INR)</option>
-                        </select>
+                          onChange={(val) => setConfigDiscountType(val)}
+                          isDark={isDark}
+                        />
                       </div>
 
                       <div className="flex flex-col">
@@ -1306,14 +1442,16 @@ export default function AdminMarketingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="flex flex-col">
                         <label className={modalLabelClass}>Buy Product *</label>
-                        <select
+                        <CustomDropdown
+                          options={[
+                            { value: "", label: "-- Choose Buy Item --" },
+                            ...products.map(p => ({ value: p.id, label: p.name }))
+                          ]}
                           value={configBuyProductId}
-                          onChange={(e) => setConfigBuyProductId(e.target.value)}
-                          className={modalSelectClass}
-                        >
-                          <option value="">-- Choose Buy Item --</option>
-                          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
+                          onChange={(val) => setConfigBuyProductId(val)}
+                          placeholder="-- Choose Buy Item --"
+                          isDark={isDark}
+                        />
                       </div>
 
                       <div className="flex flex-col">
@@ -1331,14 +1469,16 @@ export default function AdminMarketingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="flex flex-col">
                         <label className={modalLabelClass}>Get Product *</label>
-                        <select
+                        <CustomDropdown
+                          options={[
+                            { value: "", label: "-- Choose Free Item --" },
+                            ...products.map(p => ({ value: p.id, label: p.name }))
+                          ]}
                           value={configGetProductId}
-                          onChange={(e) => setConfigGetProductId(e.target.value)}
-                          className={modalSelectClass}
-                        >
-                          <option value="">-- Choose Free Item --</option>
-                          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
+                          onChange={(val) => setConfigGetProductId(val)}
+                          placeholder="-- Choose Free Item --"
+                          isDark={isDark}
+                        />
                       </div>
 
                       <div className="flex flex-col">
@@ -1356,14 +1496,12 @@ export default function AdminMarketingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="flex flex-col">
                         <label className={modalLabelClass}>BOGO Mode</label>
-                        <select
+                        <CustomDropdown
+                          options={bogoModeOptions}
                           value={configBogoType}
-                          onChange={(e) => setConfigBogoType(e.target.value)}
-                          className={modalSelectClass}
-                        >
-                          <option value="SAME">Discount the same buy item</option>
-                          <option value="DIFFERENT">Give different promotional item</option>
-                        </select>
+                          onChange={(val) => setConfigBogoType(val)}
+                          isDark={isDark}
+                        />
                       </div>
 
                       <div className="flex flex-col">
@@ -1427,18 +1565,17 @@ export default function AdminMarketingPage() {
                             className={cn(modalInputClass, "w-20 px-2 py-1 text-xs")}
                           />
 
-                          <select
+                          <CustomDropdown
+                            options={bulkRuleTypeOptions}
                             value={rule.discountType}
-                            onChange={(e) => {
+                            onChange={(val) => {
                               const next = [...bulkRules];
-                              if (next[idx]) next[idx].discountType = e.target.value;
+                              if (next[idx]) next[idx].discountType = val;
                               setBulkRules(next);
                             }}
-                            className={cn(modalSelectClass, "px-2 py-1 text-xs w-auto")}
-                          >
-                            <option value="PERCENTAGE">% Off</option>
-                            <option value="FLAT">Flat INR Off</option>
-                          </select>
+                            className="w-32"
+                            isDark={isDark}
+                          />
 
                           <button
                             type="button"
@@ -1605,17 +1742,12 @@ export default function AdminMarketingPage() {
 
                     <div className="flex flex-col">
                       <label className={modalLabelClass}>Season Tag</label>
-                      <select
+                      <CustomDropdown
+                        options={seasonalTagOptions}
                         value={configFestivalType}
-                        onChange={(e) => setConfigFestivalType(e.target.value)}
-                        className={modalSelectClass}
-                      >
-                        <option value="DIWALI">Diwali Festival</option>
-                        <option value="PONGAL">Pongal Festival</option>
-                        <option value="NEW_YEAR">New Year Sale</option>
-                        <option value="INDEPENDENCE_DAY">Independence Day</option>
-                        <option value="CUSTOM">Custom Theme</option>
-                      </select>
+                        onChange={(val) => setConfigFestivalType(val)}
+                        isDark={isDark}
+                      />
                     </div>
                   </div>
                 )}
@@ -1624,15 +1756,12 @@ export default function AdminMarketingPage() {
                 {formOfferType === "LOYALTY" && (
                   <div className="flex flex-col">
                     <label className={modalLabelClass}>Membership Loyalty Tier *</label>
-                    <select
+                    <CustomDropdown
+                      options={loyaltyTierOptions}
                       value={configMembershipTier}
-                      onChange={(e) => setConfigMembershipTier(e.target.value)}
-                      className={modalSelectClass}
-                    >
-                      <option value="SILVER">Silver (0-2 Orders)</option>
-                      <option value="GOLD">Gold (3-5 Orders)</option>
-                      <option value="PLATINUM">Platinum (6+ Orders)</option>
-                    </select>
+                      onChange={(val) => setConfigMembershipTier(val)}
+                      isDark={isDark}
+                    />
                   </div>
                 )}
 
@@ -1682,15 +1811,12 @@ export default function AdminMarketingPage() {
                 {formOfferType === "COUPON" && (
                   <div className="flex flex-col">
                     <label className={modalLabelClass}>Customer Eligibility Group</label>
-                    <select
+                    <CustomDropdown
+                      options={customerEligibilityOptions}
                       value={configEligibility}
-                      onChange={(e) => setConfigEligibility(e.target.value)}
-                      className={modalSelectClass}
-                    >
-                      <option value="ALL">All Customers</option>
-                      <option value="NEW">New Customers (First Order Only)</option>
-                      <option value="EXISTING">Returning Customers (1+ Previous Orders)</option>
-                    </select>
+                      onChange={(val) => setConfigEligibility(val)}
+                      isDark={isDark}
+                    />
                   </div>
                 )}
               </div>

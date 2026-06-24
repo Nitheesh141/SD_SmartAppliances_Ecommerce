@@ -969,30 +969,29 @@ export default function ProductDetailPage() {
                   )}
 
                   {/* Pricing Panel */}
-                  <div className="space-y-1.5 p-4 rounded-xl bg-slate-50/50 dark:bg-neutral-900/30 border border-slate-100 dark:border-slate-850">
-                    <span className="text-3xs font-extrabold text-emerald-600 dark:text-emerald-500 uppercase tracking-wider">Special Offer Price</span>
-                    <div className="flex items-baseline gap-3 flex-wrap">
-                      <span className="text-3xl font-black text-[#D71920] dark:text-red-400 tracking-tight">
+                  <div className="mb-4 mt-2">
+                    <div className="flex items-baseline gap-3">
+                      {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
+                        <span className="text-xl sm:text-[24px] font-bold text-[#388e3c] dark:text-green-500 tracking-tight flex items-center">
+                          <ArrowDown size={20} className="stroke-[3] mr-0.5" />
+                          {calculated.discountPercent}% OFF
+                        </span>
+                      )}
+                      {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
+                        <span className="text-lg sm:text-[20px] font-normal text-[#878787] dark:text-neutral-500 line-through ml-1">
+                          ₹{calculated.originalPrice.toLocaleString("en-IN")}
+                        </span>
+                      )}
+                      <span className="text-3xl sm:text-[36px] font-extrabold text-[#212121] dark:text-white tracking-tight ml-2">
                         ₹{calculated.price ? calculated.price.toLocaleString("en-IN") : "0"}
                       </span>
-                      {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
-                        <>
-                          <span className="text-sm font-semibold text-slate-400 dark:text-neutral-450 line-through">
-                            ₹{calculated.originalPrice ? calculated.originalPrice.toLocaleString("en-IN") : "0"}
-                          </span>
-                          <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded">
-                            {calculated.discountPercent}% Off
-                          </span>
-                        </>
-                      )}
                     </div>
                     {calculated.appliedOffer && (
-                      <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-450 mt-1.5 flex items-center gap-1.5 uppercase tracking-wide">
+                      <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-500 mt-1.5 flex items-center gap-1.5 uppercase tracking-wide">
                         <Check size={12} className="stroke-[3]" />
                         <span>Promo Applied: {calculated.appliedOffer.name}</span>
                       </div>
                     )}
-                    <p className="text-3xs text-slate-450 dark:text-neutral-500 font-semibold uppercase pt-1">Inclusive of all local gst and duties</p>
                   </div>
 
                   {/* Flipkart Offers List */}
@@ -1126,23 +1125,6 @@ export default function ProductDetailPage() {
                     </div>
                   )}
 
-                  {/* Pricing Panel */}
-                  <div className="flex items-baseline gap-3 mb-2">
-                    {product.originalPrice && product.price && product.originalPrice > product.price && (
-                      <span className="text-xl sm:text-[24px] font-bold text-[#388e3c] dark:text-green-500 tracking-tight flex items-center">
-                        <ArrowDown size={20} className="stroke-[3] mr-0.5" />
-                        {product.discountPercent}% OFF
-                      </span>
-                    )}
-                    {product.originalPrice && product.price && product.originalPrice > product.price && (
-                      <span className="text-lg sm:text-[20px] font-normal text-[#878787] dark:text-neutral-500 line-through ml-1">
-                        ₹{product.originalPrice.toLocaleString("en-IN")}
-                      </span>
-                    )}
-                    <span className="text-3xl sm:text-[36px] font-extrabold text-[#212121] dark:text-white tracking-tight ml-2">
-                      ₹{product.price ? product.price.toLocaleString("en-IN") : "0"}
-                    </span>
-                  </div>
 
 
                   {/* Delivery Pincode Checker */}
