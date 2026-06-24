@@ -7,10 +7,28 @@ import { toast } from "sonner";
 import { 
   Loader2, ClipboardList, Shield, Filter, Eye, Check, X, 
   Truck, ArrowRight, FileText, Printer, ShieldCheck, RefreshCw,
-  Search, Calendar, MessageSquare, AlertCircle
+  Search, Calendar, MessageSquare, AlertCircle, ChevronDown
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import { cn } from "@/lib/utils";
+
+const logisticsOptions = [
+  { value: "", label: "Select logistics stage..." },
+  { value: "PROCESSING", label: "Processing" },
+  { value: "PACKED", label: "Packed" },
+  { value: "SHIPPED", label: "Shipped" },
+  { value: "IN_TRANSIT", label: "In Transit" },
+  { value: "OUT_FOR_DELIVERY", label: "Out For Delivery" },
+  { value: "DELIVERED", label: "Delivered" },
+  { value: "CANCELLED", label: "Cancel Order" },
+];
+
+const paymentStatusOptions = [
+  { value: "PENDING", label: "PENDING" },
+  { value: "PAID", label: "PAID" },
+  { value: "UNPAID", label: "UNPAID" },
+  { value: "REFUNDED", label: "REFUNDED" },
+];
 
 interface OrderItem {
   id: string;
@@ -100,6 +118,8 @@ export default function AdminOrdersPage() {
   // Status updating state
   const [trackingStatus, setTrackingStatus] = useState("");
   const [trackingRemarks, setTrackingRemarks] = useState("");
+  const [isTrackingDropdownOpen, setIsTrackingDropdownOpen] = useState(false);
+  const [isPaymentDropdownOpen, setIsPaymentDropdownOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const [sellerSettings, setSellerSettings] = useState({
@@ -133,6 +153,20 @@ export default function AdminOrdersPage() {
       }
     }
   }, [isAuthenticated, user, authLoading, router]);
+
+  // Sync tracking status when selected order changes
+  useEffect(() => {
+    if (selectedOrder) {
+      const isValidOption = logisticsOptions.some(opt => opt.value === selectedOrder.status && opt.value !== "");
+      if (isValidOption) {
+        setTrackingStatus(selectedOrder.status);
+      } else {
+        setTrackingStatus("");
+      }
+    } else {
+      setTrackingStatus("");
+    }
+  }, [selectedOrder]);
 
   const fetchOrders = async () => {
     setLoadingOrders(true);
@@ -558,43 +592,89 @@ export default function AdminOrdersPage() {
                           Update Payment Status (Super Admin Only)
                         </h4>
                         <div className="flex gap-2">
-                          <select
-                            value={selectedOrder.paymentStatus || "PENDING"}
-                            onChange={async (e) => {
-                              const val = e.target.value;
-                              try {
-                                const token = localStorage.getItem("authToken");
-                                const res = await fetch(`http://localhost:5000/api/orders/${selectedOrder.id}/status`, {
-                                  method: "PATCH",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                    Authorization: `Bearer ${token}`
-                                  },
-                                  body: JSON.stringify({ paymentStatus: val, remarks: `Payment status updated to ${val} by Super Admin.` })
-                                });
-                                const data = await res.json();
-                                if (data.success) {
-                                  toast.success(`Payment status updated to ${val}`);
-                                  setSelectedOrder(data.order);
-                                  fetchOrders();
-                                } else {
-                                  toast.error(data.message || "Failed to update payment status");
-                                }
-                              } catch (err) {
-                                console.error(err);
-                                toast.error("Payment status update failed");
-                              }
-                            }}
-                            className={cn(
-                              "w-full p-2.5 border rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#D71920]",
-                              isDark ? "bg-neutral-950 border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
+                          <div className="relative w-full">
+                            {/* Custom Styled Trigger Button */}
+                            <button
+                              type="button"
+                              onClick={() => setIsPaymentDropdownOpen(!isPaymentDropdownOpen)}
+                              className={cn(
+                                "w-full p-2.5 border rounded-lg text-xs font-bold focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 focus:border-[#D71920] cursor-pointer text-left transition-all relative flex items-center justify-between shadow-sm",
+                                isDark 
+                                  ? "bg-neutral-950 border-neutral-800 text-white" 
+                                  : "bg-white border-slate-200 text-slate-900"
+                              )}
+                            >
+                              <span>{selectedOrder.paymentStatus || "PENDING"}</span>
+                              <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-200", isPaymentDropdownOpen ? "rotate-180" : "")} />
+                            </button>
+
+                            {/* Dropdown Options List */}
+                            {isPaymentDropdownOpen && (
+                              <>
+                                {/* Backdrop to close on click outside */}
+                                <div 
+                                  className="fixed inset-0 z-40 cursor-default" 
+                                  onClick={() => setIsPaymentDropdownOpen(false)}
+                                />
+                                
+                                <div className={cn(
+                                  "absolute left-0 right-0 mt-1.5 border rounded-xl shadow-xl py-1.5 z-50 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-200",
+                                  isDark 
+                                    ? "bg-neutral-950 border-neutral-800 text-white" 
+                                    : "bg-white border-neutral-200 text-slate-900"
+                                )}>
+                                  {paymentStatusOptions.map((option) => {
+                                    const isSelected = option.value === (selectedOrder.paymentStatus || "PENDING");
+                                    return (
+                                      <button
+                                        key={option.value}
+                                        type="button"
+                                        onClick={async () => {
+                                          setIsPaymentDropdownOpen(false);
+                                          const val = option.value;
+                                          try {
+                                            const token = localStorage.getItem("authToken");
+                                            const res = await fetch(`http://localhost:5000/api/orders/${selectedOrder.id}/status`, {
+                                              method: "PATCH",
+                                              headers: {
+                                                "Content-Type": "application/json",
+                                                Authorization: `Bearer ${token}`
+                                              },
+                                              body: JSON.stringify({ paymentStatus: val, remarks: `Payment status updated to ${val} by Super Admin.` })
+                                            });
+                                            const data = await res.json();
+                                            if (data.success) {
+                                              toast.success(`Payment status updated to ${val}`);
+                                              setSelectedOrder(data.order);
+                                              fetchOrders();
+                                            } else {
+                                              toast.error(data.message || "Failed to update payment status");
+                                            }
+                                          } catch (err) {
+                                            console.error(err);
+                                            toast.error("Payment status update failed");
+                                          }
+                                        }}
+                                        className={cn(
+                                          "w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer",
+                                          isDark
+                                            ? isSelected
+                                              ? "bg-red-950/20 text-red-400"
+                                              : "text-neutral-300 hover:bg-neutral-900/50 hover:text-white"
+                                            : isSelected
+                                              ? "bg-red-50 text-[#D71920]"
+                                              : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                                        )}
+                                      >
+                                        <span>{option.label}</span>
+                                        {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#D71920] dark:bg-red-400" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </>
                             )}
-                          >
-                            <option value="PENDING">PENDING</option>
-                            <option value="PAID">PAID</option>
-                            <option value="UNPAID">UNPAID</option>
-                            <option value="REFUNDED">REFUNDED</option>
-                          </select>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -607,23 +687,69 @@ export default function AdminOrdersPage() {
                         </h4>
                         
                         <div className="space-y-3">
-                          <select
-                            value={trackingStatus}
-                            onChange={(e) => setTrackingStatus(e.target.value)}
-                            className={cn(
-                              "w-full p-2.5 border rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#D71920]",
-                              isDark ? "bg-neutral-950 border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
+                          <div className="relative">
+                            {/* Custom Styled Trigger Button */}
+                            <button
+                              type="button"
+                              onClick={() => setIsTrackingDropdownOpen(!isTrackingDropdownOpen)}
+                              className={cn(
+                                "w-full p-2.5 border rounded-lg text-xs font-bold focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 focus:border-[#D71920] cursor-pointer text-left transition-all relative flex items-center justify-between shadow-sm",
+                                isDark 
+                                  ? "bg-neutral-950 border-neutral-800 text-white" 
+                                  : "bg-white border-slate-200 text-slate-900"
+                              )}
+                            >
+                              <span>{logisticsOptions.find(opt => opt.value === trackingStatus)?.label || "Select logistics stage..."}</span>
+                              <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-200", isTrackingDropdownOpen ? "rotate-180" : "")} />
+                            </button>
+
+                            {/* Dropdown Options List */}
+                            {isTrackingDropdownOpen && (
+                              <>
+                                {/* Backdrop to close on click outside */}
+                                <div 
+                                  className="fixed inset-0 z-40 cursor-default" 
+                                  onClick={() => setIsTrackingDropdownOpen(false)}
+                                />
+                                
+                                <div className={cn(
+                                  "absolute left-0 right-0 mt-1.5 border rounded-xl shadow-xl py-1.5 z-50 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-200",
+                                  isDark 
+                                    ? "bg-neutral-950 border-neutral-800 text-white" 
+                                    : "bg-white border-neutral-200 text-slate-900"
+                                )}>
+                                  {logisticsOptions
+                                    .filter(option => option.value !== "")
+                                    .map((option) => {
+                                      const isSelected = option.value === trackingStatus;
+                                      return (
+                                        <button
+                                          key={option.value}
+                                          type="button"
+                                          onClick={() => {
+                                            setTrackingStatus(option.value);
+                                            setIsTrackingDropdownOpen(false);
+                                          }}
+                                          className={cn(
+                                            "w-full text-left px-4 py-2 text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer",
+                                            isDark
+                                              ? isSelected
+                                                ? "bg-red-950/20 text-red-400"
+                                                : "text-neutral-300 hover:bg-neutral-900/50 hover:text-white"
+                                              : isSelected
+                                                ? "bg-red-50 text-[#D71920]"
+                                                : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                                          )}
+                                        >
+                                          <span>{option.label}</span>
+                                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#D71920] dark:bg-red-400" />}
+                                        </button>
+                                      );
+                                    })}
+                                </div>
+                              </>
                             )}
-                          >
-                            <option value="">Select logistics stage...</option>
-                            <option value="PROCESSING">Processing</option>
-                            <option value="PACKED">Packed</option>
-                            <option value="SHIPPED">Shipped</option>
-                            <option value="IN_TRANSIT">In Transit</option>
-                            <option value="OUT_FOR_DELIVERY">Out For Delivery</option>
-                            <option value="DELIVERED">Delivered</option>
-                            <option value="CANCELLED">Cancel Order</option>
-                          </select>
+                          </div>
 
                           <textarea
                             placeholder="Add tracking remarks/notes..."

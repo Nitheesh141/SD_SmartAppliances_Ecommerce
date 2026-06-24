@@ -9,7 +9,7 @@ import { useDynamicProducts } from "@/hooks/useDynamicProducts";
 import ShopSidebar from "@/components/layout/ShopSidebar";
 import { matchProduct } from "../../utils/search";
 import {
-  SlidersHorizontal, ArrowUpDown, Filter, ShieldCheck, X
+  SlidersHorizontal, ArrowUpDown, Filter, ShieldCheck, X, ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,15 @@ const categoriesList = [
   { id: "gas-stoves", label: "LPG Stoves" },
   { id: "wet-grinders", label: "Wet Grinders" },
   { id: "commercial", label: "Commercial Wet Grinders" },
+];
+
+const sortOptions = [
+  { value: "default", label: "Default Sort" },
+  { value: "price-low", label: "Price: Low to High" },
+  { value: "price-high", label: "Price: High to Low" },
+  { value: "rating", label: "Top Rated" },
+  { value: "bestseller", label: "Bestseller List" },
+  { value: "featured", label: "Featured Showcase" },
 ];
 
 export default function ShopPage() {
@@ -35,6 +44,9 @@ export default function ShopPage() {
 
   // Mobile filter toggle
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  // Sort dropdown open state
+  const [isSortOpen, setIsSortOpen] = useState(false);
 
   // Dynamic Price Bounds
   const [priceLimits, setPriceLimits] = useState({ min: 0, max: 50000 });
@@ -175,18 +187,54 @@ export default function ShopPage() {
                 {/* Sort Selector */}
                 <div className="flex items-center gap-1.5">
                   <ArrowUpDown size={12} className="text-slate-400 hidden sm:block" />
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="px-2 py-1.5 text-xs border border-slate-200 dark:border-neutral-800 rounded-lg bg-white dark:bg-neutral-900 focus:outline-none focus:ring-1 focus:ring-[#D71920] cursor-pointer text-slate-800 dark:text-neutral-200 font-semibold"
-                  >
-                    <option value="default">Default Sort</option>
-                    <option value="price-low">Price: Low to High</option>
-                    <option value="price-high">Price: High to Low</option>
-                    <option value="rating">Top Rated</option>
-                    <option value="bestseller">Bestseller List</option>
-                    <option value="featured">Featured Showcase</option>
-                  </select>
+                  <div className="relative">
+                    {/* Custom Styled Trigger Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsSortOpen(!isSortOpen)}
+                      className="flex items-center justify-between gap-4 pl-3 pr-8 py-2 text-xs border border-slate-200 dark:border-neutral-800 rounded-xl bg-white dark:bg-neutral-900 focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 focus:border-[#D71920] cursor-pointer text-slate-800 dark:text-neutral-200 font-bold shadow-sm min-w-[150px] text-left transition-all relative"
+                    >
+                      <span>{sortOptions.find(opt => opt.value === sortBy)?.label || "Default Sort"}</span>
+                      <ChevronDown size={12} className={cn("absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 transition-transform duration-200", isSortOpen ? "rotate-180" : "")} />
+                    </button>
+
+                    {/* Custom Dropdown Overlay */}
+                    {isSortOpen && (
+                      <>
+                        {/* Invisible click backdrop */}
+                        <div 
+                          className="fixed inset-0 z-40 cursor-default" 
+                          onClick={() => setIsSortOpen(false)}
+                        />
+                        
+                        {/* Dropdown Options List */}
+                        <div className="absolute right-0 mt-1.5 w-[180px] bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                          {sortOptions.map((option) => {
+                            const isSelected = option.value === sortBy;
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                  setSortBy(option.value);
+                                  setIsSortOpen(false);
+                                }}
+                                className={cn(
+                                  "w-full text-left px-4 py-2 text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer",
+                                  isSelected
+                                    ? "bg-red-50 dark:bg-red-950/20 text-[#D71920] dark:text-red-400"
+                                    : "text-slate-700 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-850 hover:text-slate-900 dark:hover:text-white"
+                                )}
+                              >
+                                <span>{option.label}</span>
+                                {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#D71920] dark:bg-red-400" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

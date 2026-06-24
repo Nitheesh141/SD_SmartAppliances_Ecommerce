@@ -15,18 +15,18 @@ export default function BadgePill({
   ...props
 }: BadgePillProps) {
   const baseClasses =
-    "inline-flex items-center px-2 py-0.5 text-3xs font-semibold tracking-wide uppercase rounded-full select-none";
+    "inline-flex items-center px-2 py-0.5 text-[9px] font-extrabold tracking-wider uppercase rounded-full select-none shadow-sm";
 
   const variantClasses = {
-    primary: "bg-red-50 text-red-700 border border-red-200/50 dark:bg-red-950/45 dark:text-red-400 dark:border-red-900/50",
-    secondary: "bg-slate-100 text-slate-700 border border-slate-200/50 dark:bg-slate-800/45 dark:text-slate-300 dark:border-slate-700/50",
-    success: "bg-emerald-50 text-emerald-700 border border-emerald-200/50 dark:bg-emerald-950/45 dark:text-emerald-400 dark:border-emerald-900/50",
-    warning: "bg-amber-50 text-amber-700 border border-amber-200/50 dark:bg-amber-950/45 dark:text-amber-400 dark:border-amber-900/50",
-    danger: "bg-rose-50 text-rose-700 border border-rose-200/50 dark:bg-rose-950/45 dark:text-rose-400 dark:border-rose-900/50",
-    info: "bg-sky-50 text-sky-700 border border-sky-200/50 dark:bg-sky-950/45 dark:text-sky-400 dark:border-sky-900/50",
-    red: "bg-red-50 text-red-700 border border-red-200/50 dark:bg-red-950/45 dark:text-red-400 dark:border-red-900/50",
-    orange: "bg-orange-50 text-orange-700 border border-orange-200/50 dark:bg-orange-950/45 dark:text-orange-400 dark:border-orange-900/50",
-    green: "bg-green-50 text-green-700 border border-green-200/50 dark:bg-green-950/45 dark:text-green-400 dark:border-green-900/50",
+    primary: "bg-[#D71920] text-white dark:bg-[#D71920]",
+    secondary: "bg-slate-600 text-white dark:bg-neutral-800",
+    success: "bg-emerald-600 text-white dark:bg-emerald-600",
+    warning: "bg-amber-500 text-white dark:bg-amber-600",
+    danger: "bg-rose-600 text-white dark:bg-rose-600",
+    info: "bg-sky-600 text-white dark:bg-sky-600",
+    red: "bg-[#D71920] text-white dark:bg-[#D71920]",
+    orange: "bg-orange-600 text-white dark:bg-orange-600",
+    green: "bg-green-600 text-white dark:bg-green-600",
   };
 
   return (
