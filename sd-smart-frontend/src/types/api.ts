@@ -77,6 +77,7 @@ export interface Product {
   quantity: number;
   specifications?: Record<string, string>;
   specs?: any;
+  variantGroup?: string;
   variantDetails?: Record<string, string>;
   modelNumber?: string;
   productId?: string;
@@ -90,6 +91,7 @@ export interface Product {
 
 export interface ProductFilters {
   category?: string;
+  variantGroup?: string;
   minPrice?: number;
   maxPrice?: number;
   search?: string;
