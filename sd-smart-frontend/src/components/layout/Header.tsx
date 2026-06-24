@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, User, Heart, ShoppingCart, ChevronDown, Menu, X } from "lucide-react";
+import { Search, User, ShoppingCart, ChevronDown, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "../../app/LandingPage/types";
 import { THEME_CLASSES } from "@/config/themes";
@@ -23,7 +23,7 @@ const defaultNavLinks = [
   { label: "Bestsellers", href: "/shop" },
   { label: "Why Us", href: "/about" },
   { label: "Our Story", href: "/about" },
-  { label: "Commercial", href: "/shop/commercial" },
+  { label: "Appliances", href: "/shop" },
 ];
 
 const shopDropdownLinks = [
@@ -36,7 +36,7 @@ const shopDropdownLinks = [
 ];
 
 export default function Header({ navLinks = defaultNavLinks, isAuthenticated: propIsAuthenticated, userProfile: propUserProfile }: HeaderProps) {
-  const { isAuthenticated: contextIsAuthenticated, user: contextUser } = useAuth();
+  const { isAuthenticated: contextIsAuthenticated, user: contextUser, logout } = useAuth();
 
   const isAuthenticated = propIsAuthenticated !== undefined ? propIsAuthenticated : contextIsAuthenticated;
   const userProfile = propUserProfile !== undefined ? propUserProfile : contextUser;
@@ -53,6 +53,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
   const [mobileOpen, setMobileOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const pathname = usePathname() || "";
@@ -61,6 +62,146 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
   const allProducts = useDynamicProducts();
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [currentHash, setCurrentHash] = useState("");
+  const [activeSection, setActiveSection] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentHash(window.location.hash);
+      const handleHashChange = () => {
+        setCurrentHash(window.location.hash);
+      };
+      window.addEventListener("hashchange", handleHashChange);
+      return () => window.removeEventListener("hashchange", handleHashChange);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!profileDropdownOpen) return;
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const dropdownEl = document.getElementById("profile-dropdown-menu");
+      const buttonEl = document.getElementById("profile-menu-button");
+
+      if (
+        dropdownEl && !dropdownEl.contains(target) &&
+        buttonEl && !buttonEl.contains(target)
+      ) {
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [profileDropdownOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const isHomePage = pathname === "/" || pathname === "/sd-smart-ecommerce" || pathname === "";
+    if (!isHomePage) {
+      setActiveSection("");
+      return;
+    }
+
+    const sections = ["categories", "best-sellers", "why-choose-us", "timeline"];
+    let observer: IntersectionObserver | null = null;
+
+    const setupObserver = () => {
+      const elements = sections
+        .map(id => document.getElementById(id))
+        .filter(el => el !== null) as HTMLElement[];
+
+      if (elements.length === 0) return false;
+
+      const observerOptions = {
+        root: null,
+        rootMargin: "-30% 0px -50% 0px",
+        threshold: 0,
+      };
+
+      const observerCallback = (entries: IntersectionObserverEntry[]) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      };
+
+      observer = new IntersectionObserver(observerCallback, observerOptions);
+      elements.forEach(el => observer?.observe(el));
+      return true;
+    };
+
+    const hasObserved = setupObserver();
+    let retryTimer: NodeJS.Timeout;
+
+    if (!hasObserved) {
+      retryTimer = setTimeout(() => {
+        setupObserver();
+      }, 800);
+    }
+
+    const handleScroll = () => {
+      if (window.scrollY < 180) {
+        setActiveSection("");
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      if (observer) observer.disconnect();
+      if (retryTimer) clearTimeout(retryTimer);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [pathname]);
+
+  const isLinkActive = (href: string) => {
+    const currentPath = pathname;
+    const isHomePage = currentPath === "/" || currentPath === "/sd-smart-ecommerce" || currentPath === "";
+
+    if (isHomePage) {
+      if (href === "/") {
+        return activeSection === "";
+      }
+      if (href.includes("#")) {
+        const [, hHash] = href.split("#");
+        return activeSection === hHash;
+      }
+    }
+
+    // Fallback path matching
+    const hasMatchingHashLink = navLinks.some((link) => {
+      if (link.href.includes("#")) {
+        const [, hHash] = link.href.split("#");
+        return currentHash === `#${hHash}`;
+      }
+      return false;
+    });
+
+    if (href.includes("#")) {
+      const [hPath, hHash] = href.split("#");
+      const targetPath = hPath === "" ? "/" : hPath;
+      const cleanCurrentPath = currentPath === "" ? "/" : currentPath;
+
+      const pathMatches =
+        cleanCurrentPath === targetPath ||
+        (targetPath === "/" && cleanCurrentPath === "/sd-smart-ecommerce");
+
+      return pathMatches && currentHash === `#${hHash}`;
+    }
+
+    if (currentHash && hasMatchingHashLink) {
+      return false;
+    }
+
+    return (
+      currentPath === href ||
+      (href === "/" &&
+        (currentPath === "/" || currentPath === "/sd-smart-ecommerce"))
+    );
+  };
 
   useEffect(() => {
     setIsLoaded(true);
@@ -105,10 +246,10 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
 
   return (
     <header className={cn(
-      "sticky top-0 z-50 transition-all duration-500 will-change-transform",
+      "sticky top-0 z-50 transition-all duration-500 will-change-transform py-2 border-b",
       isScrolled
-        ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-b-2 border-neutral-200/80 shadow-[0_15px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.7)] py-1.5"
-        : "bg-red-50 dark:bg-[#1A090A] border-b border-neutral-200/40 shadow-[0_6px_25px_rgba(0,0,0,0.1)] dark:shadow-[0_6px_25px_rgba(0,0,0,0.45)] py-2",
+        ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-neutral-200/80 shadow-[0_15px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.7)]"
+        : "bg-red-50 dark:bg-[#1A090A] border-neutral-200/40 shadow-[0_6px_25px_rgba(0,0,0,0.1)] dark:shadow-[0_6px_25px_rgba(0,0,0,0.45)]",
       isLoaded ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
     )}>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
@@ -165,13 +306,13 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                   href={link.href}
                   className={cn(
                     "px-3 py-2 text-sm font-semibold rounded-lg transition-all duration-300 relative",
-                    pathname === link.href || (link.href === "/" && (pathname === "/" || pathname === "/sd-smart-ecommerce"))
+                    isLinkActive(link.href)
                       ? "text-[#D71920]"
                       : "text-[#1C1C1C] hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40"
                   )}
                 >
                   {link.label}
-                  {(pathname === link.href || (link.href === "/" && (pathname === "/" || pathname === "/sd-smart-ecommerce"))) && (
+                  {isLinkActive(link.href) && (
                     <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#D71920] rounded-full" />
                   )}
                 </Link>
@@ -180,68 +321,116 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
           </nav>
 
           {/* Search & Actions Group */}
-          <div className="flex items-center gap-2.5 ml-auto">
+          <div className="flex items-center gap-2.5 ml-auto mr-0 md:mr-[-20px] lg:mr-[-40px] xl:mr-[-80px]">
 
-            {/* Search Input inline */}
-            {searchOpen && (
-              <div className="hidden md:block relative w-64 animate-in fade-in slide-in-from-right-4 duration-200">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Search pressure cookers, wet grinders..."
-                  autoFocus
-                  className="w-full pl-9 pr-4 py-1.5 text-xs font-semibold border border-[#D71920] rounded-xl bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 text-slate-800 dark:text-neutral-100 shadow-sm"
-                />
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            {/* Search Input inline - permanently open and bigger */}
+            <div className="hidden md:block relative w-72 lg:w-[380px] xl:w-[460px] transition-all duration-300">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Search pressure cookers, wet grinders..."
+                className="w-full pl-10 pr-4 py-2 text-sm font-semibold border border-[#D71920] dark:border-[#D71920]/80 rounded-xl bg-white dark:bg-neutral-900 focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 text-slate-800 dark:text-neutral-100 shadow-sm focus:border-[#D71920] transition-colors placeholder-neutral-400 dark:placeholder-neutral-500"
+              />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#D71920] dark:text-[#D71920]" />
 
-                {/* Suggestions List dropdown */}
-                {suggestions.length > 0 && (
-                  <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-2 z-50 max-h-60 overflow-y-auto">
-                    {suggestions.map((product) => (
-                      <button
-                        key={product.id}
-                        onClick={() => handleSuggestionClick(product.name)}
-                        className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-red-50/50 dark:hover:bg-red-950/20 text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 flex items-center justify-between border-b border-neutral-50 dark:border-neutral-800/40 last:border-0 cursor-pointer"
-                      >
-                        <span className="truncate">{product.name}</span>
-                        <span className="text-[10px] text-neutral-400 font-bold bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">{product.categoryLabel}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Search Icon */}
-            <button
-              onClick={() => setSearchOpen(!searchOpen)}
-              className="p-2 text-neutral-600 hover:text-[#D71920] rounded-lg transition-colors cursor-pointer"
-              aria-label="Search"
-            >
-              <Search size={18} />
-            </button>
+              {/* Suggestions List dropdown */}
+              {suggestions.length > 0 && (
+                <div className="absolute top-full right-0 mt-2 w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-2 z-50 max-h-60 overflow-y-auto">
+                  {suggestions.map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => handleSuggestionClick(product.name)}
+                      className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-red-50/50 dark:hover:bg-red-950/20 text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 flex items-center justify-between border-b border-neutral-50 dark:border-neutral-800/40 last:border-0 cursor-pointer"
+                    >
+                      <span className="truncate">{product.name}</span>
+                      <span className="text-[10px] text-neutral-400 font-bold bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">{product.categoryLabel}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Auth Actions */}
             {isAuthenticated ? (
               <>
-                {/* Authenticated: Profile, Wishlist, Cart */}
+                {/* Authenticated: Profile Dropdown, Wishlist, Cart */}
                 {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin") && (
                   <Link href="/admin/dashboard" className="px-3 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg hover:bg-[#B91520] transition-colors flex items-center mr-1" title="Admin Dashboard">
                     <span>Admin Panel</span>
                   </Link>
                 )}
-                <Link href="/account" className="p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Account">
-                  <User size={18} />
-                </Link>
-                <Link href="/wishlist" className="p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Wishlist">
-                  <Heart size={18} />
-                </Link>
+
+                {/* Profile dropdown container */}
+                <div className="relative">
+                  <button
+                    id="profile-menu-button"
+                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                    className="flex items-center gap-2 p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                    aria-label="Account Menu"
+                  >
+                    <User size={22} className="text-neutral-700 dark:text-neutral-300" />
+                    <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-200 max-w-[140px] truncate hidden sm:inline-block">
+                      {userProfile?.name?.split(" ")[0] || "Account"}
+                    </span>
+                    <ChevronDown size={14} className={cn("transition-transform text-neutral-400", profileDropdownOpen && "rotate-180")} />
+                  </button>
+
+                  {/* Profile Dropdown */}
+                  {profileDropdownOpen && (
+                    <div
+                      id="profile-dropdown-menu"
+                      className="absolute right-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-850 rounded-xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                    >
+                      <div className="px-5 py-3 border-b border-neutral-100 dark:border-slate-800/60 mb-1">
+                        <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100 truncate">{userProfile?.name || "User"}</p>
+                        <p className="text-xs text-neutral-400 dark:text-neutral-500 truncate">{userProfile?.email}</p>
+                      </div>
+                      <Link
+                        href="/account?tab=profile"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                      >
+                        Profile
+                      </Link>
+                      <Link
+                        href="/wishlist"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                      >
+                        Wishlist
+                      </Link>
+                      <Link
+                        href="/account?tab=orders"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                      >
+                        My Orders
+                      </Link>
+                      <hr className="border-neutral-100 dark:border-slate-800/60 my-1" />
+                      <button
+                        onClick={async () => {
+                          setProfileDropdownOpen(false);
+                          try {
+                            await logout();
+                            router.push("/");
+                          } catch (err) {
+                            console.error("Logout failed:", err);
+                          }
+                        }}
+                        className="w-full text-left px-5 py-2.5 text-sm font-semibold text-[#D71920] hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <Link href="/cart" className="relative p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Cart">
-                  <ShoppingCart size={18} />
+                  <ShoppingCart size={22} className="text-neutral-700 dark:text-neutral-300" />
                   {cartCount > 0 && (
-                    <span className="absolute top-1 right-1 w-4 h-4 bg-[#D71920] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    <span className="absolute top-0 right-0 w-4 h-4 bg-[#D71920] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                       {cartCount > 99 ? '99+' : cartCount}
                     </span>
                   )}

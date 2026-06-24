@@ -38,6 +38,21 @@ const AdminProductsPage = dynamic(() => import("../app/admin/products"), {
   ssr: true,
 });
 
+const AdminMarketingPage = dynamic(() => import("../app/admin/marketing"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminOrdersPage = dynamic(() => import("../app/admin/orders_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminSettingsPage = dynamic(() => import("../app/admin/settings_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 const ForgotPasswordPage = dynamic(() => import("../app/auth/forgot-password_page"), {
   loading: PageLoader,
   ssr: true,
@@ -75,6 +90,11 @@ const AccountPage = dynamic(() => import("../app/account/accountpage"), {
 });
 
 const CheckoutPage = dynamic(() => import("../app/checkout/checkoutpage"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const OrderDetailPage = dynamic(() => import("../app/account/orders/orderdetailpage"), {
   loading: PageLoader,
   ssr: true,
 });
@@ -126,6 +146,9 @@ export const routes: Record<string, React.ComponentType<any>> = {
   "/auth/signup": SignupPage,
   "/admin/dashboard": AdminDashboardPage,
   "/admin/products": AdminProductsPage,
+  "/admin/orders": AdminOrdersPage,
+  "/admin/marketing": AdminMarketingPage,
+  "/admin/settings": AdminSettingsPage,
   "/admin/manage-product": AdminManageProductPage,
   "/admin/manage": AdminManageProductPage,
   "/auth/forgot-password": ForgotPasswordPage,
@@ -148,6 +171,9 @@ export function getRouteComponent(path: string) {
   const cleanPath = path === "/" ? "/" : path.replace(/\/$/, "");
   if (cleanPath.startsWith("/product/")) {
     return ProductDetailPage;
+  }
+  if (cleanPath.startsWith("/account/orders/")) {
+    return OrderDetailPage;
   }
   return routes[cleanPath] || null;
 }

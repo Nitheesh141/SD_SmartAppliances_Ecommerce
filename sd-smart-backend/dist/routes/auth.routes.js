@@ -9,8 +9,9 @@ router.post("/admin/signup", auth_controller_1.adminSignup);
 router.post("/login", auth_controller_1.login);
 router.get("/me", auth_middleware_1.authenticateToken, auth_controller_1.getMe);
 router.put("/update", auth_middleware_1.authenticateToken, auth_controller_1.updateProfile);
+router.post("/forgot-password", auth_controller_1.forgotPassword);
 router.post("/reset-password", auth_controller_1.resetPassword);
+router.post("/change-password", auth_middleware_1.authenticateToken, auth_controller_1.changePassword);
 router.post("/send-otp", auth_controller_1.sendOtp);
 router.post("/verify-otp", auth_controller_1.loginWithOtp);
 exports.default = router;
-//# sourceMappingURL=auth.routes.js.map

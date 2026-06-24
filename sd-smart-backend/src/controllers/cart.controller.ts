@@ -109,14 +109,16 @@ export const updateCartItem = async (req: AuthenticatedRequest, res: Response): 
     const id = req.params.id as string;
     const { quantity } = req.body;
 
-    const item = await prisma.cartItem.findUnique({ where: { id } });
+    const item = await prisma.cartItem.findUnique({
+      where: { id },
+      include: { cart: true }
+    });
     if (!item) {
       res.status(404).json({ success: false, message: "Cart item not found" });
       return;
     }
 
-    const cart = await prisma.cart.findUnique({ where: { userId } });
-    if (item.cartId !== cart?.id) {
+    if (item.cart.userId !== userId) {
       res.status(403).json({ success: false, message: "Forbidden" });
       return;
     }
@@ -155,14 +157,16 @@ export const removeFromCart = async (req: AuthenticatedRequest, res: Response): 
 
     const id = req.params.id as string;
 
-    const item = await prisma.cartItem.findUnique({ where: { id } });
+    const item = await prisma.cartItem.findUnique({
+      where: { id },
+      include: { cart: true }
+    });
     if (!item) {
       res.status(404).json({ success: false, message: "Cart item not found" });
       return;
     }
 
-    const cart = await prisma.cart.findUnique({ where: { userId } });
-    if (item.cartId !== cart?.id) {
+    if (item.cart.userId !== userId) {
       res.status(403).json({ success: false, message: "Forbidden" });
       return;
     }

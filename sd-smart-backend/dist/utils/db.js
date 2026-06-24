@@ -18,4 +18,3 @@ exports.prisma = globalForPrisma.prisma ?? new client_1.PrismaClient({ adapter }
 if (process.env.NODE_ENV !== "production") {
     globalForPrisma.prisma = exports.prisma;
 }
-//# sourceMappingURL=db.js.map

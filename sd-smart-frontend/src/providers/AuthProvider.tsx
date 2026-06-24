@@ -10,6 +10,8 @@ interface UserProfile {
   firstName?: string;
   lastName?: string;
   role?: string;
+  companyName?: string | null;
+  gstin?: string | null;
 }
 
 interface AuthContextType {

@@ -6,7 +6,7 @@ export const navLinks: NavLink[] = [
   { label: "Bestsellers", href: "/#best-sellers", hasDropdown: false },
   { label: "Why Us", href: "/#why-choose-us", hasDropdown: false },
   { label: "Our Story", href: "/#timeline", hasDropdown: false },
-  { label: "Commercial", href: "/shop?category=commercial", hasDropdown: false },
+  { label: "Appliances", href: "/shop", hasDropdown: false },
 ];
 
 export const footerColumns: FooterColumn[] = [

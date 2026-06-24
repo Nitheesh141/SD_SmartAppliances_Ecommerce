@@ -60,9 +60,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setCartItems(res.data.items || []);
         toast.success("Item added to your cart! 🛒");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to add to cart:", error);
-      throw error;
+      toast.error(error.message || "Failed to add item to cart");
     }
   };
 
@@ -73,9 +73,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setCart(res.data);
         setCartItems(res.data.items || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to update cart item:", error);
-      throw error;
+      toast.error(error.message || "Failed to update item quantity");
+      refreshCart();
     }
   };
 
@@ -85,10 +86,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (res.success && res.data) {
         setCart(res.data);
         setCartItems(res.data.items || []);
+        toast.success("Item removed from cart");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to remove cart item:", error);
-      throw error;
+      toast.error(error.message || "Failed to remove item");
+      refreshCart();
     }
   };
 
@@ -98,10 +101,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (res.success) {
         setCart(null);
         setCartItems([]);
+        toast.success("Cart cleared");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to clear cart:", error);
-      throw error;
+      toast.error(error.message || "Failed to clear cart");
+      refreshCart();
     }
   };
 

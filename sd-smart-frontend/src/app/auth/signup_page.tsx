@@ -82,7 +82,7 @@ export default function SignupPage() {
       // Redirect to home page after success animation completes
       setTimeout(() => {
         router.push("/");
-      }, 3000);
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "Signup failed. Please try again.");
     } finally {
@@ -268,12 +268,18 @@ export default function SignupPage() {
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+              <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+            )}
+            {formData.confirmPassword && formData.password === formData.confirmPassword && (
+              <p className="text-xs text-green-500 mt-1">Passwords match</p>
+            )}
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading || isSuccess || !isPasswordStrong}
+            disabled={loading || isSuccess || !isPasswordStrong || formData.password !== formData.confirmPassword}
             className="w-full py-2 bg-[#D71920] text-white font-semibold rounded-lg hover:bg-[#B91520] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading || isSuccess ? (

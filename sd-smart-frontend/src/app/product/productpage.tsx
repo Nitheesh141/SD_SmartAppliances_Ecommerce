@@ -76,12 +76,280 @@ export default function ProductDetailPage() {
   // Active specifications tab (Flipkart style specs toggle)
   const [activeTab, setActiveTab] = useState<"description" | "specs" | "reviews">("description");
 
+  // Dynamic promotion states
+  const [activeOffers, setActiveOffers] = useState<any[]>([]);
+  const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
+
   // Load product
   useEffect(() => {
     if (productId) {
       fetchProduct();
     }
   }, [productId, fetchProduct]);
+
+  // Fetch active offers
+  useEffect(() => {
+    const fetchActiveOffers = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/offers?status=ACTIVE");
+        if (response.ok) {
+          const data = await response.json();
+          setActiveOffers(data.offers || []);
+        }
+      } catch (err) {
+        console.error("Failed to load offers:", err);
+      }
+    };
+    fetchActiveOffers();
+  }, []);
+
+  // Filter applicable offers for the product
+  const getProductBrand = (p: any): string => {
+    if (p.eyebrow) return p.eyebrow.trim().toLowerCase();
+    if (p.specs && Array.isArray(p.specs)) {
+      const brandSpec = p.specs.find(
+        (s: any) =>
+          s.label?.toLowerCase() === "brand" ||
+          s.label?.toLowerCase() === "manufacturer"
+      );
+      if (brandSpec && brandSpec.value) return brandSpec.value.trim().toLowerCase();
+    }
+    return p.name.split(" ")[0].toLowerCase();
+  };
+
+  const productBrand = product ? getProductBrand(product) : "";
+
+  const applicableOffers = product ? activeOffers.filter((offer) => {
+    const config = offer.configuration || {};
+    const type = offer.offerType;
+
+    if (type === "PRODUCT_DISCOUNT") {
+      return Array.isArray(config.productIds) && config.productIds.includes(product.id);
+    }
+    if (type === "CATEGORY_DISCOUNT") {
+      return Array.isArray(config.categoryIds) && config.categoryIds.includes(product.category);
+    }
+    if (type === "BRAND_DISCOUNT") {
+      return String(config.brandName).trim().toLowerCase() === productBrand;
+    }
+    if (type === "QUANTITY_DISCOUNT") {
+      const pMatch = !config.productIds || config.productIds.length === 0 || config.productIds.includes(product.id);
+      const cMatch = !config.categoryIds || config.categoryIds.length === 0 || config.categoryIds.includes(product.category);
+      return pMatch && cMatch;
+    }
+    if (type === "FLAT_DISCOUNT" || type === "PERCENTAGE_DISCOUNT") {
+      const pMatch = !config.applicableProducts || config.applicableProducts.length === 0 || config.applicableProducts.includes(product.id);
+      const cMatch = !config.applicableCategories || config.applicableCategories.length === 0 || config.applicableCategories.includes(product.category);
+      return pMatch && cMatch;
+    }
+    if (type === "BOGO") {
+      return config.buyProductId === product.id;
+    }
+    if (type === "COMBO") {
+      return Array.isArray(config.productIds) && config.productIds.includes(product.id);
+    }
+    if (type === "BUNDLE") {
+      return Array.isArray(config.bundleProducts) && config.bundleProducts.includes(product.id);
+    }
+    if (type === "FLASH_SALE") {
+      return Array.isArray(config.productIds) && config.productIds.includes(product.id);
+    }
+    if (type === "SEASONAL") {
+      const pMatch = !config.applicableProducts || config.applicableProducts.length === 0 || config.applicableProducts.includes(product.id);
+      const cMatch = !config.applicableCategories || config.applicableCategories.length === 0 || config.applicableCategories.includes(product.category);
+      return pMatch && cMatch;
+    }
+    if (type === "FREE_SHIPPING") {
+      const pMatch = !config.applicableProducts || config.applicableProducts.length === 0 || config.applicableProducts.includes(product.id);
+      const cMatch = !config.applicableCategories || config.applicableCategories.length === 0 || config.applicableCategories.includes(product.category);
+      return pMatch && cMatch;
+    }
+    if (["COUPON", "NEW_USER", "LOYALTY"].includes(type)) {
+      return true;
+    }
+    return false;
+  }) : [];
+
+  // Dynamic Client-side pricing engine for product page
+  const getCalculatedPrice = () => {
+    if (!product) return { price: 0, originalPrice: 0, discountPercent: 0, appliedOffer: null };
+    
+    // Original price is the baseline (strikethrough price)
+    const baseOriginal = Number(product.originalPrice || product.price || 0);
+    // Baseline starting price before dynamic offers
+    let currentPrice = Number(product.price || 0);
+    
+    // Sort applicable offers by priority (lower number = runs first)
+    const sortedDirectOffers = [...applicableOffers]
+      .filter(offer => [
+        "FLASH_SALE",
+        "PRODUCT_DISCOUNT",
+        "CATEGORY_DISCOUNT",
+        "BRAND_DISCOUNT",
+        "FLAT_DISCOUNT",
+        "PERCENTAGE_DISCOUNT",
+        "SEASONAL"
+      ].includes(offer.offerType))
+      .sort((a, b) => (a.priority || 0) - (b.priority || 0));
+      
+    let appliedOffer = null;
+    let hasAppliedNonStackable = false;
+    const appliedList: any[] = [];
+    
+    for (const offer of sortedDirectOffers) {
+      const config = offer.configuration || {};
+      
+      // Check stackability rules
+      if (hasAppliedNonStackable) continue;
+      if (appliedList.some(o => !o.stackable)) continue;
+      if (!offer.stackable && appliedList.length > 0) continue;
+      
+      // Evaluate discount amount
+      let discountAmt = 0;
+      const type = offer.offerType;
+      
+      if (type === "PRODUCT_DISCOUNT" || type === "CATEGORY_DISCOUNT" || type === "BRAND_DISCOUNT" || type === "FLASH_SALE" || type === "SEASONAL") {
+        const discType = config.discountType || "PERCENTAGE";
+        const discVal = Number(config.discountValue || 0);
+        const maxCap = config.maxDiscountAmount ? Number(config.maxDiscountAmount) : null;
+        
+        if (discType === "PERCENTAGE") {
+          discountAmt = currentPrice * (discVal / 100);
+          if (maxCap) discountAmt = Math.min(discountAmt, maxCap);
+        } else {
+          discountAmt = discVal;
+        }
+      } else if (type === "FLAT_DISCOUNT") {
+        const minVal = config.minPurchaseValue ? Number(config.minPurchaseValue) : 0;
+        if (currentPrice >= minVal) {
+          discountAmt = Number(config.flatDiscountAmount || 0);
+        }
+      } else if (type === "PERCENTAGE_DISCOUNT") {
+        const minVal = config.minPurchaseValue ? Number(config.minPurchaseValue) : 0;
+        if (currentPrice >= minVal) {
+          const val = Number(config.percentageValue || 0);
+          const maxCap = config.maxDiscountCap ? Number(config.maxDiscountCap) : null;
+          discountAmt = currentPrice * (val / 100);
+          if (maxCap) discountAmt = Math.min(discountAmt, maxCap);
+        }
+      }
+      
+      if (discountAmt > 0) {
+        currentPrice = Math.max(0, currentPrice - discountAmt);
+        appliedList.push(offer);
+        if (!offer.stackable) hasAppliedNonStackable = true;
+        if (!appliedOffer) {
+          appliedOffer = offer;
+        }
+      }
+    }
+    
+    // If no direct offer got applied, but there's a difference between standard price and originalPrice, keep that
+    if (appliedList.length === 0) {
+      const standardPrice = Number(product.price || 0);
+      const discountPercent = baseOriginal > standardPrice ? Math.round(((baseOriginal - standardPrice) / baseOriginal) * 100) : 0;
+      return {
+        price: standardPrice,
+        originalPrice: baseOriginal,
+        discountPercent,
+        appliedOffer: null
+      };
+    }
+    
+    const finalPrice = Math.round(currentPrice);
+    const discountPercent = baseOriginal > finalPrice ? Math.round(((baseOriginal - finalPrice) / baseOriginal) * 100) : 0;
+    
+    return {
+      price: finalPrice,
+      originalPrice: baseOriginal,
+      discountPercent,
+      appliedOffer
+    };
+  };
+
+  const calculated = getCalculatedPrice();
+
+  const flashSaleOffer = applicableOffers.find((o) => o.offerType === "FLASH_SALE");
+
+  // Flash Sale Countdown logic
+  useEffect(() => {
+    if (!flashSaleOffer) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const diff = new Date(flashSaleOffer.endDate).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft(null);
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeLeft({ hours, minutes, seconds });
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [flashSaleOffer]);
+
+  const getOfferDisplay = (offer: any) => {
+    if (offer.description) return offer.description;
+    const config = offer.configuration || {};
+    
+    if (offer.offerType === "PRODUCT_DISCOUNT") {
+      return `Special Product Discount: Get ${config.discountType === "PERCENTAGE" ? `${config.discountValue}%` : `₹${config.discountValue}`} off instantly.`;
+    }
+    if (offer.offerType === "CATEGORY_DISCOUNT") {
+      return `Category Sale: Get ${config.discountType === "PERCENTAGE" ? `${config.discountValue}%` : `₹${config.discountValue}`} off on selected products.`;
+    }
+    if (offer.offerType === "BRAND_DISCOUNT") {
+      return `Brand Offer: Get ${config.discountType === "PERCENTAGE" ? `${config.discountValue}%` : `₹${config.discountValue}`} off on ${config.brandName} models.`;
+    }
+    if (offer.offerType === "QUANTITY_DISCOUNT") {
+      const bestRule = config.rules?.[0];
+      return `Bulk Discount: Save more when you buy multiple items! ${bestRule ? `Get discount on orders above ${bestRule.minQty} units.` : ""}`;
+    }
+    if (offer.offerType === "CART_VALUE_DISCOUNT") {
+      return `Cart Deal: Spend ₹${config.minCartValue || 0} or more and get ${config.discountType === "PERCENTAGE" ? `${config.discountValue}%` : `₹${config.discountValue}`} off your order.`;
+    }
+    if (offer.offerType === "COUPON") {
+      return `Apply coupon code "${config.couponCode || offer.code}" at checkout for ${config.couponType === "PERCENTAGE" ? `${config.discountValue}%` : `₹${config.discountValue}`} discount.`;
+    }
+    if (offer.offerType === "FLAT_DISCOUNT") {
+      return `Flat Discount: Get ₹${config.flatDiscountAmount} discount on this product.`;
+    }
+    if (offer.offerType === "PERCENTAGE_DISCOUNT") {
+      return `Percentage Off: Get ${config.percentageValue}% discount on this product.`;
+    }
+    if (offer.offerType === "BOGO") {
+      return `BOGO Offer: Buy ${config.buyQty} and get ${config.getQty} free of matching item!`;
+    }
+    if (offer.offerType === "COMBO") {
+      return `Combo Deal: Buy these matched products together and get a special promotional pricing.`;
+    }
+    if (offer.offerType === "BUNDLE") {
+      return `Bundle Save: Get a special bundle price of ₹${config.bundlePrice} when purchased with matching bundle appliances.`;
+    }
+    if (offer.offerType === "FLASH_SALE") {
+      return `Flash Sale Live: Get ${config.discountType === "PERCENTAGE" ? `${config.discountValue}%` : `₹${config.discountValue}`} off! Limited stocks available.`;
+    }
+    if (offer.offerType === "SEASONAL") {
+      return `Seasonal Special: Celebrate the season with ${config.discountType === "PERCENTAGE" ? `${config.discountValue}%` : `₹${config.discountValue}`} discount.`;
+    }
+    if (offer.offerType === "NEW_USER") {
+      return `Welcome Offer: First order gets ${config.discountType === "PERCENTAGE" ? `${config.discountValue}%` : `₹${config.discountValue}`} discount.`;
+    }
+    if (offer.offerType === "LOYALTY") {
+      return `Loyalty Reward: Special pricing for our ${config.membershipTier || "Valued"} customers.`;
+    }
+    if (offer.offerType === "FREE_SHIPPING") {
+      return `Free Shipping: Get free shipping on order subtotals above ₹${config.minOrderValue || 0}.`;
+    }
+    return offer.name || "Special promotion available.";
+  };
 
   // Sync API product or fallback to static data if offline
   useEffect(() => {
@@ -373,12 +641,14 @@ export default function ProductDetailPage() {
                       onMouseMove={handleMouseMove}
                       onMouseLeave={handleMouseLeave}
                     >
-                      <img
-                        src={activeImage}
-                        alt={product.name}
-                        style={zoomStyle}
-                        className="w-full h-full object-contain transition-transform duration-100"
-                      />
+                      {activeImage && (
+                        <img
+                          src={activeImage}
+                          alt={product.name}
+                          style={zoomStyle}
+                          className="w-full h-full object-contain transition-transform duration-100"
+                        />
+                      )}
                     </div>
 
                     {/* Wishlist Button Overlay */}
@@ -481,25 +751,56 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
+              {/* Flash Sale Banner */}
+              {flashSaleOffer && timeLeft && (
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-600 via-[#D71920] to-orange-500 text-white rounded-xl shadow-lg border border-red-500/20 select-none animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/10 rounded-lg text-yellow-300">
+                      <Zap size={20} className="fill-current" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wider text-yellow-300">Flash Sale Live!</p>
+                      <p className="text-[10px] text-white/95 font-bold">{flashSaleOffer.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold text-white/80">Ends in:</span>
+                    <div className="flex items-center gap-1 font-mono text-sm font-black bg-black/25 px-2.5 py-1.5 rounded-lg border border-white/10">
+                      <span>{String(timeLeft.hours).padStart(2, "0")}h</span>
+                      <span className="text-white/40">:</span>
+                      <span>{String(timeLeft.minutes).padStart(2, "0")}m</span>
+                      <span className="text-white/40">:</span>
+                      <span className="text-red-300">{String(timeLeft.seconds).padStart(2, "0")}s</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Pricing Panel */}
               <div className="space-y-1.5 p-4 rounded-xl bg-slate-50/50 dark:bg-neutral-900/30 border border-slate-100 dark:border-slate-850">
                 <span className="text-3xs font-extrabold text-emerald-600 dark:text-emerald-500 uppercase tracking-wider">Special Offer Price</span>
                 <div className="flex items-baseline gap-3 flex-wrap">
                   <span className="text-3xl font-black text-[#D71920] dark:text-red-400 tracking-tight">
-                    ₹{product.price ? product.price.toLocaleString("en-IN") : "0"}
+                    ₹{calculated.price ? calculated.price.toLocaleString("en-IN") : "0"}
                   </span>
-                  {product.originalPrice && product.price && product.originalPrice > product.price && (
+                  {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
                     <>
                       <span className="text-sm font-semibold text-slate-400 dark:text-neutral-450 line-through">
-                        ₹{product.originalPrice ? product.originalPrice.toLocaleString("en-IN") : "0"}
+                        ₹{calculated.originalPrice ? calculated.originalPrice.toLocaleString("en-IN") : "0"}
                       </span>
-                      <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-500">
-                        {product.discountPercent}% Off
+                      <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded">
+                        {calculated.discountPercent}% Off
                       </span>
                     </>
                   )}
                 </div>
-                <p className="text-3xs text-slate-450 dark:text-neutral-500 font-semibold uppercase">Inclusive of all local gst and duties</p>
+                {calculated.appliedOffer && (
+                  <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-450 mt-1.5 flex items-center gap-1.5 uppercase tracking-wide">
+                    <Check size={12} className="stroke-[3]" />
+                    <span>Promo Applied: {calculated.appliedOffer.name}</span>
+                  </div>
+                )}
+                <p className="text-3xs text-slate-450 dark:text-neutral-500 font-semibold uppercase pt-1">Inclusive of all local gst and duties</p>
               </div>
 
               {/* Flipkart Offers List */}
@@ -508,40 +809,34 @@ export default function ProductDetailPage() {
                   <Tag size={12} className="text-[#D71920] rotate-90" />
                   <span>Available Offers</span>
                 </h3>
-                <ul className="space-y-2.5">
-                  <li className="flex items-start gap-2.5 text-xs text-slate-650 dark:text-neutral-350">
-                    <Tag size={13} className="text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="text-slate-800 dark:text-white">Bank Offer </strong>
-                      10% Instant Discount on HDFC Bank Credit Card Transactions, up to ₹1,500. Min purchase ₹5,000.
-                      <span className="text-blue-500 font-bold hover:underline cursor-pointer ml-1">T&C</span>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-xs text-slate-650 dark:text-neutral-350">
-                    <Tag size={13} className="text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="text-slate-800 dark:text-white">Bank Offer </strong>
-                      5% Unlimited Cashback on SD Smart Axis Bank Credit Card.
-                      <span className="text-blue-500 font-bold hover:underline cursor-pointer ml-1">T&C</span>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-xs text-slate-650 dark:text-neutral-350">
-                    <Tag size={13} className="text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="text-slate-800 dark:text-white">Special Price </strong>
-                      Get extra ₹500 off (price inclusive of cashback/coupon).
-                      <span className="text-blue-500 font-bold hover:underline cursor-pointer ml-1">T&C</span>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2.5 text-xs text-slate-650 dark:text-neutral-350">
-                    <Tag size={13} className="text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="text-slate-800 dark:text-white">Partner Offer </strong>
-                      Buy this appliance and get standard extended 1 Year Warranty at ₹99.
-                      <span className="text-blue-500 font-bold hover:underline cursor-pointer ml-1">T&C</span>
-                    </div>
-                  </li>
-                </ul>
+                {applicableOffers.length > 0 ? (
+                  <ul className="space-y-2.5">
+                    {applicableOffers.map((offer, idx) => {
+                      const displayMsg = getOfferDisplay(offer);
+                      const isCoupon = offer.offerType === "COUPON";
+                      return (
+                        <li key={offer.id || idx} className="flex items-start gap-2.5 text-xs text-slate-650 dark:text-neutral-350 bg-slate-50/45 dark:bg-neutral-900/10 p-3 rounded-xl border border-slate-100/50 dark:border-neutral-900/30">
+                          <Tag size={14} className={cn("shrink-0 mt-0.5", isCoupon ? "text-[#D71920]" : "text-emerald-600")} />
+                          <div className="flex-1">
+                            <strong className="text-slate-800 dark:text-white">
+                              {offer.offerType.replace(/_/g, " ")}:{" "}
+                            </strong>
+                            <span>{displayMsg}</span>
+                            {offer.termsConditions && (
+                              <span className="text-[#D71920] dark:text-red-400 font-bold hover:underline cursor-pointer ml-1.5" title={offer.termsConditions}>
+                                T&C
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-450 dark:text-neutral-500 italic p-3 border border-dashed border-slate-200 dark:border-neutral-800 rounded-xl text-center">
+                    No special promotions are currently running on this product.
+                  </p>
+                )}
               </div>
 
               {/* Variant Selector Attributes */}
