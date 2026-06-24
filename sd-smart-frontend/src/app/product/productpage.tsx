@@ -57,6 +57,7 @@ export default function ProductDetailPage() {
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const isLocalVariantSwitch = useRef(false);
 
   // Gallery states
   const [activeImage, setActiveImage] = useState<string>("");
@@ -935,7 +936,7 @@ export default function ProductDetailPage() {
                   </div>
                   <span className="font-bold text-[#212121] dark:text-white text-[15px] cursor-pointer hover:underline" onClick={() => document.getElementById('reviews-section')?.scrollIntoView({behavior: 'smooth'})}>
                     {product.rating || "4.8"}
-                  </span>
+                  </span> */}
                   <span className="text-xs font-semibold text-[#D71920] dark:text-red-400 font-mono tracking-wide uppercase bg-red-50 dark:bg-red-950/20 px-2 py-0.5 rounded">
                     SKU: {product.sku || product.productId}
                   </span>
