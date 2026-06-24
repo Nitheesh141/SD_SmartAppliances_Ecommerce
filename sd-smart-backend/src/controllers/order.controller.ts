@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../utils/db";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
+import { runPricingEngine } from "./offer.controller";
 
 // Create a new order (Checkout)
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
@@ -11,7 +12,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const { addressId, paymentMethod, poNumber } = req.body;
+    const { addressId, paymentMethod, poNumber, couponCode } = req.body;
 
     if (!addressId || !paymentMethod) {
       res.status(400).json({ success: false, message: "Address and Payment Method are required" });
@@ -43,26 +44,38 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // 3. Calculate Totals
-    let subtotal = 0;
-    cart.items.forEach(item => {
-      subtotal += item.product.price * item.quantity;
-    });
+    // 3. Calculate Totals using pricing engine (only for in-stock items)
+    const activeCartItems = cart.items.filter(
+      item => item.product.inStock && item.product.availableStock > 0
+    );
 
-    const cgst = subtotal * 0.09;
-    const sgst = subtotal * 0.09;
-    const igst = 0;
-    const discount = 0; // Keeping 0 for now as per design
-
-    let deliveryCharges = 200;
-    if (subtotal > 10000) {
-      deliveryCharges = 0;
+    if (activeCartItems.length === 0) {
+      res.status(400).json({ success: false, message: "No in-stock items to place order" });
+      return;
     }
 
-    const grandTotal = subtotal + cgst + sgst + igst + deliveryCharges - discount;
+    const pricingItems = activeCartItems.map(item => ({
+      productId: item.productId,
+      quantity: Math.min(item.quantity, item.product.availableStock)
+    }));
+
+    const pricingResult = await runPricingEngine(user, pricingItems, couponCode);
+
+    const subtotal = pricingResult.summary.originalSubtotal;
+    const discount = pricingResult.summary.totalDiscounts;
+    const cgst = pricingResult.summary.cgst;
+    const sgst = pricingResult.summary.sgst;
+    const igst = pricingResult.summary.igst;
+    const deliveryCharges = pricingResult.summary.deliveryCharges;
+    const grandTotal = pricingResult.summary.grandTotal;
 
     // Generate Order Number
     const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id }
+    });
+    const userName = dbUser ? `${dbUser.firstName} ${dbUser.lastName}` : user.email;
 
     // 4. Perform Transaction
     const order = await prisma.$transaction(async (tx) => {
@@ -74,7 +87,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
           addressId,
           poNumber: poNumber || null,
           paymentMethod,
-          status: "Pending",
+          status: "PENDING_APPROVAL",
           subtotal,
           cgst,
           sgst,
@@ -82,19 +95,47 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
           deliveryCharges,
           discount,
           grandTotal,
+          statusHistory: {
+            create: {
+              status: "PENDING_APPROVAL",
+              remarks: "Order submitted and pending admin approval.",
+              updatedBy: userName
+            }
+          },
           items: {
-            create: cart.items.map(item => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: item.product.price
-            }))
+            create: [
+              ...activeCartItems.map(item => {
+                const matchedItem = pricingResult.items.find((i: any) => i.productId === item.productId);
+                return {
+                  productId: item.productId,
+                  quantity: matchedItem ? matchedItem.quantity : Math.min(item.quantity, item.product.availableStock),
+                  unitPrice: matchedItem ? matchedItem.unitPrice : item.product.price
+                };
+              }),
+              ...pricingResult.freeGiftItems.map((gift: any) => ({
+                productId: gift.productId,
+                quantity: gift.quantity,
+                unitPrice: 0
+              }))
+            ]
           }
         },
         include: { items: true }
       });
 
       // b. Update Product Stock and Record Transactions
-      for (const item of cart.items) {
+      const allOrderItems = [
+        ...activeCartItems.map(item => {
+          const matchedItem = pricingResult.items.find((i: any) => i.productId === item.productId);
+          return {
+            productId: item.productId,
+            quantity: matchedItem ? matchedItem.quantity : Math.min(item.quantity, item.product.availableStock)
+          };
+        }),
+        ...pricingResult.freeGiftItems.map((gift: any) => ({ productId: gift.productId, quantity: gift.quantity }))
+      ];
+
+      for (const item of allOrderItems) {
         // Update product cumulatives
         await tx.product.update({
           where: { id: item.productId },
@@ -114,9 +155,10 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         });
       }
 
-      // c. Clear Cart
+      // c. Clear active ordered items from Cart (leave out-of-stock items)
+      const activeCartItemIds = activeCartItems.map(item => item.id);
       await tx.cartItem.deleteMany({
-        where: { cartId: cart.id }
+        where: { id: { in: activeCartItemIds } }
       });
 
       return newOrder;
@@ -125,7 +167,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     res.status(201).json({ success: true, order });
   } catch (error: any) {
     console.error("Create order error:", error);
-    res.status(500).json({ success: false, message: "Failed to place order" });
+    res.status(500).json({ success: false, message: error.message || "Failed to place order" });
   }
 };
 
@@ -145,7 +187,11 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         address: true,
         items: {
           include: { product: true }
-        }
+        },
+        statusHistory: {
+          orderBy: { updatedAt: "asc" }
+        },
+        invoice: true
       }
     });
 
@@ -165,15 +211,25 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const order = await prisma.order.findFirst({
-      where: { id, userId: user.id },
+      where: {
+        OR: [
+          { id },
+          { orderNumber: id }
+        ],
+        userId: user.id
+      },
       include: {
         address: true,
         items: {
           include: { product: true }
-        }
+        },
+        statusHistory: {
+          orderBy: { updatedAt: "asc" }
+        },
+        invoice: true
       }
     });
 
@@ -186,5 +242,391 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
   } catch (error: any) {
     console.error("Get order by id error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch order details" });
+  }
+};
+
+// Get all orders (Admin only)
+export const getAllOrders = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    const orders = await prisma.order.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phoneNumber: true,
+          }
+        },
+        address: true,
+        items: {
+          include: { product: true }
+        },
+        statusHistory: {
+          orderBy: { updatedAt: "asc" }
+        },
+        invoice: true
+      }
+    });
+
+    res.json({ success: true, orders });
+  } catch (error: any) {
+    console.error("Get all orders error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch orders" });
+  }
+};
+
+// Update order status & manual tracking (Admin only, Payment Status is Super Admin only)
+export const updateOrderStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    const id = req.params.id as string;
+    const { status, remarks, paymentStatus } = req.body;
+
+    const validStatuses = [
+      "PENDING_APPROVAL",
+      "APPROVED",
+      "PROCESSING",
+      "PACKED",
+      "SHIPPED",
+      "IN_TRANSIT",
+      "OUT_FOR_DELIVERY",
+      "DELIVERED",
+      "REJECTED",
+      "CANCELLED"
+    ];
+
+    if (status) {
+      if (!validStatuses.includes(status)) {
+        res.status(400).json({ success: false, message: "Invalid status value" });
+        return;
+      }
+    }
+
+    if (paymentStatus) {
+      if (user.role !== "superadmin") {
+        res.status(403).json({ success: false, message: "Access denied. Only Super Admin can update payment status." });
+        return;
+      }
+      const validPaymentStatuses = ["PENDING", "PAID", "UNPAID", "REFUNDED"];
+      if (!validPaymentStatuses.includes(paymentStatus)) {
+        res.status(400).json({ success: false, message: "Invalid payment status value" });
+        return;
+      }
+    }
+
+    if (!status && !paymentStatus) {
+      res.status(400).json({ success: false, message: "No status or payment status provided to update" });
+      return;
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true, invoice: true }
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    const oldStatus = order.status;
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id }
+    });
+    const userName = dbUser ? `${dbUser.firstName} ${dbUser.lastName}` : user.email;
+
+    // Transition flags
+    const isRestoring = status && (status === "CANCELLED" || status === "REJECTED") &&
+                        (oldStatus !== "CANCELLED" && oldStatus !== "REJECTED");
+
+    const isReducing = status && (oldStatus === "CANCELLED" || oldStatus === "REJECTED") &&
+                       (status !== "CANCELLED" && status !== "REJECTED");
+
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const updateData: any = {};
+
+      if (status) {
+        updateData.status = status;
+        if (status === "APPROVED") {
+          updateData.approvedAt = now;
+          updateData.approvedBy = userName;
+        } else if (status === "REJECTED") {
+          updateData.rejectionReason = remarks || "Order rejected by admin.";
+        }
+      }
+
+      if (paymentStatus) {
+        updateData.paymentStatus = paymentStatus;
+      }
+
+      // Update Order Status
+      const updated = await tx.order.update({
+        where: { id },
+        data: updateData,
+        include: {
+          items: {
+            include: { product: true }
+          },
+          user: true,
+          address: true,
+          statusHistory: true,
+          invoice: true
+        }
+      });
+
+      // Record Status History
+      if (status) {
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: id,
+            status,
+            remarks: remarks || `Order status updated to ${status}.`,
+            updatedBy: userName
+          }
+        });
+
+        // Handle stock adjustments
+        if (isRestoring) {
+          for (const item of order.items) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                availableStock: { increment: item.quantity },
+                stockOut: { decrement: item.quantity }
+              }
+            });
+
+            await (tx as any).inventoryTransaction.create({
+              data: {
+                productId: item.productId,
+                type: "IN",
+                quantity: item.quantity
+              }
+            });
+          }
+        } else if (isReducing) {
+          for (const item of order.items) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                availableStock: { decrement: item.quantity },
+                stockOut: { increment: item.quantity }
+              }
+            });
+
+            await (tx as any).inventoryTransaction.create({
+              data: {
+                productId: item.productId,
+                type: "OUT",
+                quantity: item.quantity
+              }
+            });
+          }
+        }
+
+        // Generate invoice automatically if status is APPROVED and no invoice exists yet
+        if (status === "APPROVED" && !order.invoice) {
+          const invoiceCount = await tx.invoice.count();
+          const nextInvoiceNum = `INV-2026-${String(invoiceCount + 1).padStart(6, '0')}`;
+
+          const taxAmount = (order.cgst || 0) + (order.sgst || 0) + (order.igst || 0);
+
+          await tx.invoice.create({
+            data: {
+              invoiceNumber: nextInvoiceNum,
+              orderId: id,
+              distributorId: order.userId,
+              subtotal: order.subtotal,
+              discountAmount: order.discount,
+              taxAmount,
+              shippingAmount: order.deliveryCharges,
+              grandTotal: order.grandTotal,
+              generatedBy: userName,
+              pdfUrl: `/api/orders/${id}/invoice/pdf`
+            }
+          });
+        }
+      }
+
+      if (paymentStatus) {
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: id,
+            status: updated.status,
+            remarks: remarks || `Payment status updated to ${paymentStatus}.`,
+            updatedBy: userName
+          }
+        });
+      }
+
+      return updated;
+    });
+
+    res.json({ success: true, order: updatedOrder });
+  } catch (error: any) {
+    console.error("Update order status error:", error);
+    res.status(500).json({ success: false, message: "Failed to update order status" });
+  }
+};
+
+// Get detailed invoice for an order
+export const getOrderInvoice = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    const orderId = req.params.id as string;
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phoneNumber: true,
+          }
+        },
+        address: true,
+        items: {
+          include: { product: true }
+        },
+        invoice: true
+      }
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    // Access control: distributor must own order, or be an admin
+    if (order.userId !== user.id && user.role !== "admin" && user.role !== "superadmin") {
+      res.status(403).json({ success: false, message: "Access denied" });
+      return;
+    }
+
+    if (!order.invoice) {
+      res.status(404).json({ success: false, message: "Invoice not generated yet" });
+      return;
+    }
+
+    res.json({ success: true, invoice: order.invoice, order });
+  } catch (error: any) {
+    console.error("Get order invoice error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch invoice" });
+  }
+};
+
+// Cancel order (User self-cancel)
+export const cancelOrder = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    const id = req.params.id as string;
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true }
+    });
+
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    // Check ownership
+    if (order.userId !== user.id) {
+      res.status(403).json({ success: false, message: "Access denied. You can only cancel your own orders." });
+      return;
+    }
+
+    // Check cancellable statuses (before shipping/out for delivery)
+    const cancellableStatuses = ["PENDING_APPROVAL", "APPROVED", "PROCESSING", "PACKED"];
+    if (!cancellableStatuses.includes(order.status)) {
+      res.status(400).json({ success: false, message: `Cannot cancel order at '${order.status}' stage.` });
+      return;
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id }
+    });
+    const userName = dbUser ? `${dbUser.firstName} ${dbUser.lastName}` : user.email;
+
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      // Update order status to CANCELLED
+      const updated = await tx.order.update({
+        where: { id },
+        data: { status: "CANCELLED" },
+        include: {
+          items: { include: { product: true } },
+          user: true,
+          address: true,
+          statusHistory: true,
+          invoice: true
+        }
+      });
+
+      // Record status history
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          status: "CANCELLED",
+          remarks: "Order cancelled by customer.",
+          updatedBy: userName
+        }
+      });
+
+      // Restore stock
+      for (const item of order.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            availableStock: { increment: item.quantity },
+            stockOut: { decrement: item.quantity }
+          }
+        });
+
+        await (tx as any).inventoryTransaction.create({
+          data: {
+            productId: item.productId,
+            type: "IN",
+            quantity: item.quantity
+          }
+        });
+      }
+
+      return updated;
+    });
+
+    res.json({ success: true, message: "Order cancelled successfully", order: updatedOrder });
+  } catch (error: any) {
+    console.error("Cancel order error:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to cancel order" });
   }
 };

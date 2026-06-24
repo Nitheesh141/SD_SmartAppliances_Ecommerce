@@ -1,20 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
 import { useCart } from "@/providers/CartProvider";
+import { useAuth } from "@/providers/AuthProvider";
 import { checkoutService } from "@/services/checkoutService";
 import { Address, CreateAddressRequest, Order } from "@/types/api";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Building2, MapPin, CreditCard, Banknote, ShieldCheck, Plus, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle2, Building2, MapPin, CreditCard, Banknote, ShieldCheck, Plus, ArrowRight, Loader2, Truck, Package, Tag } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cartItems, isLoading: isCartLoading, clearCart } = useCart();
+  const { isAuthenticated, loading: isAuthLoading } = useAuth();
+
+  const inStockCartItems = useMemo(() => {
+    return cartItems.filter(item => item.product?.inStock && (item.product?.availableStock ?? 0) > 0);
+  }, [cartItems]);
+
+  const cartItemsKey = JSON.stringify(
+    inStockCartItems.map(item => ({
+      productId: item.productId,
+      quantity: item.quantity
+    }))
+  );
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
@@ -28,6 +41,13 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+
+  const [couponCode, setCouponCode] = useState<string>("");
+  const [promoCodeInput, setPromoCodeInput] = useState<string>("");
+  const [couponError, setCouponError] = useState<string>("");
+  const [couponSuccess, setCouponSuccess] = useState<string>("");
+  const [calculationResult, setCalculationResult] = useState<any>(null);
+  const [calculating, setCalculating] = useState(false);
 
   const [newAddress, setNewAddress] = useState<CreateAddressRequest>({
     fullName: "",
@@ -117,6 +137,69 @@ export default function CheckoutPage() {
     }
   };
 
+  useEffect(() => {
+    if (inStockCartItems.length === 0) {
+      setCalculationResult(null);
+      return;
+    }
+
+    const calculatePricing = async () => {
+      setCalculating(true);
+      try {
+        const token = localStorage.getItem("authToken");
+        const bodyItems = inStockCartItems.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity
+        }));
+        
+        const response = await fetch("http://localhost:5000/api/offers/calculate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ items: bodyItems, couponCode: couponCode || undefined })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setCalculationResult(data);
+          
+          if (couponCode) {
+            const couponOffer = data.appliedOffers?.find((o: any) => o.code?.toLowerCase() === couponCode.toLowerCase() || o.name?.toLowerCase().includes("coupon") || o.code);
+            if (couponOffer) {
+              setCouponSuccess(`Coupon code applied! Saved ₹${couponOffer.discountAmount.toLocaleString('en-IN')}`);
+              setCouponError("");
+            } else {
+              setCouponError("This coupon code is not applicable to the items in your cart.");
+              setCouponSuccess("");
+              setCouponCode("");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to calculate checkout pricing:", err);
+      } finally {
+        setCalculating(false);
+      }
+    };
+
+    calculatePricing();
+  }, [cartItemsKey, couponCode]);
+
+  const handleApplyCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!promoCodeInput.trim()) return;
+    setCouponCode(promoCodeInput.trim());
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode("");
+    setPromoCodeInput("");
+    setCouponSuccess("");
+    setCouponError("");
+  };
+
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
       alert("Please select a delivery address.");
@@ -132,7 +215,8 @@ export default function CheckoutPage() {
       const response = await checkoutService.createOrder({
         addressId: selectedAddressId,
         paymentMethod,
-        poNumber: poNumber.trim() || undefined
+        poNumber: poNumber.trim() || undefined,
+        couponCode: couponCode || undefined
       });
 
       if (response.success && response.data?.order) {
@@ -151,15 +235,25 @@ export default function CheckoutPage() {
     }
   };
 
-  // Calculations
-  const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
-  const subtotal = cartItems.reduce((acc, item) => acc + ((item.product?.price || 0) * item.quantity), 0);
+  const cartCount = calculationResult
+    ? calculationResult.items.reduce((acc: number, item: any) => acc + item.quantity, 0)
+    : inStockCartItems.reduce((acc, item) => acc + item.quantity, 0);
+  const subtotal = inStockCartItems.reduce((acc, item) => acc + ((item.product?.price || 0) * item.quantity), 0);
   const cgst = subtotal * 0.09;
   const sgst = subtotal * 0.09;
-  const deliveryCharges = subtotal > 10000 ? 0 : 200;
+  const deliveryCharges = subtotal >= 10000 ? 0 : 200;
   const grandTotal = subtotal + cgst + sgst + deliveryCharges;
 
-  if (isCartLoading || isFetchingAddresses) {
+  // Smart delivery info from pricing engine
+  const deliveryInfo = calculationResult?.deliveryInfo;
+  const effectiveDeliveryCharges = calculationResult ? calculationResult.summary.deliveryCharges : deliveryCharges;
+  const isFreeDelivery = effectiveDeliveryCharges === 0;
+  const amountNeeded = deliveryInfo?.amountNeededForFreeDelivery ?? 0;
+  const FREE_THRESHOLD = deliveryInfo?.freeDeliveryThreshold ?? 10000;
+  const progressPct = Math.min(100, ((FREE_THRESHOLD - amountNeeded) / FREE_THRESHOLD) * 100);
+  const freeShippingProductIds: string[] = deliveryInfo?.freeShippingProductIds ?? [];
+
+  if (isAuthLoading || isCartLoading || isFetchingAddresses) {
     return (
       <div className="min-h-screen flex flex-col bg-white dark:bg-slate-950 font-sans">
         <Header navLinks={navLinks} />
@@ -179,9 +273,9 @@ export default function CheckoutPage() {
           <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
             <CheckCircle2 size={40} />
           </div>
-          <h1 className="text-3xl font-black text-[#1C1C1C] mb-2 text-center">Order Placed Successfully!</h1>
+          <h1 className="text-3xl font-black text-[#1C1C1C] mb-2 text-center">Order Request Submitted!</h1>
           <p className="text-neutral-500 mb-8 text-center max-w-md">
-            Thank you for your purchase. Your order has been confirmed and will be shipped shortly.
+            Your order request has been submitted and is pending approval by the admin. You can monitor the approval and tracking status below or in your account dashboard.
           </p>
 
           <div className="bg-neutral-50 rounded-2xl p-6 sm:p-8 w-full max-w-md mb-8 border border-neutral-100 text-center">
@@ -199,7 +293,7 @@ export default function CheckoutPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-            <Link href="/account" className="flex-1 text-center bg-white border border-neutral-200 hover:bg-neutral-50 text-[#1C1C1C] px-6 py-3.5 rounded-xl font-semibold transition-colors">
+            <Link href="/account?tab=orders" className="flex-1 text-center bg-white border border-neutral-200 hover:bg-neutral-50 text-[#1C1C1C] px-6 py-3.5 rounded-xl font-semibold transition-colors">
               View Orders
             </Link>
             <Link href="/shop" className="flex-1 text-center bg-[#D71920] hover:bg-[#b8141a] text-white px-6 py-3.5 rounded-xl font-semibold transition-colors">
@@ -212,12 +306,12 @@ export default function CheckoutPage() {
     );
   }
 
-  if (cartItems.length === 0) {
+  if (inStockCartItems.length === 0) {
     return (
       <div className="min-h-screen flex flex-col bg-white dark:bg-slate-950 font-sans">
         <Header navLinks={navLinks} />
         <main className="flex-1 flex flex-col items-center justify-center py-20 text-center px-4">
-          <h1 className="text-2xl font-black text-[#1C1C1C] mb-4">Your Cart is Empty</h1>
+          <h1 className="text-2xl font-black text-[#1C1C1C] mb-4">Your Cart has no In-Stock items</h1>
           <Link href="/shop" className="text-[#D71920] font-semibold hover:underline">Return to Shop</Link>
         </main>
         <Footer footerColumns={footerColumns} socialLinks={socialLinks} />
@@ -468,10 +562,109 @@ export default function CheckoutPage() {
             <div className="sticky top-28 bg-white rounded-2xl p-6 border border-neutral-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               <h2 className="text-lg font-bold text-[#1C1C1C] mb-6">Order Summary</h2>
 
+              {/* Coupon Code Input Panel */}
+              <div className="mt-6 mb-6 p-4 bg-slate-55 rounded-2xl border border-neutral-200 space-y-3">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-neutral-500 block">Promo Code & Coupons</span>
+                
+                {couponSuccess ? (
+                  <div className="flex items-center justify-between bg-green-50/60 border border-green-150 rounded-xl p-3 text-xs text-green-800">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+                      <div>
+                        <span className="font-extrabold uppercase">{couponCode}</span>
+                        <p className="text-[10px] text-green-700">{couponSuccess}</p>
+                      </div>
+                    </div>
+                    <button onClick={handleRemoveCoupon} className="text-xs font-bold text-red-650 hover:underline cursor-pointer">
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter Coupon Code"
+                      value={promoCodeInput}
+                      onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                      className="flex-grow px-3.5 py-2 text-xs border border-neutral-200 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-[#D71920]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={calculating || !promoCodeInput.trim()}
+                      className="px-4 py-2 bg-[#D71920] hover:bg-[#b8141a] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      Apply
+                    </button>
+                  </form>
+                )}
+                {couponError && <p className="text-[10px] font-bold text-[#D71920]">{couponError}</p>}
+              </div>
+
+              {/* ── SMART DELIVERY BANNER ── */}
+              {!calculating && (
+                <div className={`mb-5 rounded-2xl border overflow-hidden ${
+                  isFreeDelivery
+                    ? "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50"
+                    : "border-orange-100 bg-gradient-to-br from-orange-50/60 to-amber-50/40"
+                }`}>
+                  <div className="px-4 pt-3.5 pb-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Truck size={16} className={isFreeDelivery ? "text-green-600" : "text-orange-500"} />
+                        <span className={`text-xs font-extrabold uppercase tracking-wider ${
+                          isFreeDelivery ? "text-green-700" : "text-orange-600"
+                        }`}>
+                          {isFreeDelivery ? "Free Delivery Unlocked! 🎉" : "Free Delivery"}
+                        </span>
+                      </div>
+                      {!isFreeDelivery && (
+                        <span className="text-[10px] font-bold text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full">
+                          Add ₹{amountNeeded.toLocaleString('en-IN')} more
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Progress bar */}
+                    {!isFreeDelivery && (
+                      <>
+                        <div className="w-full h-1.5 bg-orange-100 rounded-full overflow-hidden mb-1.5">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-400 transition-all duration-700"
+                            style={{ width: `${progressPct}%` }}
+                          />
+                        </div>
+                        <p className="text-[11px] text-orange-600 font-medium">
+                          Spend ₹{amountNeeded.toLocaleString('en-IN')} more to get
+                          {" "}<strong className="font-extrabold">FREE delivery</strong>
+                          {" "}(on orders above ₹{FREE_THRESHOLD.toLocaleString('en-IN')})
+                        </p>
+                      </>
+                    )}
+                    {isFreeDelivery && deliveryInfo?.freeDeliveryReason && (
+                      <p className="text-[11px] text-green-600 font-medium">{deliveryInfo.freeDeliveryReason}</p>
+                    )}
+                  </div>
+
+                  {/* Per-item free shipping tags */}
+                  {freeShippingProductIds.length > 0 && (
+                    <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+                      {inStockCartItems
+                        .filter(item => freeShippingProductIds.includes(item.productId))
+                        .map(item => (
+                          <span key={item.productId} className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-full">
+                            <Tag size={9} />
+                            {item.product?.name?.split(' ').slice(0, 3).join(' ')} — Free Shipping
+                          </span>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-3.5 mb-6 text-sm">
                 <div className="flex justify-between items-center text-neutral-600 font-medium">
                   <span>Total Products</span>
-                  <span className="font-bold text-[#1C1C1C] bg-neutral-100 px-2 py-0.5 rounded-md">{cartItems.length}</span>
+                  <span className="font-bold text-[#1C1C1C] bg-neutral-100 px-2 py-0.5 rounded-md">{inStockCartItems.length}</span>
                 </div>
                 <div className="flex justify-between items-center text-neutral-600 font-medium">
                   <span>Total Quantity</span>
@@ -479,33 +672,71 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between items-center text-neutral-600 font-medium pt-2">
                   <span>Subtotal</span>
-                  <span className="font-bold text-[#1C1C1C]">₹{subtotal.toLocaleString('en-IN')}</span>
+                  <span className="font-bold text-[#1C1C1C]">
+                    ₹{(calculationResult ? calculationResult.summary.originalSubtotal : subtotal).toLocaleString('en-IN')}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-neutral-500">
                   <span>CGST (9%)</span>
-                  <span>₹{cgst.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                  <span>
+                    ₹{(calculationResult ? calculationResult.summary.cgst : cgst).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-neutral-500">
                   <span>SGST (9%)</span>
-                  <span>₹{sgst.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                  <span>
+                    ₹{(calculationResult ? calculationResult.summary.sgst : sgst).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </span>
                 </div>
-                <div className="flex justify-between items-center text-neutral-500">
-                  <span>Delivery Charges</span>
-                  <span>{deliveryCharges === 0 ? <span className="text-green-600 font-bold">Free</span> : `₹${deliveryCharges}`}</span>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-1.5 text-neutral-500">
+                    <Truck size={13} className={isFreeDelivery ? "text-green-500" : "text-neutral-400"} />
+                    <span>Delivery Charges</span>
+                  </div>
+                  <span>
+                    {isFreeDelivery
+                      ? <span className="text-green-600 font-bold flex items-center gap-1">FREE <CheckCircle2 size={12} className="text-green-500" /></span>
+                      : `₹${effectiveDeliveryCharges}`}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-[#22c55e] font-medium">
-                  <span>Discount</span>
-                  <span className="font-bold">-₹0</span>
+                  <span>Total Discounts</span>
+                  <span className="font-bold">
+                    -₹{(calculationResult ? calculationResult.summary.totalDiscounts : 0).toLocaleString('en-IN')}
+                  </span>
                 </div>
               </div>
 
               <div className="border-t border-neutral-100 border-dashed pt-4 mb-6">
                 <div className="flex justify-between items-end">
                   <span className="font-bold text-[#1C1C1C] text-base">Grand Total</span>
-                  <span className="text-2xl font-black text-[#D71920] tracking-tight">₹{grandTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                  <span className="text-2xl font-black text-[#D71920] tracking-tight">
+                    ₹{(calculationResult ? calculationResult.summary.grandTotal : grandTotal).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </span>
                 </div>
                 <p className="text-[10px] text-neutral-400 mt-1 text-right">Inclusive of all taxes</p>
               </div>
+
+              {calculationResult?.appliedOffers && calculationResult.appliedOffers.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-neutral-100 border-dashed space-y-2">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400">Applied Campaigns & Offers</p>
+                  <div className="flex flex-col gap-1.5">
+                    {calculationResult.appliedOffers.map((offer: any) => (
+                      <div key={offer.offerId} className="flex items-center justify-between gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100/50">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
+                          <span>{offer.name} {offer.code ? `(${offer.code})` : ''}</span>
+                        </div>
+                        {offer.discountAmount && offer.discountAmount > 0 ? (
+                          <span className="text-emerald-700 shrink-0 font-extrabold">-₹{offer.discountAmount.toLocaleString('en-IN')}</span>
+                        ) : offer.freeShipping ? (
+                          <span className="text-emerald-700 shrink-0 font-extrabold">Free Shipping</span>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={handlePlaceOrder}

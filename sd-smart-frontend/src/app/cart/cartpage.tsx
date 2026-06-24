@@ -5,15 +5,22 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 // import { announcements } from "../LandingPage/data/announcements";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
-import { ShoppingBag, ArrowRight, Trash2, Minus, Plus, ShieldCheck, Check } from "lucide-react";
+import { ShoppingBag, ArrowRight, Trash2, Minus, Plus, ShieldCheck, Check, Truck, Tag, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/providers/CartProvider";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 export default function CartPage() {
   const { cartItems, cartTotal, cartCount, updateQuantity, removeFromCart, isLoading } = useCart();
   const [excludedItems, setExcludedItems] = useState<Set<string>>(new Set());
+  const [calculationResult, setCalculationResult] = useState<any>(null);
+  const [calculating, setCalculating] = useState(false);
+
+  const isItemOutOfStock = (item: any) => {
+    const product = item.product || {};
+    return !product.inStock || (product.availableStock !== undefined && product.availableStock <= 0);
+  };
 
   const toggleExclude = (id: string) => {
     setExcludedItems(prev => {
@@ -27,9 +34,64 @@ export default function CartPage() {
     });
   };
 
-  const includedItems = cartItems.filter(item => !excludedItems.has(item.id));
-  const calculatedCartCount = includedItems.reduce((acc, item) => acc + item.quantity, 0);
+  // Memoized so the array reference is stable — prevents useEffect infinite loop
+  const includedItems = useMemo(
+    () => cartItems.filter(item => !excludedItems.has(item.id) && !isItemOutOfStock(item)),
+    [cartItems, excludedItems]
+  );
+  const calculatedCartCount = calculationResult
+    ? calculationResult.items.reduce((acc: number, item: any) => acc + item.quantity, 0)
+    : includedItems.reduce((acc, item) => acc + item.quantity, 0);
   const calculatedCartTotal = includedItems.reduce((acc, item) => acc + ((item.product?.price || 0) * item.quantity), 0);
+
+  // Stable string key — useEffect only fires when actual cart content changes
+  const cartKey = useMemo(
+    () => includedItems.map(i => `${i.productId}:${i.quantity}`).join(','),
+    [includedItems]
+  );
+
+  useEffect(() => {
+    if (includedItems.length === 0) {
+      setCalculationResult(null);
+      return;
+    }
+
+    let cancelled = false;
+    const calculatePricing = async () => {
+      setCalculating(true);
+      try {
+        const token = localStorage.getItem("authToken");
+        const bodyItems = includedItems.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity
+        }));
+        
+        const response = await fetch("http://localhost:5000/api/offers/calculate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ items: bodyItems })
+        });
+        
+        if (response.ok && !cancelled) {
+          const data = await response.json();
+          setCalculationResult(data);
+        }
+      } catch (err) {
+        if (!cancelled) console.error("Failed to calculate cart pricing:", err);
+      } finally {
+        if (!cancelled) setCalculating(false);
+      }
+    };
+
+    calculatePricing();
+    // Cleanup: ignore stale responses if cart changes before fetch completes
+    return () => { cancelled = true; };
+  // cartKey is the stable primitive that represents the cart contents
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartKey]);
 
   if (isLoading) {
     return (
@@ -77,6 +139,9 @@ export default function CartPage() {
               <div className="space-y-4">
                 {cartItems.map((item) => {
                   const product = item.product || {};
+                  const isOutOfStock = isItemOutOfStock(item);
+                  const matchedCalcItem = calculationResult?.items?.find((ci: any) => ci.productId === product.id);
+                  const isDiscounted = matchedCalcItem && matchedCalcItem.unitPrice < matchedCalcItem.originalPrice;
                   return (
                     <div key={item.id} className="flex gap-4 p-4 border border-neutral-100 rounded-2xl bg-white hover:border-neutral-200 transition-colors shadow-sm">
                       {/* Product Image */}
@@ -100,6 +165,12 @@ export default function CartPage() {
                             </h3>
                           </Link>
 
+                          {isOutOfStock && (
+                            <span className="inline-flex items-center mt-1.5 px-2 py-0.5 rounded bg-red-55 border border-red-150 text-[10px] font-extrabold text-[#D71920] w-fit">
+                              Out of Stock
+                            </span>
+                          )}
+
                           {/* Features / Specifications */}
                           {product.variantDetails && typeof product.variantDetails === 'object' && Object.keys(product.variantDetails).length > 0 && (
                             <div className="mt-2.5 flex flex-wrap gap-2">
@@ -110,20 +181,55 @@ export default function CartPage() {
                               ))}
                             </div>
                           )}
+
+                          {/* Dynamic Item Level Applied Offers */}
+                          {(() => {
+                            if (!isOutOfStock && matchedCalcItem?.appliedOffers && matchedCalcItem.appliedOffers.length > 0) {
+                              return (
+                                <div className="mt-2.5 flex flex-col gap-1.5">
+                                  {matchedCalcItem.appliedOffers.map((o: any, oIdx: number) => (
+                                    <div key={oIdx} className="flex flex-col gap-0.5">
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded bg-emerald-50 border border-emerald-150 text-[10px] font-extrabold text-emerald-700 w-fit">
+                                        {o.name}: -₹{o.discountAmount.toLocaleString('en-IN')}
+                                      </span>
+                                      {o.bogoDescription && (
+                                        <p className="text-[10px] text-emerald-600 font-bold ml-1">
+                                          ✓ {o.bogoDescription}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
 
                         <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-4 gap-3">
                           <div className="flex flex-col">
                             <span className="text-xs text-neutral-500 font-medium mb-0.5">Price</span>
-                            <span className="font-bold text-[#1C1C1C] text-base">₹{(product.price || 0).toLocaleString('en-IN')}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-[#1C1C1C] text-base">
+                                ₹{(matchedCalcItem ? matchedCalcItem.unitPrice : (product.price || 0)).toLocaleString('en-IN')}
+                              </span>
+                              {isDiscounted && !isOutOfStock && (
+                                <span className="text-xs text-neutral-400 line-through">
+                                  ₹{matchedCalcItem.originalPrice.toLocaleString('en-IN')}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           
                           <div className="flex items-center gap-4">
                             {/* Quantity Selector */}
-                            <div className="flex items-center border border-neutral-200 rounded-xl bg-neutral-50 overflow-hidden h-9">
+                            <div className={cn(
+                              "flex items-center border border-neutral-200 rounded-xl bg-neutral-50 overflow-hidden h-9",
+                              isOutOfStock && "opacity-40 pointer-events-none"
+                            )}>
                               <button 
                                 onClick={() => item.quantity > 1 ? updateQuantity(item.id, item.quantity - 1) : undefined} 
-                                disabled={item.quantity <= 1}
+                                disabled={item.quantity <= 1 || isOutOfStock}
                                 className={cn(
                                   "w-8 h-full flex items-center justify-center transition-colors",
                                   item.quantity <= 1 ? "text-neutral-300 cursor-not-allowed bg-neutral-100" : "text-neutral-500 hover:bg-neutral-200 hover:text-[#1C1C1C]"
@@ -134,6 +240,7 @@ export default function CartPage() {
                               <input 
                                 type="number" 
                                 value={item.quantity} 
+                                disabled={isOutOfStock}
                                 onChange={(e) => { 
                                   const val = parseInt(e.target.value); 
                                   if (!isNaN(val) && val > 0) {
@@ -151,6 +258,7 @@ export default function CartPage() {
                               />
                               <button 
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)} 
+                                disabled={isOutOfStock}
                                 className="w-8 h-full flex items-center justify-center text-neutral-500 hover:bg-neutral-200 hover:text-[#1C1C1C] transition-colors"
                               >
                                 <Plus size={14} />
@@ -161,20 +269,38 @@ export default function CartPage() {
                             <div className="flex items-center gap-3 ml-2 sm:ml-4 border-l border-neutral-100 pl-3 sm:pl-4">
                               <div className="flex flex-col hidden sm:flex">
                                 <span className="text-[10px] text-neutral-400 font-medium uppercase">Subtotal</span>
-                                <span className="font-bold text-[#1C1C1C]">₹{((product.price || 0) * item.quantity).toLocaleString('en-IN')}</span>
+                                <div className="flex flex-col items-end">
+                                  {isOutOfStock ? (
+                                    <span className="font-bold text-neutral-400">—</span>
+                                  ) : (
+                                    <>
+                                      <span className="font-bold text-[#1C1C1C]">
+                                        ₹{(matchedCalcItem ? matchedCalcItem.totalPrice : ((product.price || 0) * item.quantity)).toLocaleString('en-IN')}
+                                      </span>
+                                      {isDiscounted && (
+                                        <span className="text-[10px] text-neutral-400 line-through">
+                                          ₹{(matchedCalcItem.originalPrice * matchedCalcItem.quantity).toLocaleString('en-IN')}
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
                               </div>
                               <div className="flex items-center gap-2">
                                 <button 
-                                  onClick={() => toggleExclude(item.id)}
+                                  onClick={() => !isOutOfStock && toggleExclude(item.id)}
+                                  disabled={isOutOfStock}
                                   className={cn(
-                                    "w-5 h-5 flex items-center justify-center rounded border transition-colors cursor-pointer",
-                                    !excludedItems.has(item.id) 
-                                      ? "bg-[#D71920] border-[#D71920] text-white" 
-                                      : "bg-white border-neutral-300 text-transparent hover:border-[#D71920]"
+                                    "w-5 h-5 flex items-center justify-center rounded border transition-colors",
+                                    isOutOfStock 
+                                      ? "bg-neutral-100 border-neutral-200 text-transparent cursor-not-allowed" 
+                                      : !excludedItems.has(item.id) 
+                                        ? "bg-[#D71920] border-[#D71920] text-white cursor-pointer" 
+                                        : "bg-white border-neutral-300 text-transparent hover:border-[#D71920] cursor-pointer"
                                   )}
-                                  title={!excludedItems.has(item.id) ? "Included in order summary" : "Excluded from order summary"}
+                                  title={isOutOfStock ? "Out of stock items cannot be included" : (!excludedItems.has(item.id) ? "Included in order summary" : "Excluded from order summary")}
                                 >
-                                  <Check size={12} strokeWidth={3} className={cn("transition-opacity", !excludedItems.has(item.id) ? "opacity-100" : "opacity-0")} />
+                                  <Check size={12} strokeWidth={3} className={cn("transition-opacity", (!excludedItems.has(item.id) && !isOutOfStock) ? "opacity-100" : "opacity-0")} />
                                 </button>
                                 <button 
                                   onClick={() => removeFromCart(item.id)} 
@@ -197,7 +323,68 @@ export default function CartPage() {
             {/* RIGHT SECTION (30%) */}
             <div className="lg:w-[30%]">
               <div className="sticky top-28 bg-white rounded-2xl p-6 border border-neutral-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                <h2 className="text-lg font-bold text-[#1C1C1C] mb-6">Order Summary</h2>
+                <h2 className="text-lg font-bold text-[#1C1C1C] mb-4">Order Summary</h2>
+
+                {/* Smart Delivery Banner */}
+                {!calculating && (() => {
+                  const deliveryInfo = calculationResult?.deliveryInfo;
+                  const effectiveDC = calculationResult ? calculationResult.summary.deliveryCharges : (calculatedCartTotal >= 10000 ? 0 : 200);
+                  const isFree = effectiveDC === 0;
+                  const needed = deliveryInfo?.amountNeededForFreeDelivery ?? 0;
+                  const threshold = deliveryInfo?.freeDeliveryThreshold ?? 10000;
+                  const progress = Math.min(100, ((threshold - needed) / threshold) * 100);
+                  const fsProductIds: string[] = deliveryInfo?.freeShippingProductIds ?? [];
+                  return (
+                    <div className={`mb-5 rounded-2xl border overflow-hidden ${
+                      isFree
+                        ? "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50"
+                        : "border-orange-100 bg-gradient-to-br from-orange-50/60 to-amber-50/40"
+                    }`}>
+                      <div className="px-4 pt-3.5 pb-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Truck size={15} className={isFree ? "text-green-600" : "text-orange-500"} />
+                            <span className={`text-xs font-extrabold uppercase tracking-wider ${
+                              isFree ? "text-green-700" : "text-orange-600"
+                            }`}>
+                              {isFree ? "Free Delivery! 🎉" : "Free Delivery"}
+                            </span>
+                          </div>
+                          {!isFree && (
+                            <span className="text-[10px] font-bold text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full">
+                              +₹{needed.toLocaleString('en-IN')} away
+                            </span>
+                          )}
+                        </div>
+                        {!isFree && (
+                          <>
+                            <div className="w-full h-1.5 bg-orange-100 rounded-full overflow-hidden mb-1.5">
+                              <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-400 transition-all duration-700" style={{ width: `${progress}%` }} />
+                            </div>
+                            <p className="text-[11px] text-orange-600 font-medium">
+                              Add <strong>₹{needed.toLocaleString('en-IN')}</strong> more for <strong>FREE delivery</strong> (above ₹{threshold.toLocaleString('en-IN')})
+                            </p>
+                          </>
+                        )}
+                        {isFree && deliveryInfo?.freeDeliveryReason && (
+                          <p className="text-[11px] text-green-600 font-medium">{deliveryInfo.freeDeliveryReason}</p>
+                        )}
+                      </div>
+                      {fsProductIds.length > 0 && (
+                        <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+                          {includedItems
+                            .filter(item => fsProductIds.includes(item.productId))
+                            .map(item => (
+                              <span key={item.productId} className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-full">
+                                <Tag size={9} />
+                                {item.product?.name?.split(' ').slice(0, 3).join(' ')} — Free Ship
+                              </span>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 
                 <div className="space-y-3.5 mb-6 text-sm">
                   <div className="flex justify-between items-center text-neutral-600 font-medium">
@@ -210,22 +397,64 @@ export default function CartPage() {
                   </div>
                   <div className="flex justify-between items-center text-neutral-600 font-medium pt-2">
                     <span>Subtotal</span>
-                    <span className="font-bold text-[#1C1C1C]">₹{calculatedCartTotal.toLocaleString('en-IN')}</span>
+                    <span className="font-bold text-[#1C1C1C]">
+                      ₹{(calculationResult ? calculationResult.summary.originalSubtotal : calculatedCartTotal).toLocaleString('en-IN')}
+                    </span>
                   </div>
-                  {/* Mock discount for visual completeness, could be dynamic later */}
-                  <div className="flex justify-between items-center text-[#22c55e] font-medium">
-                    <span>Discount</span>
-                    <span className="font-bold">-₹0</span>
-                  </div>
+                  {calculationResult && calculationResult.summary.totalDiscounts > 0 && (
+                    <div className="flex justify-between items-center text-[#22c55e] font-medium">
+                      <span>Total Savings</span>
+                      <span className="font-bold">-₹{calculationResult.summary.totalDiscounts.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  {(() => {
+                    const effectiveDC = calculationResult ? calculationResult.summary.deliveryCharges : (calculatedCartTotal >= 10000 ? 0 : 200);
+                    const isFree = effectiveDC === 0;
+                    return (
+                      <div className={`flex justify-between items-center font-medium ${ isFree ? 'text-green-600' : 'text-neutral-600' }`}>
+                        <div className="flex items-center gap-1.5">
+                          <Truck size={13} className={isFree ? "text-green-500" : "text-neutral-400"} />
+                          <span>Delivery Charges</span>
+                        </div>
+                        <span className="font-bold">
+                          {isFree
+                            ? <span className="flex items-center gap-1">FREE <CheckCircle2 size={12} className="text-green-500" /></span>
+                            : `₹${effectiveDC.toLocaleString('en-IN')}`}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  {calculationResult && (calculationResult.summary.cgst + calculationResult.summary.sgst) > 0 && (
+                    <div className="flex justify-between items-center text-neutral-500 text-xs">
+                      <span>GST (18%)</span>
+                      <span className="font-semibold text-neutral-700">₹{(calculationResult.summary.cgst + calculationResult.summary.sgst).toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t border-neutral-100 border-dashed pt-4 mb-6">
                   <div className="flex justify-between items-end">
                     <span className="font-bold text-[#1C1C1C] text-base">Grand Total</span>
-                    <span className="text-2xl font-black text-[#D71920] tracking-tight">₹{calculatedCartTotal.toLocaleString('en-IN')}</span>
+                    <span className="text-2xl font-black text-[#D71920] tracking-tight">
+                      ₹{(calculationResult ? calculationResult.summary.grandTotal : calculatedCartTotal).toLocaleString('en-IN')}
+                    </span>
                   </div>
                   <p className="text-[10px] text-neutral-400 mt-1 text-right">Inclusive of all taxes</p>
                 </div>
+
+                {calculationResult?.appliedOffers && calculationResult.appliedOffers.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-neutral-100 border-dashed space-y-2">
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400">Applied Campaigns & Offers</p>
+                    <div className="flex flex-col gap-1.5">
+                      {calculationResult.appliedOffers.map((offer: any) => (
+                        <div key={offer.offerId} className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-50/60 p-2 rounded-xl border border-emerald-100/50">
+                          <Check size={12} className="text-emerald-600 shrink-0" />
+                          <span>{offer.name} {offer.code ? `(${offer.code})` : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <Link href="/checkout" className="w-full relative group overflow-hidden bg-[#1C1C1C] hover:bg-black text-white py-4 rounded-xl font-bold text-sm transition-all duration-300 shadow-lg shadow-black/10 flex items-center justify-center gap-2 cursor-pointer">
                   <span className="relative z-10">Proceed to Checkout</span>

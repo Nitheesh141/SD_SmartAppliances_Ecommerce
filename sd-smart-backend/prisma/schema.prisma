@@ -19,6 +19,8 @@ model User {
   firstName   String
   lastName    String
   role        String   @default("user")
+  companyName String?
+  gstin       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   cart        Cart?
@@ -30,6 +32,14 @@ model User {
 model OtpVerification {
   id        String   @id @default(uuid())
   phone     String   @unique
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  email     String   @unique
   code      String
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -152,6 +162,7 @@ model Address {
   city         String
   state        String
   pincode      String
+  gstin        String?
   isDefault    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -159,25 +170,59 @@ model Address {
 }
 
 model Order {
-  id              String      @id @default(uuid())
-  orderNumber     String      @unique
+  id              String               @id @default(uuid())
+  orderNumber     String               @unique
   userId          String
-  user            User        @relation(fields: [userId], references: [id])
+  user            User                 @relation(fields: [userId], references: [id])
   addressId       String
-  address         Address     @relation(fields: [addressId], references: [id])
+  address         Address              @relation(fields: [addressId], references: [id])
   poNumber        String?
   paymentMethod   String
-  status          String      @default("Pending")
+  status          String               @default("PENDING_APPROVAL")
   subtotal        Float
   cgst            Float
   sgst            Float
-  igst            Float       @default(0)
+  igst            Float                @default(0)
   deliveryCharges Float
   discount        Float
   grandTotal      Float
   items           OrderItem[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  approvedAt      DateTime?
+  approvedBy      String?
+  rejectionReason String?
+  statusHistory   OrderStatusHistory[]
+  invoice         Invoice?
+  paymentStatus   String               @default("PENDING")
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model OrderStatusHistory {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  remarks   String?
+  updatedBy String
+  updatedAt DateTime @default(now())
+}
+
+model Invoice {
+  id             String   @id @default(uuid())
+  invoiceNumber  String   @unique
+  orderId        String   @unique
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  distributorId  String
+  subtotal       Float
+  discountAmount Float
+  taxAmount      Float
+  shippingAmount Float
+  grandTotal     Float
+  invoiceDate    DateTime @default(now())
+  pdfUrl         String?
+  generatedBy    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model OrderItem {
@@ -189,4 +234,41 @@ model OrderItem {
   quantity    Int
   unitPrice   Float
   createdAt   DateTime @default(now())
+}
+
+// Unified Offer model (Polymorphic JSON configuration)
+model Offer {
+  id                  String   @id @default(uuid())
+  name                String
+  code                String   @unique
+  description         String?
+  offerType           String   // e.g. "PRODUCT_DISCOUNT", "COUPON", "BOGO", "FLASH_SALE", etc.
+  bannerImage         String?
+  priority            Int      @default(0)
+  status              String   @default("ACTIVE") // "ACTIVE", "INACTIVE", "SCHEDULED"
+  startDate           DateTime
+  endDate             DateTime
+  applyAutomatically  Boolean  @default(true)
+  stackable           Boolean  @default(false)
+  maxUsageLimit       Int?
+  usagePerCustomer    Int?     @default(1)
+  displayBadgeText    String?
+  badgeColor          String?  @default("red")
+  termsConditions     String?
+  
+  // Single JSON configuration column to store type-specific rules
+  configuration       Json     @default("{}")
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  createdBy           String?
+  lastModifiedBy      String?
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

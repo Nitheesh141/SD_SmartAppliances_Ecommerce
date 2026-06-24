@@ -40,7 +40,7 @@ export default function LoginPage() {
     try {
       await login(identifier, password);
       setIsSuccess(true);
-      
+
       const cachedProfile = localStorage.getItem("userProfile");
       const loggedUser = cachedProfile ? JSON.parse(cachedProfile) : null;
 
@@ -51,7 +51,7 @@ export default function LoginPage() {
         } else {
           router.push("/");
         }
-      }, 3000);
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "Login failed. Please check your credentials.");
     } finally {

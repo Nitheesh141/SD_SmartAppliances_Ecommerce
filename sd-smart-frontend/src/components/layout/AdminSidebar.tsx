@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { 
   LayoutDashboard, PlusCircle, LogOut, Sun, Moon, 
-  Home, Shield, Menu, X, ArrowLeftRight, Package
+  Home, Shield, Menu, X, ArrowLeftRight, Package, Percent, Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -19,8 +19,11 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminSidebarProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get("tab") || "discounts";
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [marketingOpen, setMarketingOpen] = useState(currentPath.startsWith("/admin/marketing"));
 
   const menuItems = [
     {
@@ -33,6 +36,28 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       icon: Package,
       href: "/admin/products",
     },
+    {
+      label: "Orders",
+      icon: ArrowLeftRight,
+      href: "/admin/orders",
+    },
+    {
+      label: "Marketing",
+      icon: Percent,
+      href: "/admin/marketing",
+      children: [
+        { label: "Discounts & Offers", href: "/admin/marketing?tab=discounts", tabId: "discounts" },
+        { label: "Coupons", href: "/admin/marketing?tab=coupons", tabId: "coupons" },
+        { label: "Flash Sales", href: "/admin/marketing?tab=flash-sales", tabId: "flash-sales" },
+        { label: "Campaigns", href: "/admin/marketing?tab=campaigns", tabId: "campaigns" },
+        { label: "Offer Analytics", href: "/admin/marketing?tab=analytics", tabId: "analytics" },
+      ]
+    },
+    {
+      label: "Invoice Settings",
+      icon: Settings,
+      href: "/admin/settings",
+    }
   ];
 
   const handleLogout = () => {
@@ -138,11 +163,71 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
         <nav className="flex-1 px-4 py-6 space-y-1.5">
           <p className="px-3 text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-3">Management</p>
           {menuItems.map((item) => {
-            const isActive = currentPath === item.href;
+            const hasChildren = !!item.children;
+            const isChildActive = !!(item.children && item.children.some(c => currentPath === c.href || currentPath.startsWith(c.href.split("?")[0])));
+            const isActive = currentPath === item.href || isChildActive;
+
+            if (item.children) {
+              return (
+                <div key={item.label} className="space-y-1">
+                  <button
+                    onClick={() => setMarketingOpen(!marketingOpen)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group cursor-pointer text-left",
+                      isChildActive
+                        ? isDark ? "bg-neutral-900 text-white" : "bg-red-50/50 text-[#D71920]"
+                        : isDark
+                          ? "text-neutral-400 hover:text-white hover:bg-neutral-900 border border-transparent"
+                          : "text-neutral-600 hover:text-[#D71920] hover:bg-red-50/50 border border-transparent"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon size={18} className={cn(
+                        "transition-transform group-hover:scale-110",
+                        isChildActive ? "text-[#D71920]" : "text-neutral-500 group-hover:text-[#D71920]"
+                      )} />
+                      <span>{item.label}</span>
+                    </div>
+                    <span className={cn("text-[10px] transition-transform duration-200 text-neutral-500", marketingOpen && "rotate-90")}>
+                      ▶
+                    </span>
+                  </button>
+
+                  {marketingOpen && (
+                    <div className={cn(
+                      "pl-6 space-y-1 mt-1 border-l ml-5",
+                      isDark ? "border-neutral-800" : "border-neutral-200"
+                    )}>
+                      {item.children.map((child) => {
+                        const isSubActive = currentPath.startsWith("/admin/marketing") && currentTab === child.tabId;
+                        return (
+                          <Link
+                            key={child.label}
+                            href={child.href as any}
+                            onClick={() => setIsOpen(false)}
+                            className={cn(
+                              "flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer",
+                              isSubActive
+                                ? "text-[#D71920] bg-red-500/10 font-bold"
+                                : isDark
+                                  ? "text-neutral-400 hover:text-white"
+                                  : "text-slate-600 hover:text-[#D71920]"
+                            )}
+                          >
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={item.label}
-                href={item.href}
+                href={item.href as any}
                 onClick={() => setIsOpen(false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group cursor-pointer",

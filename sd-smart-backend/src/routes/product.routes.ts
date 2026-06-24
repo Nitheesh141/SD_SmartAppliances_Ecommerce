@@ -8,6 +8,7 @@ import {
   getInventoryTransactions,
   deleteModel,
   getDeletedModels,
+  getBestsellerProducts,
 } from "../controllers/product.controller";
 import { authenticateToken } from "../middleware/auth.middleware";
 
@@ -19,6 +20,7 @@ router.get("/transactions", authenticateToken, getInventoryTransactions);
 // Public routes
 router.get("/", getProducts);
 router.get("/deleted-models", getDeletedModels);
+router.get("/bestsellers", getBestsellerProducts);
 router.get("/:id", getProductById);
 
 // Protected routes (controllers check for admin role)

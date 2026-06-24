@@ -36,47 +36,52 @@ export default function LandingPage() {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/products");
-        if (!response.ok) throw new Error("Failed to fetch products");
-        const data = await response.json();
-        const apiProducts = data.products || [];
-
-        // Filter best sellers and featured
-        const apiBestSellers = apiProducts.filter((p: any) => p.isBestSeller);
-        const apiFeatured = apiProducts.filter((p: any) => p.isFeatured).map((p: any) => {
-          // Parse specs safely if they are stored as JSON/string
-          let parsedSpecs = [];
-          if (p.specs) {
-            if (typeof p.specs === "string") {
-              try {
-                parsedSpecs = JSON.parse(p.specs);
-              } catch {
-                parsedSpecs = [];
-              }
-            } else if (Array.isArray(p.specs)) {
-              parsedSpecs = p.specs;
-            }
+        // Fetch bestseller products from specialized endpoint
+        const bestSellerResponse = await fetch("http://localhost:5000/api/products/bestsellers");
+        if (bestSellerResponse.ok) {
+          const bsData = await bestSellerResponse.json();
+          if (bsData.success && bsData.products && bsData.products.length > 0) {
+            setBestSellers(bsData.products);
           }
-          return {
-            ...p,
-            startingPrice: p.startingPrice || p.price,
-            primaryCTA: {
-              label: p.primaryCTALabel || "Buy Now",
-              href: `/product/${p.id}`
-            },
-            secondaryCTA: {
-              label: p.secondaryCTALabel || "Compare Specs",
-              href: `/product/${p.id}`
-            },
-            specs: parsedSpecs
-          };
-        });
-
-        if (apiBestSellers.length > 0) {
-          setBestSellers(apiBestSellers);
         }
-        if (apiFeatured.length > 0) {
-          setFeaturedItems(apiFeatured);
+
+        // Fetch featured products from filtering
+        const featuredResponse = await fetch("http://localhost:5000/api/products?isFeatured=true");
+        if (featuredResponse.ok) {
+          const featData = await featuredResponse.json();
+          const apiProducts = featData.products || [];
+          const apiFeatured = apiProducts.map((p: any) => {
+            // Parse specs safely if they are stored as JSON/string
+            let parsedSpecs = [];
+            if (p.specs) {
+              if (typeof p.specs === "string") {
+                try {
+                  parsedSpecs = JSON.parse(p.specs);
+                } catch {
+                  parsedSpecs = [];
+                }
+              } else if (Array.isArray(p.specs)) {
+                parsedSpecs = p.specs;
+              }
+            }
+            return {
+              ...p,
+              startingPrice: p.startingPrice || p.price,
+              primaryCTA: {
+                label: p.primaryCTALabel || "Buy Now",
+                href: `/product/${p.id}`
+              },
+              secondaryCTA: {
+                label: p.secondaryCTALabel || "Compare Specs",
+                href: `/product/${p.id}`
+              },
+              specs: parsedSpecs
+            };
+          });
+
+          if (apiFeatured.length > 0) {
+            setFeaturedItems(apiFeatured);
+          }
         }
       } catch (error) {
         console.warn("Backend API offline, falling back to static product data.", error);

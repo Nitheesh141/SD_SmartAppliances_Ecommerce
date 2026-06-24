@@ -3,17 +3,28 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateProfile = exports.loginWithOtp = exports.sendOtp = exports.resetPassword = exports.getMe = exports.login = exports.adminSignup = exports.signup = void 0;
+exports.updateProfile = exports.loginWithOtp = exports.sendOtp = exports.changePassword = exports.resetPassword = exports.forgotPassword = exports.getMe = exports.login = exports.adminSignup = exports.signup = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const db_1 = require("../utils/db");
+const email_1 = require("../utils/email");
 const JWT_SECRET = process.env.JWT_SECRET || "default_jwt_secret_sd_smart_123!";
 const JWT_EXPIRES_IN = "7d";
+const isPasswordValid = (pw) => {
+    return pw.length >= 8 && /[A-Z]/.test(pw) && /[a-z]/.test(pw) && /[0-9]/.test(pw);
+};
 const signup = async (req, res) => {
     try {
         const { email, password, firstName, lastName, phoneNumber } = req.body;
         if (!email || !password || !firstName || !lastName) {
             res.status(400).json({ success: false, message: "All fields are required" });
+            return;
+        }
+        if (!isPasswordValid(password)) {
+            res.status(400).json({
+                success: false,
+                message: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number."
+            });
             return;
         }
         // Check if email already exists
@@ -74,6 +85,13 @@ const adminSignup = async (req, res) => {
         const { email, password, firstName, lastName, phoneNumber } = req.body;
         if (!email || !password || !firstName || !lastName) {
             res.status(400).json({ success: false, message: "All fields are required" });
+            return;
+        }
+        if (!isPasswordValid(password)) {
+            res.status(400).json({
+                success: false,
+                message: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number."
+            });
             return;
         }
         // Check if email already exists
@@ -214,6 +232,50 @@ const getMe = async (req, res) => {
     }
 };
 exports.getMe = getMe;
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            res.status(400).json({ success: false, message: "Email is required" });
+            return;
+        }
+        const user = await db_1.prisma.user.findUnique({
+            where: { email: email.toLowerCase() },
+        });
+        if (!user) {
+            res.status(404).json({ success: false, message: "No user found with this email address" });
+            return;
+        }
+        // Generate 6-digit random code
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes validity
+        // Save or update PasswordReset record
+        await db_1.prisma.passwordReset.upsert({
+            where: { email: email.toLowerCase() },
+            update: { code, expiresAt },
+            create: { email: email.toLowerCase(), code, expiresAt },
+        });
+        // Send real password reset email
+        const userName = `${user.firstName} ${user.lastName}`;
+        try {
+            await (0, email_1.sendPasswordResetEmail)(email.toLowerCase(), userName, code);
+            console.log(`[EMAIL] Password reset code sent to ${email}`);
+        }
+        catch (emailError) {
+            console.error("Email send error:", emailError.message);
+            // Fallback: log to console if email sending fails
+            console.log(`\n================================================================`);
+            console.log(`[FALLBACK] Password Reset Code for ${email}: ${code}`);
+            console.log(`================================================================\n`);
+        }
+        res.json({ success: true, message: "Verification code sent to your email" });
+    }
+    catch (error) {
+        console.error("Forgot password error:", error);
+        res.status(500).json({ success: false, message: "Server error sending reset code" });
+    }
+};
+exports.forgotPassword = forgotPassword;
 const resetPassword = async (req, res) => {
     try {
         const { email, code, newPassword } = req.body;
@@ -221,9 +283,24 @@ const resetPassword = async (req, res) => {
             res.status(400).json({ success: false, message: "All fields are required" });
             return;
         }
-        // Mock reset code validation
-        if (code.length !== 6) {
+        if (!isPasswordValid(newPassword)) {
+            res.status(400).json({
+                success: false,
+                message: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number."
+            });
+            return;
+        }
+        // Find the password reset record
+        const record = await db_1.prisma.passwordReset.findUnique({
+            where: { email: email.toLowerCase() },
+        });
+        if (!record || record.code !== code) {
             res.status(400).json({ success: false, message: "Invalid verification code" });
+            return;
+        }
+        // Check expiry
+        if (new Date() > record.expiresAt) {
+            res.status(400).json({ success: false, message: "Verification code has expired" });
             return;
         }
         // Find user by email
@@ -234,12 +311,22 @@ const resetPassword = async (req, res) => {
             res.status(404).json({ success: false, message: "User not found" });
             return;
         }
+        // Ensure new password is not the same as old password
+        const isSamePassword = await bcryptjs_1.default.compare(newPassword, user.password);
+        if (isSamePassword) {
+            res.status(400).json({ success: false, message: "New password must be different from your current password" });
+            return;
+        }
         // Hash new password
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
         // Update password
         await db_1.prisma.user.update({
             where: { id: user.id },
             data: { password: hashedPassword },
+        });
+        // Delete the reset record
+        await db_1.prisma.passwordReset.delete({
+            where: { email: email.toLowerCase() },
         });
         res.json({ success: true, message: "Password has been reset successfully" });
     }
@@ -249,6 +336,59 @@ const resetPassword = async (req, res) => {
     }
 };
 exports.resetPassword = resetPassword;
+const changePassword = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            res.status(401).json({ success: false, message: "Not authenticated" });
+            return;
+        }
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            res.status(400).json({ success: false, message: "Current password and new password are required" });
+            return;
+        }
+        if (!isPasswordValid(newPassword)) {
+            res.status(400).json({
+                success: false,
+                message: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number."
+            });
+            return;
+        }
+        const user = await db_1.prisma.user.findUnique({
+            where: { id: userId },
+        });
+        if (!user) {
+            res.status(404).json({ success: false, message: "User not found" });
+            return;
+        }
+        // Compare existing password
+        const isMatch = await bcryptjs_1.default.compare(currentPassword, user.password);
+        if (!isMatch) {
+            res.status(400).json({ success: false, message: "Incorrect current password" });
+            return;
+        }
+        // Ensure new password is different from current
+        const isSamePassword = await bcryptjs_1.default.compare(newPassword, user.password);
+        if (isSamePassword) {
+            res.status(400).json({ success: false, message: "New password must be different from your current password" });
+            return;
+        }
+        // Hash new password
+        const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
+        // Update user's password
+        await db_1.prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword },
+        });
+        res.json({ success: true, message: "Password changed successfully" });
+    }
+    catch (error) {
+        console.error("Change password error:", error);
+        res.status(500).json({ success: false, message: "Server error during password update" });
+    }
+};
+exports.changePassword = changePassword;
 const sendOtp = async (req, res) => {
     try {
         const { phone } = req.body;
@@ -402,4 +542,3 @@ const updateProfile = async (req, res) => {
     }
 };
 exports.updateProfile = updateProfile;
-//# sourceMappingURL=auth.controller.js.map

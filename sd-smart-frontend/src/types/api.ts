@@ -50,6 +50,9 @@ export interface User {
   firstName: string;
   lastName: string;
   profileImage?: string;
+  role?: string;
+  companyName?: string;
+  gstin?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -147,10 +150,43 @@ export interface OrderItem {
   createdAt: string;
 }
 
+export interface OrderStatusHistory {
+  id: string;
+  orderId: string;
+  status: string;
+  remarks?: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  orderId: string;
+  distributorId: string;
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  shippingAmount: number;
+  grandTotal: number;
+  invoiceDate: string;
+  pdfUrl?: string;
+  generatedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Order {
   id: string;
   orderNumber: string;
   userId: string;
+  user?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+  };
   addressId: string;
   address?: Address;
   poNumber?: string;
@@ -164,6 +200,12 @@ export interface Order {
   discount: number;
   grandTotal: number;
   items: OrderItem[];
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectionReason?: string;
+  statusHistory?: OrderStatusHistory[];
+  invoice?: Invoice;
+  paymentStatus?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -172,6 +214,7 @@ export interface CreateOrderRequest {
   addressId: string;
   paymentMethod: string;
   poNumber?: string;
+  couponCode?: string;
 }
 
 export interface Address {
@@ -181,6 +224,7 @@ export interface Address {
   emailAddress?: string;
   mobileNumber: string;
   companyName?: string;
+  gstin?: string;
   addressLine1: string;
   addressLine2?: string;
   landmark?: string;
@@ -197,6 +241,7 @@ export interface CreateAddressRequest {
   emailAddress?: string;
   mobileNumber: string;
   companyName?: string;
+  gstin?: string;
   addressLine1: string;
   addressLine2?: string;
   landmark?: string;

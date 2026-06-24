@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import AnnouncementBar from "@/components/layout/AnnouncementBar";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -23,10 +23,18 @@ import {
   FileText,
   MoreVertical,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  KeyRound,
+  ShieldCheck,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/providers/AuthProvider";
 import { checkoutService } from "@/services/checkoutService";
+import { authService } from "@/services/authService";
 import { Order } from "@/types/api";
 
 interface Address {
@@ -43,12 +51,20 @@ interface Address {
   addressType: "HOME" | "WORK";
 }
 
-export default function AccountPage() {
+function AccountPageContent() {
   const { user, logout, isAuthenticated, loading, updateProfile } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Active Tab state
   const [activeTab, setActiveTab] = useState<string>("profile");
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && ["orders", "profile", "addresses", "pan", "password", "forgot-password", "distributor"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   // Local state for personal profile edits
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -63,6 +79,308 @@ export default function AccountPage() {
 
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState("");
+
+  // Change Password states
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Distributor conversion form states
+  const [distCompany, setDistCompany] = useState("");
+  const [distAddress1, setDistAddress1] = useState("");
+  const [distAddress2, setDistAddress2] = useState("");
+  const [distCity, setDistCity] = useState("");
+  const [distState, setDistState] = useState("");
+  const [distPincode, setDistPincode] = useState("");
+  const [distGstin, setDistGstin] = useState("");
+  const [distMobile, setDistMobile] = useState("");
+  const [converting, setConverting] = useState(false);
+
+  // Pre-fill distributor states if user is already a distributor
+  useEffect(() => {
+    if (user) {
+      setDistCompany(user.companyName || "");
+      setDistGstin(user.gstin || "");
+      setDistMobile(user.phoneNumber || "");
+    }
+  }, [user]);
+
+  // Forgot Password states (multi-step: email → OTP → new password)
+  const [fpStep, setFpStep] = useState<1 | 2 | 3>(1);
+  const [fpEmail, setFpEmail] = useState("");
+  const [fpCode, setFpCode] = useState("");
+  const [fpNewPassword, setFpNewPassword] = useState("");
+  const [fpConfirmPassword, setFpConfirmPassword] = useState("");
+  const [fpLoading, setFpLoading] = useState(false);
+  const [fpError, setFpError] = useState("");
+  const [fpSuccess, setFpSuccess] = useState("");
+  const [fpResendCooldown, setFpResendCooldown] = useState(0);
+  const [showFpPassword, setShowFpPassword] = useState(false);
+  const [showFpConfirmPassword, setShowFpConfirmPassword] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError("");
+    setProfileSuccess("");
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setProfileError("All password fields are required.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setProfileError("New password must be at least 8 characters long.");
+      return;
+    }
+
+    if (!/(?=.*[A-Z])/.test(newPassword)) {
+      setProfileError("New password must contain at least one uppercase letter.");
+      return;
+    }
+
+    if (!/(?=.*[0-9])/.test(newPassword)) {
+      setProfileError("New password must contain at least one number.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setProfileError("New passwords do not match.");
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setProfileError("New password must be different from your current password.");
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const response = await authService.changePassword({
+        currentPassword,
+        newPassword,
+      });
+
+      if (response.success) {
+        setProfileSuccess("Password updated successfully!");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        setProfileError(response.message || "Failed to update password.");
+      }
+    } catch (err: any) {
+      setProfileError(err.message || "Failed to update password.");
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleConvertToDistributor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError("");
+    setProfileSuccess("");
+    setConverting(true);
+
+    try {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch("http://localhost:5000/api/auth/convert-distributor", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          companyName: distCompany,
+          addressLine1: distAddress1,
+          addressLine2: distAddress2,
+          city: distCity,
+          state: distState,
+          pincode: distPincode,
+          gstin: distGstin,
+          mobileNumber: distMobile
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setProfileSuccess(data.message || "Successfully converted to distributor!");
+        // Refresh local cache and window reload
+        if (data.user) {
+          localStorage.setItem("userProfile", JSON.stringify(data.user));
+        }
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        setProfileError(data.message || "Conversion failed");
+      }
+    } catch (err) {
+      console.error(err);
+      setProfileError("Request failed. Please verify connection to the server.");
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  // Password strength calculator
+  const getPasswordStrength = (pwd: string): { score: number; label: string; color: string } => {
+    if (!pwd) return { score: 0, label: "", color: "" };
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (pwd.length >= 12) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    if (score <= 1) return { score, label: "Weak", color: "#ef4444" };
+    if (score <= 2) return { score, label: "Fair", color: "#f97316" };
+    if (score <= 3) return { score, label: "Good", color: "#eab308" };
+    if (score <= 4) return { score, label: "Strong", color: "#22c55e" };
+    return { score, label: "Very Strong", color: "#16a34a" };
+  };
+
+  // Forgot Password Handlers
+  const startFpResendCooldown = () => {
+    setFpResendCooldown(60);
+    const interval = setInterval(() => {
+      setFpResendCooldown((prev) => {
+        if (prev <= 1) { clearInterval(interval); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleFpSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFpError("");
+    setFpSuccess("");
+
+    if (!fpEmail.trim()) {
+      setFpError("Please enter your email address.");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(fpEmail.trim())) {
+      setFpError("Please enter a valid email address.");
+      return;
+    }
+
+    setFpLoading(true);
+    try {
+      const res = await authService.forgotPassword({ email: fpEmail.trim() });
+      if (res.success) {
+        setFpStep(2);
+        startFpResendCooldown();
+        setFpSuccess("Verification code sent! Check your email inbox.");
+      } else {
+        setFpError(res.message || "Failed to send verification code.");
+      }
+    } catch (err: any) {
+      setFpError(err.message || "Failed to send verification code.");
+    } finally {
+      setFpLoading(false);
+    }
+  };
+
+  const handleFpVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFpError("");
+    setFpSuccess("");
+
+    if (!fpCode.trim() || fpCode.trim().length !== 6) {
+      setFpError("Please enter the 6-digit verification code.");
+      return;
+    }
+
+    setFpLoading(true);
+    try {
+      // Move to step 3 — code will be validated at final reset step
+      setFpStep(3);
+      setFpSuccess("");
+    } catch (err: any) {
+      setFpError(err.message || "Invalid code.");
+    } finally {
+      setFpLoading(false);
+    }
+  };
+
+  const handleFpResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFpError("");
+    setFpSuccess("");
+
+    if (!fpNewPassword || !fpConfirmPassword) {
+      setFpError("Please fill in both password fields.");
+      return;
+    }
+    if (fpNewPassword.length < 8) {
+      setFpError("Password must be at least 8 characters.");
+      return;
+    }
+    if (!/(?=.*[A-Z])/.test(fpNewPassword)) {
+      setFpError("Password must contain at least one uppercase letter.");
+      return;
+    }
+    if (!/(?=.*[0-9])/.test(fpNewPassword)) {
+      setFpError("Password must contain at least one number.");
+      return;
+    }
+    if (fpNewPassword !== fpConfirmPassword) {
+      setFpError("Passwords do not match.");
+      return;
+    }
+
+    setFpLoading(true);
+    try {
+      const res = await authService.resetPassword({
+        email: fpEmail.trim(),
+        code: fpCode.trim(),
+        newPassword: fpNewPassword,
+      });
+      if (res.success) {
+        setFpSuccess("Password reset successfully! You can now login with your new password.");
+        // Reset all state
+        setTimeout(() => {
+          setFpStep(1);
+          setFpEmail("");
+          setFpCode("");
+          setFpNewPassword("");
+          setFpConfirmPassword("");
+          setFpSuccess("");
+          setFpError("");
+          setActiveTab("password");
+        }, 2500);
+      } else {
+        setFpError(res.message || "Failed to reset password.");
+      }
+    } catch (err: any) {
+      setFpError(err.message || "Failed to reset password.");
+    } finally {
+      setFpLoading(false);
+    }
+  };
+
+  const handleFpResend = async () => {
+    if (fpResendCooldown > 0) return;
+    setFpError("");
+    setFpLoading(true);
+    try {
+      const res = await authService.forgotPassword({ email: fpEmail.trim() });
+      if (res.success) {
+        startFpResendCooldown();
+        setFpSuccess("A new code has been sent to your email.");
+      } else {
+        setFpError(res.message || "Failed to resend code.");
+      }
+    } catch (err: any) {
+      setFpError(err.message || "Failed to resend code.");
+    } finally {
+      setFpLoading(false);
+    }
+  };
 
   // Address management state
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -330,7 +648,7 @@ export default function AccountPage() {
       {/* <AnnouncementBar announcements={announcements} /> */}
       <Header navLinks={navLinks} />
 
-      <main className="flex-1 w-full max-w-[1248px] mx-auto px-4 py-12">
+      <main className="flex-1 w-full max-w-[1400px] xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-12">
         <div className="flex flex-col lg:flex-row gap-6">
 
           {/* LEFT SIDEBAR SECTION */}
@@ -386,6 +704,33 @@ export default function AccountPage() {
                       }`}
                   >
                     PAN Card Information
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("password")}
+                    className={`pl-14 pr-6 py-2 text-sm text-left cursor-pointer transition-colors ${activeTab === "password"
+                      ? "text-[#D71920] font-bold"
+                      : "text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400"
+                      }`}
+                  >
+                    Change Password
+                  </button>
+                  <button
+                    onClick={() => { setFpStep(1); setFpError(""); setFpSuccess(""); setActiveTab("forgot-password"); }}
+                    className={`pl-14 pr-6 py-2 text-sm text-left cursor-pointer transition-colors ${activeTab === "forgot-password"
+                      ? "text-[#D71920] font-bold"
+                      : "text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400"
+                      }`}
+                  >
+                    Forgot Password
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("distributor")}
+                    className={`pl-14 pr-6 py-2 text-sm text-left cursor-pointer transition-colors ${activeTab === "distributor"
+                      ? "text-[#D71920] font-bold"
+                      : "text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400"
+                      }`}
+                  >
+                    {user?.role === "distributor" ? "Distributor Profile" : "Become a Distributor"}
                   </button>
                 </div>
               </div>
@@ -544,7 +889,7 @@ export default function AccountPage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl">
                     <input
                       type="text"
                       disabled={!isEditingPersonal}
@@ -623,7 +968,7 @@ export default function AccountPage() {
                     )}
                   </div>
 
-                  <div className="max-w-md">
+                  <div className="max-w-2xl">
                     <input
                       type="email"
                       disabled={!isEditingEmail}
@@ -663,7 +1008,7 @@ export default function AccountPage() {
                     )}
                   </div>
 
-                  <div className="max-w-md">
+                  <div className="max-w-2xl">
                     <input
                       type="text"
                       disabled={!isEditingMobile}
@@ -680,7 +1025,7 @@ export default function AccountPage() {
                 {/* FAQs Section */}
                 <div className="border-t border-neutral-100 dark:border-slate-800/80 pt-8">
                   <h3 className="text-lg font-bold text-neutral-800 dark:text-white mb-6">FAQs</h3>
-                  <div className="space-y-6 max-w-3xl">
+                  <div className="space-y-6 max-w-5xl">
                     <div>
                       <p className="text-sm font-bold text-neutral-800 dark:text-neutral-200 mb-1">
                         What happens when I update my email address (or mobile number)?
@@ -724,6 +1069,332 @@ export default function AccountPage() {
                   </button>
                 </div>
 
+              </div>
+            )}
+
+            {/* TAB CONTENT: CHANGE PASSWORD */}
+            {activeTab === "password" && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-neutral-800 dark:text-white">Change Password</h3>
+                </div>
+
+                <form onSubmit={handleChangePassword} className="max-w-2xl text-left space-y-5">
+                  {/* Current Password */}
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                      Current Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showCurrentPassword ? "text" : "password"}
+                        placeholder="Enter current password"
+                        required
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full px-4 py-2.5 pr-12 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                      />
+                      <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 cursor-pointer">
+                        {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* New Password */}
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        placeholder="Min. 8 characters, include uppercase & number"
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full px-4 py-2.5 pr-12 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                      />
+                      <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 cursor-pointer">
+                        {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {/* Password Strength Meter */}
+                    {newPassword && (() => {
+                      const { score, label, color } = getPasswordStrength(newPassword);
+                      return (
+                        <div className="mt-2">
+                          <div className="flex gap-1 mb-1">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                              <div key={i} className="h-1 flex-1 rounded-full transition-all" style={{ backgroundColor: i <= score ? color : '#e5e7eb' }} />
+                            ))}
+                          </div>
+                          <p className="text-xs font-semibold" style={{ color }}>{label}</p>
+                        </div>
+                      );
+                    })()}
+                    <ul className="mt-2 space-y-0.5">
+                      {[['At least 8 characters', newPassword.length >= 8], ['One uppercase letter', /[A-Z]/.test(newPassword)], ['One number', /[0-9]/.test(newPassword)]].map(([rule, passed]) => (
+                        <li key={rule as string} className={`text-xs flex items-center gap-1.5 ${passed ? 'text-green-600' : 'text-neutral-400'}`}>
+                          <CheckCircle size={11} className={passed ? 'text-green-500' : 'text-neutral-300'} />
+                          {rule as string}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Confirm New Password */}
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm new password"
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className={`w-full px-4 py-2.5 pr-12 border text-sm rounded-xl focus:ring-2 outline-none transition-all dark:bg-slate-950 dark:text-white ${
+                          confirmPassword && newPassword !== confirmPassword
+                            ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20'
+                            : confirmPassword && newPassword === confirmPassword
+                            ? 'border-green-400 focus:border-green-400 focus:ring-green-400/20'
+                            : 'border-neutral-300 dark:border-slate-700 focus:border-[#D71920] focus:ring-[#D71920]/20'
+                        }`}
+                      />
+                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 cursor-pointer">
+                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {confirmPassword && newPassword !== confirmPassword && (
+                      <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertCircle size={11} /> Passwords do not match</p>
+                    )}
+                    {confirmPassword && newPassword === confirmPassword && (
+                      <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><CheckCircle size={11} /> Passwords match</p>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={passwordLoading}
+                    className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-sm rounded-xl transition-all cursor-pointer tracking-wider shadow-md shadow-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {passwordLoading ? "Updating..." : "UPDATE PASSWORD"}
+                  </button>
+
+                  <div className="text-center pt-1">
+                    <button
+                      type="button"
+                      onClick={() => { setFpStep(1); setFpError(""); setFpSuccess(""); setActiveTab("forgot-password"); }}
+                      className="text-sm text-[#D71920] hover:text-[#b8141a] font-semibold hover:underline cursor-pointer"
+                    >
+                      Forgot your current password?
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* TAB CONTENT: FORGOT PASSWORD */}
+            {activeTab === "forgot-password" && (
+              <div className="space-y-6 max-w-2xl">
+                {/* Header with step indicator */}
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-red-50 dark:bg-red-950/20 rounded-xl flex items-center justify-center">
+                    <KeyRound size={20} className="text-[#D71920]" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-neutral-800 dark:text-white">Forgot Password</h3>
+                    <p className="text-xs text-neutral-500">Reset your password via email verification</p>
+                  </div>
+                </div>
+
+                {/* Step Indicator */}
+                <div className="flex items-center gap-2 mb-6">
+                  {(['Email', 'Verify Code', 'New Password'] as const).map((label, idx) => {
+                    const step = idx + 1;
+                    const isActive = fpStep === step;
+                    const isDone = fpStep > step;
+                    return (
+                      <div key={label} className="flex items-center gap-2 flex-1">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all ${
+                          isDone ? 'bg-green-500 text-white' : isActive ? 'bg-[#D71920] text-white' : 'bg-neutral-100 dark:bg-slate-800 text-neutral-400'
+                        }`}>
+                          {isDone ? <CheckCircle size={14} /> : step}
+                        </div>
+                        <span className={`text-xs font-semibold hidden sm:block ${
+                          isActive ? 'text-[#D71920]' : isDone ? 'text-green-600' : 'text-neutral-400'
+                        }`}>{label}</span>
+                        {idx < 2 && <div className={`flex-1 h-0.5 rounded-full ${ isDone ? 'bg-green-400' : 'bg-neutral-200 dark:bg-slate-700'}`} />}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Error/Success Messages */}
+                {fpError && (
+                  <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-2">
+                    <AlertCircle size={16} className="text-[#D71920] flex-shrink-0" />
+                    <span>{fpError}</span>
+                  </div>
+                )}
+                {fpSuccess && (
+                  <div className="p-3.5 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700 flex items-center gap-2">
+                    <CheckCircle size={16} className="text-green-600 flex-shrink-0" />
+                    <span>{fpSuccess}</span>
+                  </div>
+                )}
+
+                {/* STEP 1: Email Input */}
+                {fpStep === 1 && (
+                  <form onSubmit={handleFpSendCode} className="space-y-5">
+                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-xl">
+                      <p className="text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
+                        Enter the email address associated with your SD Smart account. We'll send you a 6-digit verification code.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Email Address</label>
+                      <div className="relative">
+                        <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                        <input
+                          type="email"
+                          placeholder="your@email.com"
+                          required
+                          value={fpEmail}
+                          onChange={(e) => setFpEmail(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={fpLoading}
+                      className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-sm rounded-xl transition-all cursor-pointer tracking-wider shadow-md shadow-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {fpLoading ? "Sending..." : "SEND VERIFICATION CODE"}
+                    </button>
+                    <button type="button" onClick={() => setActiveTab("password")} className="w-full text-sm text-neutral-500 hover:text-neutral-700 cursor-pointer py-1">
+                      ← Back to Change Password
+                    </button>
+                  </form>
+                )}
+
+                {/* STEP 2: OTP Verification */}
+                {fpStep === 2 && (
+                  <form onSubmit={handleFpVerifyCode} className="space-y-5">
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-xl">
+                      <p className="text-sm text-amber-700 dark:text-amber-300 leading-relaxed">
+                        A 6-digit code has been sent to <strong>{fpEmail}</strong>. Check your inbox (and spam folder). Valid for <strong>10 minutes</strong>.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">6-Digit Verification Code</label>
+                      <input
+                        type="text"
+                        placeholder="Enter 6-digit code"
+                        required
+                        maxLength={6}
+                        value={fpCode}
+                        onChange={(e) => setFpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        className="w-full px-4 py-3 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-lg font-mono text-center tracking-widest rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={fpLoading || fpCode.length !== 6}
+                      className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-sm rounded-xl transition-all cursor-pointer tracking-wider shadow-md shadow-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {fpLoading ? "Verifying..." : "VERIFY CODE"}
+                    </button>
+                    <div className="flex items-center justify-between text-sm">
+                      <button type="button" onClick={() => { setFpStep(1); setFpCode(""); setFpError(""); setFpSuccess(""); }} className="text-neutral-500 hover:text-neutral-700 cursor-pointer">
+                        ← Change Email
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleFpResend}
+                        disabled={fpResendCooldown > 0 || fpLoading}
+                        className={`font-semibold cursor-pointer ${fpResendCooldown > 0 ? 'text-neutral-400 cursor-not-allowed' : 'text-[#D71920] hover:text-[#b8141a]'}`}
+                      >
+                        {fpResendCooldown > 0 ? `Resend in ${fpResendCooldown}s` : <span className="flex items-center gap-1"><RefreshCw size={13} /> Resend Code</span>}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* STEP 3: New Password */}
+                {fpStep === 3 && (
+                  <form onSubmit={handleFpResetPassword} className="space-y-5">
+                    <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30 rounded-xl flex items-center gap-3">
+                      <ShieldCheck size={20} className="text-green-600 flex-shrink-0" />
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        Code verified! Now set your new password.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">New Password</label>
+                      <div className="relative">
+                        <input
+                          type={showFpPassword ? "text" : "password"}
+                          placeholder="Min. 8 characters, uppercase & number"
+                          required
+                          value={fpNewPassword}
+                          onChange={(e) => setFpNewPassword(e.target.value)}
+                          className="w-full px-4 py-2.5 pr-12 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                        />
+                        <button type="button" onClick={() => setShowFpPassword(!showFpPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 cursor-pointer">
+                          {showFpPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      {fpNewPassword && (() => {
+                        const { score, label, color } = getPasswordStrength(fpNewPassword);
+                        return (
+                          <div className="mt-2">
+                            <div className="flex gap-1 mb-1">
+                              {[1, 2, 3, 4, 5].map((i) => (
+                                <div key={i} className="h-1 flex-1 rounded-full transition-all" style={{ backgroundColor: i <= score ? color : '#e5e7eb' }} />
+                              ))}
+                            </div>
+                            <p className="text-xs font-semibold" style={{ color }}>{label}</p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Confirm Password</label>
+                      <div className="relative">
+                        <input
+                          type={showFpConfirmPassword ? "text" : "password"}
+                          placeholder="Confirm your new password"
+                          required
+                          value={fpConfirmPassword}
+                          onChange={(e) => setFpConfirmPassword(e.target.value)}
+                          className={`w-full px-4 py-2.5 pr-12 border text-sm rounded-xl focus:ring-2 outline-none transition-all dark:bg-slate-950 dark:text-white ${
+                            fpConfirmPassword && fpNewPassword !== fpConfirmPassword
+                              ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20'
+                              : fpConfirmPassword && fpNewPassword === fpConfirmPassword
+                              ? 'border-green-400 focus:border-green-400 focus:ring-green-400/20'
+                              : 'border-neutral-300 dark:border-slate-700 focus:border-[#D71920] focus:ring-[#D71920]/20'
+                          }`}
+                        />
+                        <button type="button" onClick={() => setShowFpConfirmPassword(!showFpConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 cursor-pointer">
+                          {showFpConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      {fpConfirmPassword && fpNewPassword !== fpConfirmPassword && (
+                        <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertCircle size={11} /> Passwords do not match</p>
+                      )}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={fpLoading}
+                      className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-sm rounded-xl transition-all cursor-pointer tracking-wider shadow-md shadow-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {fpLoading ? "Resetting..." : "RESET PASSWORD"}
+                    </button>
+                  </form>
+                )}
               </div>
             )}
 
@@ -1109,6 +1780,168 @@ export default function AccountPage() {
               </div>
             )}
 
+            {/* TAB CONTENT: DISTRIBUTOR SECTION */}
+            {activeTab === "distributor" && (
+              <div>
+                <h3 className="text-lg font-bold text-neutral-800 dark:text-white mb-6">
+                  {user?.role === "distributor" ? "Distributor Profile Details" : "Become an Authorized Distributor"}
+                </h3>
+                
+                {user?.role === "distributor" ? (
+                  <div className="border border-neutral-200 dark:border-slate-800 p-6 md:p-8 bg-white dark:bg-slate-900 rounded-2xl text-left space-y-6">
+                    <div className="flex items-center gap-3 p-4 bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 rounded-2xl">
+                      <span className="h-2 w-2 rounded-full bg-green-500 animate-ping"></span>
+                      <span className="text-xs font-bold uppercase tracking-wider">Active Distributor Channel Status</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                      <div className="space-y-1">
+                        <span className="text-xs text-neutral-400 uppercase font-bold tracking-wider">Business Name</span>
+                        <p className="font-bold text-neutral-800 dark:text-white text-base">{user.companyName || "N/A"}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-neutral-400 uppercase font-bold tracking-wider">GSTIN Number</span>
+                        <p className="font-bold text-neutral-800 dark:text-white text-base font-mono">{user.gstin || "N/A"}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-neutral-400 uppercase font-bold tracking-wider">Distributor Code</span>
+                        <p className="font-bold text-[#D71920] text-base font-mono">DIST-{user.id.substring(0, 8).toUpperCase()}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-neutral-400 uppercase font-bold tracking-wider">Registered Email</span>
+                        <p className="font-bold text-neutral-800 dark:text-white text-base">{user.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-neutral-100 dark:border-slate-800 text-xs text-neutral-500 leading-relaxed">
+                      Your business details are synchronized with the tax invoice generation engine. To request modifications to your verified corporate details, please contact billing support.
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleConvertToDistributor} className="border border-neutral-200 dark:border-slate-800 p-6 md:p-8 bg-white dark:bg-slate-900 rounded-2xl text-left space-y-6">
+                    <p className="text-sm text-neutral-500 mb-4 leading-relaxed">
+                      Register your business details to convert your account to a B2B distributor. Once approved, all invoices will contain your company name and GSTIN dynamically.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Business Name */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Business/Company Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={distCompany}
+                          onChange={(e) => setDistCompany(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border dark:border-slate-800 dark:bg-slate-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#D71920] text-sm font-semibold"
+                          placeholder="e.g. Kongu Engineering College"
+                        />
+                      </div>
+
+                      {/* GSTIN */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">GSTIN Number</label>
+                        <input
+                          type="text"
+                          required
+                          value={distGstin}
+                          onChange={(e) => setDistGstin(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border dark:border-slate-800 dark:bg-slate-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#D71920] text-sm font-semibold font-mono"
+                          placeholder="e.g. 29BBBBB2222B2Z2"
+                        />
+                      </div>
+
+                      {/* Mobile */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Mobile Number</label>
+                        <input
+                          type="text"
+                          required
+                          value={distMobile}
+                          onChange={(e) => setDistMobile(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border dark:border-slate-800 dark:bg-slate-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#D71920] text-sm font-semibold"
+                          placeholder="e.g. 09789636896"
+                        />
+                      </div>
+
+                      {/* Address Line 1 */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Address Line 1</label>
+                        <input
+                          type="text"
+                          required
+                          value={distAddress1}
+                          onChange={(e) => setDistAddress1(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border dark:border-slate-800 dark:bg-slate-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#D71920] text-sm font-semibold"
+                          placeholder="e.g. 456, Arumaikarar Thottam"
+                        />
+                      </div>
+
+                      {/* Address Line 2 */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Address Line 2</label>
+                        <input
+                          type="text"
+                          value={distAddress2}
+                          onChange={(e) => setDistAddress2(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border dark:border-slate-800 dark:bg-slate-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#D71920] text-sm font-semibold"
+                          placeholder="e.g. Kongarpalayam"
+                        />
+                      </div>
+
+                      {/* City */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">City</label>
+                        <input
+                          type="text"
+                          required
+                          value={distCity}
+                          onChange={(e) => setDistCity(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border dark:border-slate-800 dark:bg-slate-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#D71920] text-sm font-semibold"
+                          placeholder="e.g. Erode"
+                        />
+                      </div>
+
+                      {/* State */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">State</label>
+                        <input
+                          type="text"
+                          required
+                          value={distState}
+                          onChange={(e) => setDistState(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border dark:border-slate-800 dark:bg-slate-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#D71920] text-sm font-semibold"
+                          placeholder="e.g. Tamil Nadu"
+                        />
+                      </div>
+
+                      {/* Pincode */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Pincode</label>
+                        <input
+                          type="text"
+                          required
+                          value={distPincode}
+                          onChange={(e) => setDistPincode(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border dark:border-slate-800 dark:bg-slate-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#D71920] text-sm font-semibold"
+                          placeholder="e.g. 638506"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                      <button
+                        type="submit"
+                        disabled={converting}
+                        className="px-6 py-3 bg-[#D71920] hover:bg-[#b8141a] disabled:bg-neutral-600 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-red-500/25 flex items-center gap-2 cursor-pointer"
+                      >
+                        {converting ? "Converting Channel..." : "Convert To Distributor"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
+
             {/* TAB CONTENT: MY WISHLIST */}
             {activeTab === "wishlist" && (
               <div>
@@ -1164,5 +1997,18 @@ export default function AccountPage() {
 
       <Footer footerColumns={footerColumns} socialLinks={socialLinks} />
     </div>
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-950 font-sans">
+        <div className="w-12 h-12 border-4 border-[#D71920]/25 border-t-[#D71920] rounded-full animate-spin"></div>
+        <p className="mt-4 text-sm font-semibold text-neutral-500 tracking-wider">Loading Account...</p>
+      </div>
+    }>
+      <AccountPageContent />
+    </Suspense>
   );
 }

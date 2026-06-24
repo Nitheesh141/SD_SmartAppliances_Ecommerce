@@ -380,3 +380,148 @@ export const getDeletedModels = async (req: Request, res: Response): Promise<voi
   }
 };
 
+// Get bestseller products (based on sales + admin flag, with fallback)
+export const getBestsellerProducts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const limit = Number(req.query.limit) || 8;
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    // 1. Fetch OrderItems from non-cancelled orders
+    const orderItems = await prisma.orderItem.findMany({
+      where: {
+        order: {
+          status: {
+            not: "Cancelled"
+          }
+        }
+      },
+      select: {
+        productId: true,
+        quantity: true
+      }
+    });
+
+    // 2. Group and sum quantities by productId in memory
+    const salesMap = new Map<string, number>();
+    for (const item of orderItems) {
+      if (item.productId) {
+        const current = salesMap.get(item.productId) || 0;
+        salesMap.set(item.productId, current + item.quantity);
+      }
+    }
+
+    // Sort by quantity descending
+    const sortedSales = Array.from(salesMap.entries())
+      .map(([productId, quantity]) => ({ productId, quantity }))
+      .sort((a, b) => b.quantity - a.quantity);
+
+    const topSoldProductIds = sortedSales.map(item => item.productId);
+
+    // 3. Fetch products explicitly marked as isBestSeller: true
+    const flaggedProducts = await prisma.product.findMany({
+      where: {
+        isBestSeller: true,
+        inStock: true
+      },
+      include: {
+        transactions: {
+          where: {
+            createdAt: {
+              gte: todayStart
+            }
+          }
+        }
+      }
+    });
+
+    // 4. Fetch products corresponding to top sold IDs
+    const soldProducts = await prisma.product.findMany({
+      where: {
+        id: {
+          in: topSoldProductIds
+        },
+        inStock: true
+      },
+      include: {
+        transactions: {
+          where: {
+            createdAt: {
+              gte: todayStart
+            }
+          }
+        }
+      }
+    });
+
+    // Sort soldProducts to match topSoldProductIds order
+    const soldProductsMap = new Map(soldProducts.map(p => [p.id, p]));
+    const orderedSoldProducts = topSoldProductIds
+      .map(id => soldProductsMap.get(id))
+      .filter((p): p is any => !!p);
+
+    // 5. Merge lists (flagged first, then sold products, keeping them unique)
+    const combinedProductsMap = new Map<string, any>();
+    for (const p of flaggedProducts) {
+      combinedProductsMap.set(p.id, p);
+    }
+    for (const p of orderedSoldProducts) {
+      if (!combinedProductsMap.has(p.id)) {
+        combinedProductsMap.set(p.id, p);
+      }
+    }
+
+    let bestsellerList = Array.from(combinedProductsMap.values());
+
+    // 6. Fallback: if we have fewer than limit products, fetch available products in stock
+    if (bestsellerList.length < limit) {
+      const remainingCount = limit - bestsellerList.length;
+      const excludeIds = bestsellerList.map(p => p.id);
+
+      const fallbackProducts = await prisma.product.findMany({
+        where: {
+          inStock: true,
+          id: {
+            notIn: excludeIds
+          }
+        },
+        orderBy: {
+          createdAt: "desc"
+        },
+        take: remainingCount,
+        include: {
+          transactions: {
+            where: {
+              createdAt: {
+                gte: todayStart
+              }
+            }
+          }
+        }
+      });
+
+      bestsellerList = [...bestsellerList, ...fallbackProducts];
+    }
+
+    // Cap to limit
+    bestsellerList = bestsellerList.slice(0, limit);
+
+    // 7. Format all products with todayStockIn and todayStockOut
+    const formattedProducts = bestsellerList.map((p: any) => {
+      const todayStockIn = p.transactions
+        .filter((t: any) => t.type === "IN")
+        .reduce((sum: number, t: any) => sum + t.quantity, 0);
+      const todayStockOut = p.transactions
+        .filter((t: any) => t.type === "OUT")
+        .reduce((sum: number, t: any) => sum + t.quantity, 0);
+      const { transactions, ...rest } = p;
+      return { ...rest, todayStockIn, todayStockOut };
+    });
+
+    res.json({ success: true, products: formattedProducts });
+  } catch (error: any) {
+    console.error("Get bestseller products error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch bestseller products" });
+  }
+};
+
