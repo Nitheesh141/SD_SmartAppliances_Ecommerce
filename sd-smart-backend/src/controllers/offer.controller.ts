@@ -236,6 +236,25 @@ export const deleteOffer = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
+// Helper function to check if an offer is applicable based on auto-apply and coupon code rules
+const isOfferApplicable = (offer: any, couponCode?: string): boolean => {
+  if (offer.status !== "ACTIVE") return false;
+  
+  // 1. If set to apply automatically, it's always applicable
+  if (offer.applyAutomatically) return true;
+  
+  // 2. If not automatic, it is only applicable if the user provided a matching coupon code
+  if (couponCode) {
+    const codeToMatch = String(couponCode).trim().toLowerCase();
+    const offerCode = String(offer.code).trim().toLowerCase();
+    const configCouponCode = String((offer.configuration as any)?.couponCode || "").trim().toLowerCase();
+    
+    return offerCode === codeToMatch || (configCouponCode !== "" && configCouponCode === codeToMatch);
+  }
+  
+  return false;
+};
+
 // 6. Dynamic Pricing Priority Engine
 // Core pricing engine reusable helper
 export const runPricingEngine = async (
@@ -321,7 +340,7 @@ export const runPricingEngine = async (
 
   // 1. PRODUCT_DISCOUNT
   const productOffers = activeOffers.filter(
-    (o) => o.offerType === "PRODUCT_DISCOUNT"
+    (o) => o.offerType === "PRODUCT_DISCOUNT" && isOfferApplicable(o, couponCode)
   );
   for (const offer of productOffers) {
     const config = offer.configuration as any;
@@ -356,7 +375,7 @@ export const runPricingEngine = async (
 
   // 2. CATEGORY_DISCOUNT
   const categoryOffers = activeOffers.filter(
-    (o) => o.offerType === "CATEGORY_DISCOUNT"
+    (o) => o.offerType === "CATEGORY_DISCOUNT" && isOfferApplicable(o, couponCode)
   );
   for (const offer of categoryOffers) {
     const config = offer.configuration as any;
@@ -394,7 +413,7 @@ export const runPricingEngine = async (
 
   // 3. BRAND_DISCOUNT
   const brandOffers = activeOffers.filter(
-    (o) => o.offerType === "BRAND_DISCOUNT"
+    (o) => o.offerType === "BRAND_DISCOUNT" && isOfferApplicable(o, couponCode)
   );
   for (const offer of brandOffers) {
     const config = offer.configuration as any;
@@ -429,7 +448,7 @@ export const runPricingEngine = async (
 
   // 4. QUANTITY_DISCOUNT
   const qtyOffers = activeOffers.filter(
-    (o) => o.offerType === "QUANTITY_DISCOUNT"
+    (o) => o.offerType === "QUANTITY_DISCOUNT" && isOfferApplicable(o, couponCode)
   );
   for (const offer of qtyOffers) {
     const config = offer.configuration as any;
@@ -472,7 +491,7 @@ export const runPricingEngine = async (
 
   // 5. FLAT_DISCOUNT / PERCENTAGE_DISCOUNT
   const genericDiscounts = activeOffers.filter(
-    (o) => o.offerType === "FLAT_DISCOUNT" || o.offerType === "PERCENTAGE_DISCOUNT"
+    (o) => (o.offerType === "FLAT_DISCOUNT" || o.offerType === "PERCENTAGE_DISCOUNT") && isOfferApplicable(o, couponCode)
   );
   for (const offer of genericDiscounts) {
     const config = offer.configuration as any;
@@ -539,7 +558,7 @@ export const runPricingEngine = async (
   }
 
   // 6. BOGO
-  const bogoOffers = activeOffers.filter((o) => o.offerType === "BOGO");
+  const bogoOffers = activeOffers.filter((o) => o.offerType === "BOGO" && isOfferApplicable(o, couponCode));
   for (const offer of bogoOffers) {
     const config = offer.configuration as any;
     const buyItem = calculatedItems.find((i) => i.productId === config.buyProductId);
@@ -619,7 +638,7 @@ export const runPricingEngine = async (
   }
 
   // 7. COMBO / BUNDLE OFFERS
-  const comboOffers = activeOffers.filter((o) => o.offerType === "COMBO");
+  const comboOffers = activeOffers.filter((o) => o.offerType === "COMBO" && isOfferApplicable(o, couponCode));
   for (const offer of comboOffers) {
     const config = offer.configuration as any;
     const targetIds = config.productIds || [];
@@ -657,7 +676,7 @@ export const runPricingEngine = async (
     }
   }
 
-  const bundleOffers = activeOffers.filter((o) => o.offerType === "BUNDLE");
+  const bundleOffers = activeOffers.filter((o) => o.offerType === "BUNDLE" && isOfferApplicable(o, couponCode));
   for (const offer of bundleOffers) {
     const config = offer.configuration as any;
     const targetIds = config.bundleProducts || [];
@@ -688,7 +707,7 @@ export const runPricingEngine = async (
   }
 
   // 8. FLASH_SALE
-  const flashOffers = activeOffers.filter((o) => o.offerType === "FLASH_SALE");
+  const flashOffers = activeOffers.filter((o) => o.offerType === "FLASH_SALE" && isOfferApplicable(o, couponCode));
   for (const offer of flashOffers) {
     const config = offer.configuration as any;
     const targetIds = config.productIds || [];
@@ -718,7 +737,7 @@ export const runPricingEngine = async (
   }
 
   // 9. SEASONAL
-  const seasonalOffers = activeOffers.filter((o) => o.offerType === "SEASONAL");
+  const seasonalOffers = activeOffers.filter((o) => o.offerType === "SEASONAL" && isOfferApplicable(o, couponCode));
   for (const offer of seasonalOffers) {
     const config = offer.configuration as any;
     const allowedProducts = config.applicableProducts || [];
@@ -768,15 +787,15 @@ export const runPricingEngine = async (
 
   // 10. CART_VALUE_DISCOUNT
   const cartValueOffers = activeOffers.filter(
-    (o) => o.offerType === "CART_VALUE_DISCOUNT"
+    (o) => o.offerType === "CART_VALUE_DISCOUNT" && isOfferApplicable(o, couponCode)
   );
   for (const offer of cartValueOffers) {
     const config = offer.configuration as any;
     if (subtotal >= Number(config.minCartValue || 0)) {
       let isEligible = true;
-      if (config.applicableCategoryIds || config.applicableProductIds) {
-        const catIds = config.applicableCategoryIds || [];
-        const prodIds = config.applicableProductIds || [];
+      const catIds = config.applicableCategoryIds || [];
+      const prodIds = config.applicableProductIds || [];
+      if (catIds.length > 0 || prodIds.length > 0) {
         isEligible = calculatedItems.some(
           (i: any) => catIds.includes(i.category) || prodIds.includes(i.productId)
         );
@@ -804,41 +823,36 @@ export const runPricingEngine = async (
   }
 
   // 11. COUPON_DISCOUNT
-  if (couponCode) {
-    const matchingCoupon = activeOffers.find(
-      (o) =>
-        o.offerType === "COUPON" &&
-        String((o.configuration as any).couponCode || o.code).trim().toLowerCase() === couponCode.trim().toLowerCase()
-    );
+  const couponOffers = activeOffers.filter(
+    (o) => o.offerType === "COUPON" && isOfferApplicable(o, couponCode)
+  );
+  for (const offer of couponOffers) {
+    const config = offer.configuration as any;
+    const minCartMet = !config.minCartValue || subtotal >= Number(config.minCartValue);
 
-    if (matchingCoupon) {
-      const config = matchingCoupon.configuration as any;
-      const minCartMet = !config.minCartValue || subtotal >= Number(config.minCartValue);
-
-      let eligibilityPassed = true;
-      if (user && config.eligibility !== "ALL") {
-        const userOrders = await prisma.order.findMany({
-          where: { userId: user.id },
-        });
-        if (config.eligibility === "NEW" && userOrders.length > 0) {
-          eligibilityPassed = false;
-        } else if (config.eligibility === "EXISTING" && userOrders.length === 0) {
-          eligibilityPassed = false;
-        }
+    let eligibilityPassed = true;
+    if (user && config.eligibility !== "ALL") {
+      const userOrders = await prisma.order.findMany({
+        where: { userId: user.id },
+      });
+      if (config.eligibility === "NEW" && userOrders.length > 0) {
+        eligibilityPassed = false;
+      } else if (config.eligibility === "EXISTING" && userOrders.length === 0) {
+        eligibilityPassed = false;
       }
+    }
 
-      if (minCartMet && eligibilityPassed) {
-        const disc = evaluateDiscount(config.couponType, Number(config.discountValue || 0), subtotal, config.maxDiscount);
-        subtotal = Math.max(0, subtotal - disc);
-        couponDiscountApplied += disc;
-        if (!appliedOffersGlobal.some((o) => o.offerId === matchingCoupon.id)) {
-          appliedOffersGlobal.push({
-            offerId: matchingCoupon.id,
-            code: matchingCoupon.code,
-            name: matchingCoupon.name,
-            discountAmount: disc,
-          });
-        }
+    if (minCartMet && eligibilityPassed) {
+      const disc = evaluateDiscount(config.couponType, Number(config.discountValue || 0), subtotal, config.maxDiscount);
+      subtotal = Math.max(0, subtotal - disc);
+      couponDiscountApplied += disc;
+      if (!appliedOffersGlobal.some((o) => o.offerId === offer.id)) {
+        appliedOffersGlobal.push({
+          offerId: offer.id,
+          code: offer.code,
+          name: offer.name,
+          discountAmount: disc,
+        });
       }
     }
   }
@@ -849,7 +863,7 @@ export const runPricingEngine = async (
     const isNewUser = userOrdersCount === 0;
 
     if (isNewUser) {
-      const newUserOffers = activeOffers.filter((o) => o.offerType === "NEW_USER");
+      const newUserOffers = activeOffers.filter((o) => o.offerType === "NEW_USER" && isOfferApplicable(o, couponCode));
       for (const offer of newUserOffers) {
         const config = offer.configuration as any;
         const minCartMet = !config.minCartValue || subtotal >= Number(config.minCartValue);
@@ -879,7 +893,8 @@ export const runPricingEngine = async (
     const loyaltyOffers = activeOffers.filter(
       (o) =>
         o.offerType === "LOYALTY" &&
-        (o.configuration as any).membershipTier === currentTier
+        (o.configuration as any).membershipTier === currentTier &&
+        isOfferApplicable(o, couponCode)
     );
 
     for (const offer of loyaltyOffers) {
@@ -948,15 +963,18 @@ export const runPricingEngine = async (
   }
 
   // 3. FREE_SHIPPING offers (offer engine override)
-  const freeShippingOffers = activeOffers.filter((o) => o.offerType === "FREE_SHIPPING");
+  const freeShippingOffers = activeOffers.filter(
+    (o) => o.offerType === "FREE_SHIPPING" && isOfferApplicable(o, couponCode)
+  );
   for (const offer of freeShippingOffers) {
     const config = offer.configuration as any;
+    
     if (subtotal >= Number(config.minOrderValue || 0)) {
       let isEligible = true;
 
-      if (config.applicableCategories || config.applicableProducts) {
-        const cats = config.applicableCategories || [];
-        const prods = config.applicableProducts || [];
+      const cats = config.applicableCategories || [];
+      const prods = config.applicableProducts || [];
+      if (cats.length > 0 || prods.length > 0) {
         isEligible = calculatedItems.some(
           (i: any) => cats.includes(i.category) || prods.includes(i.productId)
         );
@@ -972,6 +990,7 @@ export const runPricingEngine = async (
             code: offer.code,
             name: offer.name,
             freeShipping: true,
+            discountAmount: waiver,
           });
         }
       }

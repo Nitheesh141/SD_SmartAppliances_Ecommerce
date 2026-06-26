@@ -168,7 +168,11 @@ export default function CheckoutPage() {
           if (couponCode) {
             const couponOffer = data.appliedOffers?.find((o: any) => o.code?.toLowerCase() === couponCode.toLowerCase() || o.name?.toLowerCase().includes("coupon") || o.code);
             if (couponOffer) {
-              setCouponSuccess(`Coupon code applied! Saved ₹${couponOffer.discountAmount.toLocaleString('en-IN')}`);
+              if (couponOffer.freeShipping && couponOffer.discountAmount > 0) {
+                setCouponSuccess(`Coupon code applied! Saved ₹${couponOffer.discountAmount.toLocaleString('en-IN')} on shipping`);
+              } else {
+                setCouponSuccess(`Coupon code applied! Saved ₹${couponOffer.discountAmount.toLocaleString('en-IN')}`);
+              }
               setCouponError("");
             } else {
               setCouponError("This coupon code is not applicable to the items in your cart.");
