@@ -352,7 +352,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
             {isAuthenticated ? (
               <>
                 {/* Authenticated: Profile Dropdown, Wishlist, Cart */}
-                {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin") && (
+                {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
                   <Link href="/admin/dashboard" className="px-2 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg hover:bg-[#B91520] transition-colors flex items-center mr-1" title="Admin Dashboard">
                     <span className="hidden xl:inline">Admin Panel</span>
                     <span className="xl:hidden">Admin</span>

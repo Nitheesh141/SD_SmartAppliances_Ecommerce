@@ -9,14 +9,14 @@ import { useAuth } from "@/providers/AuthProvider";
 import { checkoutService } from "@/services/checkoutService";
 import { Address, CreateAddressRequest, Order } from "@/types/api";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Building2, MapPin, CreditCard, Banknote, ShieldCheck, Plus, ArrowRight, Loader2, Truck, Package, Tag } from "lucide-react";
+import { CheckCircle2, Building2, MapPin, CreditCard, Banknote, ShieldCheck, Plus, ArrowRight, Loader2, Truck, Package, Tag, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cartItems, isLoading: isCartLoading, clearCart } = useCart();
-  const { isAuthenticated, loading: isAuthLoading } = useAuth();
+  const { isAuthenticated, loading: isAuthLoading, user } = useAuth();
 
   const inStockCartItems = useMemo(() => {
     return cartItems.filter(item => item.product?.inStock && (item.product?.availableStock ?? 0) > 0);
@@ -263,6 +263,49 @@ export default function CheckoutPage() {
         <Header navLinks={navLinks} />
         <main className="flex-1 flex items-center justify-center">
           <p className="text-neutral-500 font-semibold text-sm animate-pulse">Loading checkout...</p>
+        </main>
+        <Footer footerColumns={footerColumns} socialLinks={socialLinks} />
+      </div>
+    );
+  }
+
+  // Guard: Block unapproved distributors from checkout
+  const isUnapprovedDistributor = user && 
+    (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor") && 
+    user.approvalStatus?.toUpperCase() !== "APPROVED";
+
+  if (isUnapprovedDistributor) {
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 font-sans">
+        <Header navLinks={navLinks} />
+        <main className="flex-1 flex flex-col items-center justify-center px-6 py-20">
+          <div className="w-20 h-20 bg-amber-100 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400 rounded-full flex items-center justify-center mb-6 shrink-0 animate-fade-in">
+            <AlertTriangle size={40} />
+          </div>
+          <h1 className="text-3xl font-black text-[#1C1C1C] dark:text-white mb-3 text-center">Checkout Blocked</h1>
+          
+          <div className="bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-sm text-center">
+            <p className="text-neutral-600 dark:text-neutral-300 text-sm leading-relaxed">
+              {user.approvalStatus?.toUpperCase() === "REJECTED" 
+                ? "Your distributor application has been rejected. Please contact support."
+                : "Your distributor account is currently under review. Please wait for admin approval before placing orders."
+              }
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link 
+                href="/distributor/dashboard" 
+                className="w-full sm:w-auto bg-[#D71920] hover:bg-[#B91520] text-white text-sm font-bold px-6 py-3 rounded-xl transition-all shadow-md shadow-[#D71920]/10 cursor-pointer"
+              >
+                Go to Dashboard
+              </Link>
+              <Link 
+                href="/" 
+                className="w-full sm:w-auto bg-neutral-100 hover:bg-neutral-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-neutral-700 dark:text-neutral-300 text-sm font-bold px-6 py-3 rounded-xl transition-all cursor-pointer"
+              >
+                Back to Home
+              </Link>
+            </div>
+          </div>
         </main>
         <Footer footerColumns={footerColumns} socialLinks={socialLinks} />
       </div>

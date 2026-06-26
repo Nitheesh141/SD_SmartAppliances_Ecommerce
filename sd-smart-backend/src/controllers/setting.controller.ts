@@ -34,7 +34,8 @@ export const getInvoiceSettings = async (req: Request, res: Response): Promise<v
 export const updateInvoiceSettings = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
       res.status(403).json({ success: false, message: "Access denied. Admin role required." });
       return;
     }

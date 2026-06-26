@@ -27,7 +27,7 @@ export const seedSuperAdmin = async (): Promise<void> => {
           firstName: "Super",
           lastName: "Admin",
           password: hashedPassword,
-          role: "superadmin",
+          role: "ADMIN",
         },
       });
       console.log(`[SeedSuperAdmin] ✅ Superadmin account created.`);
@@ -35,7 +35,7 @@ export const seedSuperAdmin = async (): Promise<void> => {
       // Always sync password + role so .env changes are applied on restart
       await prisma.user.update({
         where: { email },
-        data: { password: hashedPassword, role: "superadmin" },
+        data: { password: hashedPassword, role: "ADMIN" },
       });
       console.log(`[SeedSuperAdmin] ✅ Superadmin credentials synced from .env.`);
     }

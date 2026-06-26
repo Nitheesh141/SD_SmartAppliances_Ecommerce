@@ -58,6 +58,21 @@ const ForgotPasswordPage = dynamic(() => import("../app/auth/forgot-password_pag
   ssr: true,
 });
 
+const DistributorSignupPage = dynamic(() => import("../app/auth/distributor_signup_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const DistributerDashboardPage = dynamic(() => import("../app/distributor/distributer_dashboard"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminDistributorsPage = dynamic(() => import("../app/admin/distributors_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 // Other pages
 const LandingPage = dynamic(() => import("../app/LandingPage/LandingPage"), {
   loading: PageLoader,
@@ -144,6 +159,9 @@ export const routes: Record<string, React.ComponentType<any>> = {
   "/": LandingPage,
   "/auth/login": LoginPage,
   "/auth/signup": SignupPage,
+  "/auth/distributor-signup": DistributorSignupPage,
+  "/distributor/dashboard": DistributerDashboardPage,
+  "/admin/distributors": AdminDistributorsPage,
   "/admin/dashboard": AdminDashboardPage,
   "/admin/products": AdminProductsPage,
   "/admin/orders": AdminOrdersPage,

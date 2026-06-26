@@ -83,7 +83,8 @@ export const getOfferById = async (req: Request, res: Response): Promise<void> =
 export const createOffer = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
       res.status(403).json({ success: false, message: "Admin role required." });
       return;
     }
@@ -154,7 +155,8 @@ export const createOffer = async (req: Request, res: Response): Promise<void> =>
 export const updateOffer = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
       res.status(403).json({ success: false, message: "Admin role required." });
       return;
     }
@@ -221,7 +223,8 @@ export const updateOffer = async (req: Request, res: Response): Promise<void> =>
 export const deleteOffer = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
       res.status(403).json({ success: false, message: "Admin role required." });
       return;
     }
