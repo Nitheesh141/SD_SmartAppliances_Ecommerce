@@ -18,7 +18,7 @@ import NewsletterSection from "../../components/sections/NewsletterSection";
 
 import { banners } from "./data/banners";
 import { categories } from "./data/categories";
-import { bestSellingProducts, featuredProducts } from "./data/products";
+import { featuredProducts } from "./data/products";
 import { features } from "./data/features";
 import { timelineItems } from "./data/timeline";
 import { testimonials } from "./data/testimonials";
@@ -30,7 +30,7 @@ import KitchenBackground from "../../components/animations/KitchenBackground";
 export default function LandingPage() {
   const { isAuthenticated, user } = useAuth();
 
-  const [bestSellers, setBestSellers] = useState<any[]>(bestSellingProducts);
+  const [bestSellers, setBestSellers] = useState<any[]>([]);
   const [featuredItems, setFeaturedItems] = useState<any[]>(featuredProducts);
 
   useEffect(() => {

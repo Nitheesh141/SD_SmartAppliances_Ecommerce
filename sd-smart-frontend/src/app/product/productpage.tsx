@@ -944,334 +944,334 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Flash Sale Banner */}
-                  {flashSaleOffer && timeLeft && (
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-600 via-[#D71920] to-orange-500 text-white rounded-xl shadow-lg border border-red-500/20 select-none animate-pulse">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white/10 rounded-lg text-yellow-300">
-                          <Zap size={20} className="fill-current" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-wider text-yellow-300">Flash Sale Live!</p>
-                          <p className="text-[10px] text-white/95 font-bold">{flashSaleOffer.name}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase font-bold text-white/80">Ends in:</span>
-                        <div className="flex items-center gap-1 font-mono text-sm font-black bg-black/25 px-2.5 py-1.5 rounded-lg border border-white/10">
-                          <span>{String(timeLeft.hours).padStart(2, "0")}h</span>
-                          <span className="text-white/40">:</span>
-                          <span>{String(timeLeft.minutes).padStart(2, "0")}m</span>
-                          <span className="text-white/40">:</span>
-                          <span className="text-red-300">{String(timeLeft.seconds).padStart(2, "0")}s</span>
-                        </div>
-                      </div>
+              {flashSaleOffer && timeLeft && (
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-600 via-[#D71920] to-orange-500 text-white rounded-xl shadow-lg border border-red-500/20 select-none animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/10 rounded-lg text-yellow-300">
+                      <Zap size={20} className="fill-current" />
                     </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wider text-yellow-300">Flash Sale Live!</p>
+                      <p className="text-[10px] text-white/95 font-bold">{flashSaleOffer.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold text-white/80">Ends in:</span>
+                    <div className="flex items-center gap-1 font-mono text-sm font-black bg-black/25 px-2.5 py-1.5 rounded-lg border border-white/10">
+                      <span>{String(timeLeft.hours).padStart(2, "0")}h</span>
+                      <span className="text-white/40">:</span>
+                      <span>{String(timeLeft.minutes).padStart(2, "0")}m</span>
+                      <span className="text-white/40">:</span>
+                      <span className="text-red-300">{String(timeLeft.seconds).padStart(2, "0")}s</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Pricing Panel */}
+              <div className="mb-4 mt-2">
+                <div className="flex items-baseline gap-3">
+                  {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
+                    <span className="text-xl sm:text-[24px] font-bold text-[#388e3c] dark:text-green-500 tracking-tight flex items-center">
+                      <ArrowDown size={20} className="stroke-[3] mr-0.5" />
+                      {calculated.discountPercent}% OFF
+                    </span>
                   )}
-
-                  {/* Pricing Panel */}
-                  <div className="mb-4 mt-2">
-                    <div className="flex items-baseline gap-3">
-                      {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
-                        <span className="text-xl sm:text-[24px] font-bold text-[#388e3c] dark:text-green-500 tracking-tight flex items-center">
-                          <ArrowDown size={20} className="stroke-[3] mr-0.5" />
-                          {calculated.discountPercent}% OFF
-                        </span>
-                      )}
-                      {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
-                        <span className="text-lg sm:text-[20px] font-normal text-[#878787] dark:text-neutral-500 line-through ml-1">
-                          ₹{calculated.originalPrice.toLocaleString("en-IN")}
-                        </span>
-                      )}
-                      <span className="text-3xl sm:text-[36px] font-extrabold text-[#212121] dark:text-white tracking-tight ml-2">
-                        ₹{calculated.price ? calculated.price.toLocaleString("en-IN") : "0"}
-                      </span>
-                    </div>
-                    {calculated.appliedOffer && (
-                      <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-500 mt-1.5 flex items-center gap-1.5 uppercase tracking-wide">
-                        <Check size={12} className="stroke-[3]" />
-                        <span>Promo Applied: {calculated.appliedOffer.name}</span>
-                      </div>
-                    )}
+                  {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
+                    <span className="text-lg sm:text-[20px] font-normal text-[#878787] dark:text-neutral-500 line-through ml-1">
+                      ₹{calculated.originalPrice.toLocaleString("en-IN")}
+                    </span>
+                  )}
+                  <span className="text-3xl sm:text-[36px] font-extrabold text-[#212121] dark:text-white tracking-tight ml-2">
+                    ₹{calculated.price ? calculated.price.toLocaleString("en-IN") : "0"}
+                  </span>
+                </div>
+                {calculated.appliedOffer && (
+                  <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-500 mt-1.5 flex items-center gap-1.5 uppercase tracking-wide">
+                    <Check size={12} className="stroke-[3]" />
+                    <span>Promo Applied: {calculated.appliedOffer.name}</span>
                   </div>
+                )}
+              </div>
 
-                  {/* Flipkart Offers List */}
-                  <div className="space-y-3">
-                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-neutral-400 flex items-center gap-1.5">
-                      <Tag size={12} className="text-[#D71920] rotate-90" />
-                      <span>Available Offers</span>
-                    </h3>
-                    {applicableOffers.length > 0 ? (
-                      <ul className="space-y-2.5">
-                        {applicableOffers.map((offer, idx) => {
-                          const displayMsg = getOfferDisplay(offer);
-                          const isCoupon = offer.offerType === "COUPON";
-                          return (
-                            <li key={offer.id || idx} className="flex items-start gap-2.5 text-xs text-slate-650 dark:text-neutral-350 bg-slate-50/45 dark:bg-neutral-900/10 p-3 rounded-xl border border-slate-100/50 dark:border-neutral-900/30">
-                              <Tag size={14} className={cn("shrink-0 mt-0.5", isCoupon ? "text-[#D71920]" : "text-emerald-600")} />
-                              <div className="flex-1">
-                                <strong className="text-slate-800 dark:text-white">
-                                  {offer.offerType.replace(/_/g, " ")}:{" "}
-                                </strong>
-                                <span>{displayMsg}</span>
-                                {offer.termsConditions && (
-                                  <span className="text-[#D71920] dark:text-red-400 font-bold hover:underline cursor-pointer ml-1.5" title={offer.termsConditions}>
-                                    T&C
-                                  </span>
-                                )}
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : (
-                      <p className="text-xs text-slate-450 dark:text-neutral-500 italic p-3 border border-dashed border-slate-200 dark:border-neutral-800 rounded-xl text-center">
-                        No special promotions are currently running on this product.
-                      </p>
-                    )}
-                  </div>
+              {/* Flipkart Offers List */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-neutral-400 flex items-center gap-1.5">
+                  <Tag size={12} className="text-[#D71920] rotate-90" />
+                  <span>Available Offers</span>
+                </h3>
+                {applicableOffers.length > 0 ? (
+                  <ul className="space-y-2.5">
+                    {applicableOffers.map((offer, idx) => {
+                      const displayMsg = getOfferDisplay(offer);
+                      const isCoupon = offer.offerType === "COUPON";
+                      return (
+                        <li key={offer.id || idx} className="flex items-start gap-2.5 text-xs text-slate-650 dark:text-neutral-350 bg-slate-50/45 dark:bg-neutral-900/10 p-3 rounded-xl border border-slate-100/50 dark:border-neutral-900/30">
+                          <Tag size={14} className={cn("shrink-0 mt-0.5", isCoupon ? "text-[#D71920]" : "text-emerald-600")} />
+                          <div className="flex-1">
+                            <strong className="text-slate-800 dark:text-white">
+                              {offer.offerType.replace(/_/g, " ")}:{" "}
+                            </strong>
+                            <span>{displayMsg}</span>
+                            {offer.termsConditions && (
+                              <span className="text-[#D71920] dark:text-red-400 font-bold hover:underline cursor-pointer ml-1.5" title={offer.termsConditions}>
+                                T&C
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-450 dark:text-neutral-500 italic p-3 border border-dashed border-slate-200 dark:border-neutral-800 rounded-xl text-center">
+                    No special promotions are currently running on this product.
+                  </p>
+                )}
+              </div>
 
-                  {/* Variant Selector Attributes */}
-                  {Object.keys(variantAttributes).length > 0 ? (
-                    <div className="space-y-5 mb-6">
-                      {Object.entries(variantAttributes).map(([key, values]) => {
-                        const currentVal = product.variantDetails?.[key] ? String(product.variantDetails[key]) : "";
-                        return (
-                          <div key={key} className="flex flex-col gap-2">
-                            <div className="text-[14px] font-bold text-[#212121] dark:text-neutral-200">
-                              Select {key}
-                            </div>
-                            <div className="flex flex-wrap gap-2.5">
-                              {values.map((val) => {
-                                const isSelected = val === currentVal;
-                                const matchingVariant = variants.find(v => {
-                                  if (String(v.variantDetails?.[key]) !== val) return false;
-                                  for (const otherKey of Object.keys(variantAttributes)) {
-                                    if (otherKey !== key) {
-                                      if (String(v.variantDetails?.[otherKey]) !== String(product.variantDetails?.[otherKey])) {
-                                        return false;
-                                      }
-                                    }
+              {/* Variant Selector Attributes */}
+              {Object.keys(variantAttributes).length > 0 ? (
+                <div className="space-y-5 mb-6">
+                  {Object.entries(variantAttributes).map(([key, values]) => {
+                    const currentVal = product.variantDetails?.[key] ? String(product.variantDetails[key]) : "";
+                    return (
+                      <div key={key} className="flex flex-col gap-2">
+                        <div className="text-[14px] font-bold text-[#212121] dark:text-neutral-200">
+                          Select {key}
+                        </div>
+                        <div className="flex flex-wrap gap-2.5">
+                          {values.map((val) => {
+                            const isSelected = val === currentVal;
+                            const matchingVariant = variants.find(v => {
+                              if (String(v.variantDetails?.[key]) !== val) return false;
+                              for (const otherKey of Object.keys(variantAttributes)) {
+                                if (otherKey !== key) {
+                                  if (String(v.variantDetails?.[otherKey]) !== String(product.variantDetails?.[otherKey])) {
+                                    return false;
                                   }
-                                  return true;
-                                });
-                                const isDisabled = !matchingVariant || (!matchingVariant.inStock || matchingVariant.availableStock === 0);
-
-                                if (isDisabled) {
-                                  return (
-                                    <div key={val} className="relative inline-flex">
-                                      <button
-                                        disabled
-                                        className="px-5 py-2.5 text-[14px] text-[#878787] bg-white dark:bg-neutral-900 dark:text-neutral-500 rounded border border-dashed border-[#e0e0e0] dark:border-neutral-700 cursor-not-allowed"
-                                      >
-                                        {val}
-                                      </button>
-                                      <div className="absolute top-1/2 left-2 right-2 h-[1px] bg-[#878787] dark:bg-neutral-600 -translate-y-1/2"></div>
-                                    </div>
-                                  );
                                 }
+                              }
+                              return true;
+                            });
+                            const isDisabled = !matchingVariant || (!matchingVariant.inStock || matchingVariant.availableStock === 0);
 
-                                if (isSelected) {
-                                  return (
-                                    <button
-                                      key={val}
-                                      className="px-5 py-2.5 text-[14px] font-bold text-white bg-[#cc0000] rounded shadow-sm"
-                                    >
-                                      {val}
-                                    </button>
-                                  );
-                                }
-
-                                return (
+                            if (isDisabled) {
+                              return (
+                                <div key={val} className="relative inline-flex">
                                   <button
-                                    key={val}
-                                    onClick={() => handleVariantSelect(key, val)}
-                                    className="px-5 py-2.5 text-[14px] text-[#212121] dark:text-neutral-300 bg-white dark:bg-neutral-900 rounded border border-[#e0e0e0] dark:border-neutral-700 hover:border-[#cc0000] hover:text-[#cc0000] transition-colors"
+                                    disabled
+                                    className="px-5 py-2.5 text-[14px] text-[#878787] bg-white dark:bg-neutral-900 dark:text-neutral-500 rounded border border-dashed border-[#e0e0e0] dark:border-neutral-700 cursor-not-allowed"
                                   >
                                     {val}
                                   </button>
-                                );
-                              })}
-                            </div>
-                            <div className="text-[12px]">
-                              <span className="font-bold text-[#212121] dark:text-neutral-300">Selected:</span>
-                              <span className="text-[#878787] dark:text-neutral-500 ml-1">
-                                {currentVal}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : product.variantDetails && typeof product.variantDetails === "object" && Object.keys(product.variantDetails).length > 0 && (
-                    <div className="space-y-5 mb-6">
-                      {Object.entries(product.variantDetails).map(([key, val]) => (
-                        <div key={key} className="flex flex-col gap-2">
-                          <div className="text-[14px] font-bold text-[#212121] dark:text-neutral-200">
-                            Select {key}
-                          </div>
-                          <div className="flex gap-2.5">
-                            <button className="px-5 py-2.5 text-[14px] font-bold text-white bg-[#cc0000] rounded shadow-sm">
-                              {String(val)}
-                            </button>
-                          </div>
-                          <div className="text-[12px]">
-                            <span className="font-bold text-[#212121] dark:text-neutral-300">Selected:</span>
-                            <span className="text-[#878787] dark:text-neutral-500 ml-1">
-                              {String(val)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-
-
-                  {/* Delivery Pincode Checker */}
-                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-neutral-400 flex items-center gap-1">
-                      <MapPin size={12} className="text-[#D71920]" />
-                      <span>Delivery & PIN Checker</span>
-                    </h3>
-
-                    <form onSubmit={handlePincodeCheck} className="flex items-center max-w-sm gap-2">
-                      <div className="relative flex-grow">
-                        <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="text"
-                          maxLength={6}
-                          value={pincode}
-                          onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
-                          placeholder="Enter 6-digit Pincode"
-                          className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 dark:border-neutral-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#D71920]"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 bg-[#D71920] hover:bg-[#b8141a] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                      >
-                        Check
-                      </button>
-                    </form>
-
-                    {/* Display checked status info */}
-                    {pincodeStatus && (
-                      <div className={cn(
-                        "p-3 rounded-lg border text-xs max-w-sm animate-in fade-in slide-in-from-top-1 duration-200",
-                        pincodeStatus.valid
-                          ? "bg-emerald-50/50 border-emerald-100 text-emerald-800 dark:bg-emerald-950/10 dark:border-emerald-900/30 dark:text-emerald-400"
-                          : "bg-red-50/50 border-red-100 text-red-800 dark:bg-red-950/10 dark:border-red-900/30 dark:text-red-400"
-                      )}>
-                        <div className="flex items-start gap-2">
-                          {pincodeStatus.valid ? (
-                            <Check size={14} className="shrink-0 text-emerald-600 mt-0.5" />
-                          ) : (
-                            <AlertCircle size={14} className="shrink-0 text-red-600 mt-0.5" />
-                          )}
-                          <div>
-                            <p className="font-bold">{pincodeStatus.message}</p>
-                            {pincodeStatus.deliveryDate && (
-                              <p className="mt-1 text-slate-500 dark:text-neutral-400 text-[11px]">
-                                Delivering by <span className="font-extrabold text-slate-700 dark:text-neutral-300">{pincodeStatus.deliveryDate}</span> | <span className="text-emerald-600 dark:text-emerald-450 font-bold">Free Shipping</span>
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Warranty and Services Highlight */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 dark:bg-neutral-900/20 border border-slate-100/50 dark:border-slate-850">
-                      <ShieldCheck size={28} className="text-[#D71920] shrink-0" />
-                      <div className="text-left">
-                        <p className="text-[10px] font-extrabold text-slate-400 uppercase">Warranty</p>
-                        <p className="text-xs font-bold text-slate-850 dark:text-neutral-200">{product.warranty || "1 Year Warranty"}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 dark:bg-neutral-900/20 border border-slate-100/50 dark:border-slate-850">
-                      <Award size={28} className="text-[#D71920] shrink-0" />
-                      <div className="text-left">
-                        <p className="text-[10px] font-extrabold text-slate-400 uppercase">Quality</p>
-                        <p className="text-xs font-bold text-slate-850 dark:text-neutral-200">100% Genuine Brand</p>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* ── Tabs for Description & Specs ─────────────── */}
-                  <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex border-b border-slate-150 dark:border-slate-850">
-                      <button
-                        onClick={() => setActiveTab("description")}
-                        className={cn(
-                          "pb-3 text-xs font-extrabold uppercase tracking-wider border-b-2 px-1 mr-8 transition-colors cursor-pointer",
-                          activeTab === "description"
-                            ? "border-[#D71920] text-[#D71920] dark:text-red-400"
-                            : "border-transparent text-slate-400 hover:text-slate-600"
-                        )}
-                      >
-                        Description
-                      </button>
-                      <button
-                        onClick={() => setActiveTab("specs")}
-                        className={cn(
-                          "pb-3 text-xs font-extrabold uppercase tracking-wider border-b-2 px-1 mr-8 transition-colors cursor-pointer",
-                          activeTab === "specs"
-                            ? "border-[#D71920] text-[#D71920] dark:text-red-400"
-                            : "border-transparent text-slate-400 hover:text-slate-600"
-                        )}
-                      >
-                        Specifications
-                      </button>
-                    </div>
-
-                    <div className="mt-4 min-h-[140px] text-xs">
-                      {/* Tab 1: Description */}
-                      {activeTab === "description" && (
-                        <div className="space-y-3 leading-relaxed text-slate-600 dark:text-neutral-350">
-                          {product.productDescription ? (
-                            product.productDescription.split("\n").map((para: string, idx: number) => (
-                              <p key={idx}>{para}</p>
-                            ))
-                          ) : (
-                            <p>Experience standard, high-efficiency kitchen operation with the all-new {product.name}. Designed with modern engineering, this appliance focuses on speed, safety, and durability.</p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Tab 2: Specifications Table */}
-                      {activeTab === "specs" && (
-                        <div className="border border-slate-150 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-                          {parsedSpecs.length > 0 ? (
-                            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                              {parsedSpecs.map((spec: SpecItem) => (
-                                <div key={spec.label} className="grid grid-cols-1 sm:grid-cols-3 p-3.5 hover:bg-slate-50/50 dark:hover:bg-neutral-900/10 transition-colors">
-                                  <span className="font-extrabold text-slate-450 dark:text-neutral-500 uppercase tracking-wider sm:col-span-1">{spec.label}</span>
-                                  <span className="font-bold text-slate-750 dark:text-neutral-250 sm:col-span-2 mt-1 sm:mt-0">{spec.value}</span>
+                                  <div className="absolute top-1/2 left-2 right-2 h-[1px] bg-[#878787] dark:bg-neutral-600 -translate-y-1/2"></div>
                                 </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="p-6 text-center text-slate-400">
-                              No specific technical specifications are defined for this model.
-                            </div>
-                          )}
+                              );
+                            }
+
+                            if (isSelected) {
+                              return (
+                                <button
+                                  key={val}
+                                  className="px-5 py-2.5 text-[14px] font-bold text-white bg-[#cc0000] rounded shadow-sm"
+                                >
+                                  {val}
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <button
+                                key={val}
+                                onClick={() => handleVariantSelect(key, val)}
+                                className="px-5 py-2.5 text-[14px] text-[#212121] dark:text-neutral-300 bg-white dark:bg-neutral-900 rounded border border-[#e0e0e0] dark:border-neutral-700 hover:border-[#cc0000] hover:text-[#cc0000] transition-colors"
+                              >
+                                {val}
+                              </button>
+                            );
+                          })}
                         </div>
+                        <div className="text-[12px]">
+                          <span className="font-bold text-[#212121] dark:text-neutral-300">Selected:</span>
+                          <span className="text-[#878787] dark:text-neutral-500 ml-1">
+                            {currentVal}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : product.variantDetails && typeof product.variantDetails === "object" && Object.keys(product.variantDetails).length > 0 && (
+                <div className="space-y-5 mb-6">
+                  {Object.entries(product.variantDetails).map(([key, val]) => (
+                    <div key={key} className="flex flex-col gap-2">
+                      <div className="text-[14px] font-bold text-[#212121] dark:text-neutral-200">
+                        Select {key}
+                      </div>
+                      <div className="flex gap-2.5">
+                        <button className="px-5 py-2.5 text-[14px] font-bold text-white bg-[#cc0000] rounded shadow-sm">
+                          {String(val)}
+                        </button>
+                      </div>
+                      <div className="text-[12px]">
+                        <span className="font-bold text-[#212121] dark:text-neutral-300">Selected:</span>
+                        <span className="text-[#878787] dark:text-neutral-500 ml-1">
+                          {String(val)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+
+
+              {/* Delivery Pincode Checker */}
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-neutral-400 flex items-center gap-1">
+                  <MapPin size={12} className="text-[#D71920]" />
+                  <span>Delivery & PIN Checker</span>
+                </h3>
+
+                <form onSubmit={handlePincodeCheck} className="flex items-center max-w-sm gap-2">
+                  <div className="relative flex-grow">
+                    <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="Enter 6-digit Pincode"
+                      className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 dark:border-neutral-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#D71920]"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#D71920] hover:bg-[#b8141a] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                  >
+                    Check
+                  </button>
+                </form>
+
+                {/* Display checked status info */}
+                {pincodeStatus && (
+                  <div className={cn(
+                    "p-3 rounded-lg border text-xs max-w-sm animate-in fade-in slide-in-from-top-1 duration-200",
+                    pincodeStatus.valid
+                      ? "bg-emerald-50/50 border-emerald-100 text-emerald-800 dark:bg-emerald-950/10 dark:border-emerald-900/30 dark:text-emerald-400"
+                      : "bg-red-50/50 border-red-100 text-red-800 dark:bg-red-950/10 dark:border-red-900/30 dark:text-red-400"
+                  )}>
+                    <div className="flex items-start gap-2">
+                      {pincodeStatus.valid ? (
+                        <Check size={14} className="shrink-0 text-emerald-600 mt-0.5" />
+                      ) : (
+                        <AlertCircle size={14} className="shrink-0 text-red-600 mt-0.5" />
                       )}
+                      <div>
+                        <p className="font-bold">{pincodeStatus.message}</p>
+                        {pincodeStatus.deliveryDate && (
+                          <p className="mt-1 text-slate-500 dark:text-neutral-400 text-[11px]">
+                            Delivering by <span className="font-extrabold text-slate-700 dark:text-neutral-300">{pincodeStatus.deliveryDate}</span> | <span className="text-emerald-600 dark:text-emerald-450 font-bold">Free Shipping</span>
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
+                )}
+              </div>
 
+              {/* Warranty and Services Highlight */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 dark:bg-neutral-900/20 border border-slate-100/50 dark:border-slate-850">
+                  <ShieldCheck size={28} className="text-[#D71920] shrink-0" />
+                  <div className="text-left">
+                    <p className="text-[10px] font-extrabold text-slate-400 uppercase">Warranty</p>
+                    <p className="text-xs font-bold text-slate-850 dark:text-neutral-200">{product.warranty || "1 Year Warranty"}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 dark:bg-neutral-900/20 border border-slate-100/50 dark:border-slate-850">
+                  <Award size={28} className="text-[#D71920] shrink-0" />
+                  <div className="text-left">
+                    <p className="text-[10px] font-extrabold text-slate-400 uppercase">Quality</p>
+                    <p className="text-xs font-bold text-slate-850 dark:text-neutral-200">100% Genuine Brand</p>
+                  </div>
                 </div>
 
               </div>
+
+              {/* ── Tabs for Description & Specs ─────────────── */}
+              <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex border-b border-slate-150 dark:border-slate-850">
+                  <button
+                    onClick={() => setActiveTab("description")}
+                    className={cn(
+                      "pb-3 text-xs font-extrabold uppercase tracking-wider border-b-2 px-1 mr-8 transition-colors cursor-pointer",
+                      activeTab === "description"
+                        ? "border-[#D71920] text-[#D71920] dark:text-red-400"
+                        : "border-transparent text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    Description
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("specs")}
+                    className={cn(
+                      "pb-3 text-xs font-extrabold uppercase tracking-wider border-b-2 px-1 mr-8 transition-colors cursor-pointer",
+                      activeTab === "specs"
+                        ? "border-[#D71920] text-[#D71920] dark:text-red-400"
+                        : "border-transparent text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    Specifications
+                  </button>
+                </div>
+
+                <div className="mt-4 min-h-[140px] text-xs">
+                  {/* Tab 1: Description */}
+                  {activeTab === "description" && (
+                    <div className="space-y-3 leading-relaxed text-slate-600 dark:text-neutral-350">
+                      {product.productDescription ? (
+                        product.productDescription.split("\n").map((para: string, idx: number) => (
+                          <p key={idx}>{para}</p>
+                        ))
+                      ) : (
+                        <p>Experience standard, high-efficiency kitchen operation with the all-new {product.name}. Designed with modern engineering, this appliance focuses on speed, safety, and durability.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Tab 2: Specifications Table */}
+                  {activeTab === "specs" && (
+                    <div className="border border-slate-150 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                      {parsedSpecs.length > 0 ? (
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {parsedSpecs.map((spec: SpecItem) => (
+                            <div key={spec.label} className="grid grid-cols-1 sm:grid-cols-3 p-3.5 hover:bg-slate-50/50 dark:hover:bg-neutral-900/10 transition-colors">
+                              <span className="font-extrabold text-slate-450 dark:text-neutral-500 uppercase tracking-wider sm:col-span-1">{spec.label}</span>
+                              <span className="font-bold text-slate-750 dark:text-neutral-250 sm:col-span-2 mt-1 sm:mt-0">{spec.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-6 text-center text-slate-400">
+                          No specific technical specifications are defined for this model.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
             </div>
 
-            {/* 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴 */}
-            {/* 🔴 CUSTOMER REVIEWS SECTION BOTTOM HIDDEN PER USER REQUEST 🔴 */}
-            {/* 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴 */}
-            {/* ── RATINGS & REVIEWS SECTION (HIDDEN FOR NOW) ──
+          </div>
+        </div>
+
+        {/* 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴 */}
+        {/* 🔴 CUSTOMER REVIEWS SECTION BOTTOM HIDDEN PER USER REQUEST 🔴 */}
+        {/* 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴 */}
+        {/* ── RATINGS & REVIEWS SECTION (HIDDEN FOR NOW) ──
         <section id="reviews-section" className="mt-12 border border-slate-200 dark:border-neutral-800 rounded-2xl bg-white dark:bg-slate-950 overflow-hidden shadow-sm pt-8 pb-6 px-6 sm:px-10">
           <div className="flex flex-col md:flex-row gap-10 items-start">
             <div className="w-full md:w-1/3 flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-neutral-900 rounded-xl border border-slate-100 dark:border-neutral-800">
@@ -1313,41 +1313,41 @@ export default function ProductDetailPage() {
         </section>
         */}
 
-            {/* ── SIMILAR PRODUCTS SECTION ────────────────────── */}
-            <section className="mt-12 space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-neutral-800 pb-3">
-                <h2 className="text-lg font-black text-slate-850 dark:text-white tracking-tight uppercase">
-                  Similar Appliances You May Like
-                </h2>
-                <Link
-                  href={`/shop?category=${product.category}`}
-                  className="text-xs font-extrabold text-[#D71920] hover:text-[#b8141a] hover:underline uppercase tracking-wider flex items-center gap-0.5"
-                >
-                  <span>View All</span>
-                  <ChevronRight size={14} />
-                </Link>
-              </div>
+        {/* ── SIMILAR PRODUCTS SECTION ────────────────────── */}
+        <section className="mt-12 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-neutral-800 pb-3">
+            <h2 className="text-lg font-black text-slate-850 dark:text-white tracking-tight uppercase">
+              Similar Appliances You May Like
+            </h2>
+            <Link
+              href={`/shop?category=${product.category}`}
+              className="text-xs font-extrabold text-[#D71920] hover:text-[#b8141a] hover:underline uppercase tracking-wider flex items-center gap-0.5"
+            >
+              <span>View All</span>
+              <ChevronRight size={14} />
+            </Link>
+          </div>
 
-              {similarLoading ? (
-                <div className="flex items-center justify-center py-10">
-                  <Loader2 className="w-8 h-8 text-[#D71920] animate-spin" />
-                </div>
-              ) : similarProducts.length === 0 ? (
-                <p className="text-center text-xs text-slate-450 py-8">
-                  No matching similar smart appliances found.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {similarProducts.map((p) => (
-                    <ProductCard key={p.id} product={p} />
-                  ))}
-                </div>
-              )}
-            </section>
+          {similarLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="w-8 h-8 text-[#D71920] animate-spin" />
+            </div>
+          ) : similarProducts.length === 0 ? (
+            <p className="text-center text-xs text-slate-450 py-8">
+              No matching similar smart appliances found.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {similarProducts.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          )}
+        </section>
 
-          </main>
+      </main>
 
-          <Footer footerColumns={footerColumns} socialLinks={socialLinks} />
-        </div>
-        );
+      <Footer footerColumns={footerColumns} socialLinks={socialLinks} />
+    </div>
+  );
 }

@@ -60,6 +60,6 @@ export const commercialSectionData: CommercialSection = {
   ],
   badgeLabel: "COMMERCIAL",
   image: "https://images.unsplash.com/photo-1581092921461-eab62e97a780?q=80&w=1200&auto=format&fit=crop",
-  primaryCTA: { label: "Get Commercial Catalog", href: "/shop?category=commercial" },
+  primaryCTA: { label: "Get Commercial Catalog", href: "/sd-smart-ecommerce/2026-SD Smart Catalogue.pdf" },
   secondaryCTA: { label: "Consult an Engineer", href: "/contact" }
 };

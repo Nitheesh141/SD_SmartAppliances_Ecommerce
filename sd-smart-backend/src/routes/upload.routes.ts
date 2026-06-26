@@ -1,13 +1,19 @@
 import { Router, Request, Response } from "express";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 
 const router = Router();
+
+const uploadsDir = path.join(__dirname, "../../uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Configure Multer storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "../../uploads"));
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -19,8 +25,6 @@ const upload = multer({ storage });
 
 router.post("/", upload.any(), (req: Request, res: Response): void => {
   try {
-    console.log("Files received:", req.files);
-    console.log("Body received:", req.body);
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {
       res.status(400).json({ success: false, message: "No files uploaded" });
@@ -29,7 +33,7 @@ router.post("/", upload.any(), (req: Request, res: Response): void => {
 
     // Return the URLs for the uploaded files
     const urls = files.map((file) => `http://localhost:5000/uploads/${file.filename}`);
-    
+
     res.status(200).json({
       success: true,
       urls,

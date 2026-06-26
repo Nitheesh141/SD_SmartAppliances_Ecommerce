@@ -80,6 +80,8 @@ export default function CommercialSection({ data }: CommercialSectionProps) {
               className="!bg-[#D71920] hover:!bg-[#b8141a] !border-[#D71920] !text-white font-bold shadow-lg shadow-red-600/20 animate-pulse"
               asLink
               href={data.primaryCTA.href}
+              target="_blank"
+              rel="noopener noreferrer"
             >
               {data.primaryCTA.label}
             </CTAButton>
