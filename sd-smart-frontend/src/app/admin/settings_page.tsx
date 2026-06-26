@@ -53,7 +53,8 @@ export default function AdminSettingsPage() {
   // Route protection
   useEffect(() => {
     if (!authLoading) {
-      if (!isAuthenticated || !user || (user.role !== "admin" && user.role !== "superadmin")) {
+      const role = user?.role?.toUpperCase();
+      if (!isAuthenticated || !user || (role !== "ADMIN" && role !== "SUPERADMIN" && user.role !== "admin" && user.role !== "superadmin")) {
         toast.error("Access Denied. Admins only.");
         router.push("/auth/login");
       }

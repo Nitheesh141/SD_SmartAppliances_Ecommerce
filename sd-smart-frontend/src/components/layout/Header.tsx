@@ -251,27 +251,25 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
       isLoaded ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
     )}>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
-        <div className="flex items-center h-16 gap-4 lg:gap-8">
+        <div className="flex items-center h-16 gap-3 sm:gap-4 xl:gap-8">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center flex-shrink-0 ml-[-80px]">
+          <Link href="/" className="flex items-center flex-shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/sd-smart-ecommerce/SD-logo.png"
               alt="SD Smart Appliances"
-              className="h-14 w-auto object-contain mix-blend-multiply"
+              className="h-10 sm:h-12 md:h-14 w-auto object-contain mix-blend-multiply"
             />
           </Link>
 
-
-
           {/* Nav — desktop */}
-          <nav className="hidden lg:flex items-center gap-1.2 ml-12">
+          <nav className="hidden xl:flex items-center gap-1 xl:gap-1.5 2xl:gap-2.5 ml-3 xl:ml-6 2xl:ml-8">
             {navLinks.map((link) =>
               link.hasDropdown ? (
                 <div key={link.label} className="relative group">
                   <button
-                    className="flex items-center gap-1 px-3 py-2 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                    className="flex items-center gap-1 px-2 py-1.5 xl:px-2.5 xl:py-2 text-xs xl:text-[13px] 2xl:text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
                     onMouseEnter={() => setShopOpen(true)}
                     onMouseLeave={() => setShopOpen(false)}
                   >
@@ -281,7 +279,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                   {/* Dropdown */}
                   <div
                     className={cn(
-                      "absolute top-full left-0 mt-1 w-52 bg-white border border-neutral-200 rounded-xl shadow-xl py-2 z-50 transition-all duration-150",
+                      "absolute top-full left-0 mt-1 w-52 bg-white dark:bg-[#1A090A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-2 z-50 transition-all duration-150",
                       shopOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-1"
                     )}
                     onMouseEnter={() => setShopOpen(true)}
@@ -291,7 +289,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                       <Link
                         key={l.href}
                         href={l.href}
-                        className="block px-4 py-2 text-sm text-neutral-700 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        className="block px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                       >
                         {l.label}
                       </Link>
@@ -303,15 +301,15 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                   key={link.label}
                   href={link.href}
                   className={cn(
-                    "px-3 py-2 text-sm font-semibold rounded-lg transition-all duration-300 relative",
+                    "px-2 py-1.5 xl:px-2.5 xl:py-2 text-xs xl:text-[13px] 2xl:text-sm font-semibold rounded-lg transition-all duration-300 relative",
                     isLinkActive(link.href)
                       ? "text-[#D71920]"
-                      : "text-[#1C1C1C] hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40"
+                      : "text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40"
                   )}
                 >
                   {link.label}
                   {isLinkActive(link.href) && (
-                    <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#D71920] rounded-full" />
+                    <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-[#D71920] rounded-full" />
                   )}
                 </Link>
               )
@@ -319,17 +317,17 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
           </nav>
 
           {/* Search & Actions Group */}
-          <div className="flex items-center gap-2.5 ml-auto mr-0 md:mr-[-20px] lg:mr-[-40px] xl:mr-[-80px]">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 ml-auto flex-shrink-0">
 
             {/* Search Input inline - permanently open and bigger */}
-            <div className="hidden md:block relative w-72 lg:w-[380px] xl:w-[460px] transition-all duration-300">
+            <div className="hidden md:block relative w-36 lg:w-44 xl:w-52 2xl:w-72 transition-all duration-300">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Search pressure cookers, wet grinders..."
-                className="w-full pl-10 pr-4 py-2 text-sm font-semibold border border-[#D71920] dark:border-[#D71920]/80 rounded-xl bg-white dark:bg-neutral-900 focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 text-slate-800 dark:text-neutral-100 shadow-sm focus:border-[#D71920] transition-colors placeholder-neutral-400 dark:placeholder-neutral-500"
+                className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm font-semibold border border-[#D71920] dark:border-[#D71920]/80 rounded-xl bg-white dark:bg-neutral-900 focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 text-slate-800 dark:text-neutral-100 shadow-sm focus:border-[#D71920] transition-colors placeholder-neutral-400 dark:placeholder-neutral-500"
               />
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#D71920] dark:text-[#D71920]" />
 
@@ -354,9 +352,10 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
             {isAuthenticated ? (
               <>
                 {/* Authenticated: Profile Dropdown, Wishlist, Cart */}
-                {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin") && (
-                  <Link href="/admin/dashboard" className="px-3 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg hover:bg-[#B91520] transition-colors flex items-center mr-1" title="Admin Dashboard">
-                    <span>Admin Panel</span>
+                {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
+                  <Link href="/admin/dashboard" className="px-2 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg hover:bg-[#B91520] transition-colors flex items-center mr-1" title="Admin Dashboard">
+                    <span className="hidden xl:inline">Admin Panel</span>
+                    <span className="xl:hidden">Admin</span>
                   </Link>
                 )}
 
@@ -365,11 +364,11 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                   <button
                     id="profile-menu-button"
                     onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                    className="flex items-center gap-2 p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                    className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                     aria-label="Account Menu"
                   >
-                    <User size={22} className="text-neutral-700 dark:text-neutral-300" />
-                    <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-200 max-w-[140px] truncate hidden sm:inline-block">
+                    <User size={20} className="text-neutral-700 dark:text-neutral-300" />
+                    <span className="text-xs xl:text-sm font-semibold text-neutral-800 dark:text-neutral-200 max-w-[100px] truncate hidden xl:inline-block">
                       {userProfile?.name?.split(" ")[0] || "Account"}
                     </span>
                     <ChevronDown size={14} className={cn("transition-transform text-neutral-400", profileDropdownOpen && "rotate-180")} />
@@ -379,34 +378,34 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                   {profileDropdownOpen && (
                     <div
                       id="profile-dropdown-menu"
-                      className="absolute right-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-850 rounded-xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                      className="absolute right-0 mt-1 w-56 bg-white dark:bg-[#1A090A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                     >
-                      <div className="px-5 py-3 border-b border-neutral-100 dark:border-slate-800/60 mb-1">
+                      <div className="px-5 py-3 border-b border-neutral-100 dark:border-neutral-800/60 mb-1">
                         <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100 truncate">{userProfile?.name || "User"}</p>
                         <p className="text-xs text-neutral-400 dark:text-neutral-500 truncate">{userProfile?.email}</p>
                       </div>
                       <Link
                         href="/account?tab=profile"
                         onClick={() => setProfileDropdownOpen(false)}
-                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                       >
                         Profile
                       </Link>
                       <Link
                         href="/wishlist"
                         onClick={() => setProfileDropdownOpen(false)}
-                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                       >
                         Wishlist
                       </Link>
                       <Link
                         href="/account?tab=orders"
                         onClick={() => setProfileDropdownOpen(false)}
-                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                       >
                         My Orders
                       </Link>
-                      <hr className="border-neutral-100 dark:border-slate-800/60 my-1" />
+                      <hr className="border-neutral-100 dark:border-neutral-800/60 my-1" />
                       <button
                         onClick={async () => {
                           setProfileDropdownOpen(false);
@@ -417,7 +416,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                             console.error("Logout failed:", err);
                           }
                         }}
-                        className="w-full text-left px-5 py-2.5 text-sm font-semibold text-[#D71920] hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+                        className="w-full text-left px-5 py-2.5 text-sm font-semibold text-[#D71920] dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
                       >
                         Logout
                       </button>
@@ -426,7 +425,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                 </div>
 
                 <Link href="/cart" className="relative p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Cart">
-                  <ShoppingCart size={22} className="text-neutral-700 dark:text-neutral-300" />
+                  <ShoppingCart size={20} className="text-neutral-700 dark:text-neutral-300" />
                   {cartCount > 0 && (
                     <span className="absolute top-0 right-0 w-4 h-4 bg-[#D71920] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                       {cartCount > 99 ? '99+' : cartCount}
@@ -439,23 +438,38 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                 {/* Not Authenticated: Login & Register Buttons */}
                 <Link
                   href="/auth/login"
-                  className="px-4 py-2 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] transition-colors hidden sm:block"
+                  className="px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 transition-colors hidden sm:block"
                 >
                   Login
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="px-4 py-2 text-sm font-semibold text-white bg-[#D71920] rounded-lg hover:bg-[#B91520] transition-colors"
+                  className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white bg-[#D71920] rounded-lg hover:bg-[#B91520] transition-colors hidden sm:block"
                 >
                   Register
                 </Link>
               </>
             )}
 
+            {/* Search Toggle (Mobile/Tablet only) */}
+            <button
+              onClick={() => {
+                setSearchOpen(!searchOpen);
+                if (mobileOpen) setMobileOpen(false);
+              }}
+              className="md:hidden p-2 text-neutral-600 dark:text-neutral-300 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+              aria-label="Toggle Search"
+            >
+              {searchOpen ? <X size={20} className="text-[#D71920]" /> : <Search size={20} />}
+            </button>
+
             {/* Mobile menu toggle */}
             <button
-              className="lg:hidden p-2 text-neutral-600 hover:text-[#D71920] rounded-lg transition-colors cursor-pointer"
-              onClick={() => setMobileOpen(!mobileOpen)}
+              className="xl:hidden p-2 text-neutral-600 dark:text-neutral-300 hover:text-[#D71920] rounded-lg transition-colors cursor-pointer"
+              onClick={() => {
+                setMobileOpen(!mobileOpen);
+                if (searchOpen) setSearchOpen(false);
+              }}
               aria-label="Menu"
             >
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -463,25 +477,69 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
           </div>
         </div>
 
+        {/* Mobile Search Bar (Expandable, Mobile/Tablet only) */}
+        {searchOpen && (
+          <div className="md:hidden px-4 py-3 border-t border-neutral-200/10 dark:border-neutral-800/60 bg-red-50/95 dark:bg-[#1A090A]/95 animate-in slide-in-from-top-2 duration-200 relative">
+            <div className="relative w-full">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Search pressure cookers, wet grinders..."
+                className="w-full pl-10 pr-10 py-2 text-sm font-semibold border border-[#D71920] dark:border-[#D71920]/80 rounded-xl bg-white dark:bg-neutral-900 focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 text-slate-800 dark:text-neutral-100 shadow-sm focus:border-[#D71920] transition-colors placeholder-neutral-400 dark:placeholder-neutral-500"
+              />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#D71920]" />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSuggestions([]);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[#D71920]"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Suggestions for Mobile Search */}
+            {suggestions.length > 0 && (
+              <div className="absolute left-4 right-4 top-full mt-1 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-2 z-50 max-h-60 overflow-y-auto">
+                {suggestions.map((product) => (
+                  <button
+                    key={product.id}
+                    onClick={() => handleSuggestionClick(product.name)}
+                    className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-red-50/50 dark:hover:bg-red-950/20 text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 flex items-center justify-between border-b border-neutral-50 dark:border-neutral-800/40 last:border-0 cursor-pointer"
+                  >
+                    <span className="truncate">{product.name}</span>
+                    <span className="text-[10px] text-neutral-400 font-bold bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">{product.categoryLabel}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-neutral-100 py-4 flex flex-col gap-1">
+          <div className="xl:hidden border-t border-neutral-200/10 dark:border-neutral-800/60 py-4 flex flex-col gap-1 bg-red-50 dark:bg-[#1A090A] px-2 animate-in slide-in-from-top-2 duration-200">
             {navLinks.map((link) => (
               <Link
                 key={link.label}
                 href={link.href}
-                className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                 onClick={() => setMobileOpen(false)}
               >
                 {link.label}
               </Link>
             ))}
-            <div className="mt-2 pt-2 border-t border-neutral-100 flex flex-col gap-1">
+            <div className="mt-2 pt-2 border-t border-neutral-200/10 dark:border-neutral-800/60 flex flex-col gap-1">
               {shopDropdownLinks.map((l) => (
                 <Link
                   key={l.href}
                   href={l.href}
-                  className="px-3 py-2 text-sm text-neutral-600 hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 text-left"
+                  className="px-3 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 text-left"
                   onClick={() => setMobileOpen(false)}
                 >
                   — {l.label}
@@ -490,10 +548,10 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
             </div>
             {/* Mobile Auth Section */}
             {!isAuthenticated && (
-              <div className="mt-4 pt-4 border-t border-neutral-100 flex flex-col gap-2">
+              <div className="mt-4 pt-4 border-t border-neutral-200/10 dark:border-neutral-800/60 flex flex-col gap-2">
                 <Link
                   href="/auth/login"
-                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-center"
+                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-center"
                   onClick={() => setMobileOpen(false)}
                 >
                   Login

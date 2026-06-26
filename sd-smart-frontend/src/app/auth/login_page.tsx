@@ -44,10 +44,13 @@ export default function LoginPage() {
       const cachedProfile = localStorage.getItem("userProfile");
       const loggedUser = cachedProfile ? JSON.parse(cachedProfile) : null;
 
-      // Redirect to admin dashboard or home after success animation completes
+      // Redirect to admin, distributor, or home after success animation completes
       setTimeout(() => {
-        if (loggedUser && (loggedUser.role === "admin" || loggedUser.role === "superadmin")) {
+        const role = loggedUser?.role?.toUpperCase();
+        if (loggedUser && (role === "ADMIN" || role === "SUPERADMIN" || loggedUser.role === "admin" || loggedUser.role === "superadmin")) {
           router.push("/admin/dashboard");
+        } else if (loggedUser && (role === "DISTRIBUTOR" || loggedUser.role === "distributor")) {
+          router.push("/distributor/dashboard");
         } else {
           router.push("/");
         }

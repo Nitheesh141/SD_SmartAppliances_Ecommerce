@@ -12,6 +12,28 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    // Guard: Block unapproved distributors from ordering
+    const orderingUser = await prisma.user.findUnique({
+      where: { id: user.id }
+    });
+
+    if (orderingUser && orderingUser.role === "DISTRIBUTOR") {
+      if (orderingUser.approvalStatus === "PENDING") {
+        res.status(403).json({
+          success: false,
+          message: "Your distributor account is currently under review. Please wait for admin approval before placing orders."
+        });
+        return;
+      }
+      if (orderingUser.approvalStatus === "REJECTED") {
+        res.status(403).json({
+          success: false,
+          message: "Your distributor application has been rejected. Please contact support."
+        });
+        return;
+      }
+    }
+
     const { addressId, paymentMethod, poNumber, couponCode } = req.body;
 
     if (!addressId || !paymentMethod) {
@@ -249,7 +271,8 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
 export const getAllOrders = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
       res.status(403).json({ success: false, message: "Access denied. Admin role required." });
       return;
     }
@@ -288,7 +311,8 @@ export const getAllOrders = async (req: Request, res: Response): Promise<void> =
 export const updateOrderStatus = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
       res.status(403).json({ success: false, message: "Access denied. Admin role required." });
       return;
     }
@@ -317,7 +341,8 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
     }
 
     if (paymentStatus) {
-      if (user.role !== "superadmin") {
+      const roleUpper = user.role.toUpperCase();
+      if (roleUpper !== "ADMIN" && user.role !== "superadmin") {
         res.status(403).json({ success: false, message: "Access denied. Only Super Admin can update payment status." });
         return;
       }
@@ -522,7 +547,8 @@ export const getOrderInvoice = async (req: Request, res: Response): Promise<void
     }
 
     // Access control: distributor must own order, or be an admin
-    if (order.userId !== user.id && user.role !== "admin" && user.role !== "superadmin") {
+    const roleUpper = user.role.toUpperCase();
+    if (order.userId !== user.id && roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN") {
       res.status(403).json({ success: false, message: "Access denied" });
       return;
     }

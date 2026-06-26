@@ -42,6 +42,11 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       href: "/admin/orders",
     },
     {
+      label: "Distributors",
+      icon: Shield,
+      href: "/admin/distributors",
+    },
+    {
       label: "Marketing",
       icon: Percent,
       href: "/admin/marketing",

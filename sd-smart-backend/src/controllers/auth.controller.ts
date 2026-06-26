@@ -61,7 +61,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         password: hashedPassword,
         firstName,
         lastName,
-        role: "user",
+        role: "CUSTOMER",
       },
     });
 
@@ -83,6 +83,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        approvalStatus: user.approvalStatus,
       },
     });
   } catch (error: any) {
@@ -140,7 +141,7 @@ export const adminSignup = async (req: Request, res: Response): Promise<void> =>
         password: hashedPassword,
         firstName,
         lastName,
-        role: "admin",
+        role: "ADMIN",
       },
     });
 
@@ -162,6 +163,7 @@ export const adminSignup = async (req: Request, res: Response): Promise<void> =>
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        approvalStatus: user.approvalStatus,
       },
     });
   } catch (error: any) {
@@ -225,6 +227,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         role: user.role,
         companyName: user.companyName,
         gstin: user.gstin,
+        approvalStatus: user.approvalStatus,
       },
     });
   } catch (error: any) {
@@ -262,6 +265,7 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
         role: user.role,
         companyName: user.companyName,
         gstin: user.gstin,
+        approvalStatus: user.approvalStatus,
       },
     });
   } catch (error: any) {
@@ -628,6 +632,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
         role: updatedUser.role,
         companyName: updatedUser.companyName,
         gstin: updatedUser.gstin,
+        approvalStatus: updatedUser.approvalStatus,
       },
     });
   } catch (error: any) {
@@ -666,7 +671,8 @@ export const convertToDistributor = async (req: Request, res: Response): Promise
       const updatedUser = await tx.user.update({
         where: { id: userId },
         data: {
-          role: "distributor",
+          role: "DISTRIBUTOR",
+          approvalStatus: "PENDING",
           companyName,
           gstin: gstin || null
         }
@@ -711,7 +717,8 @@ export const convertToDistributor = async (req: Request, res: Response): Promise
         lastName: result.updatedUser.lastName,
         role: result.updatedUser.role,
         companyName: result.updatedUser.companyName,
-        gstin: result.updatedUser.gstin
+        gstin: result.updatedUser.gstin,
+        approvalStatus: result.updatedUser.approvalStatus,
       },
       address: result.defaultAddress
     });
@@ -720,4 +727,260 @@ export const convertToDistributor = async (req: Request, res: Response): Promise
     res.status(500).json({ success: false, message: "Failed to convert to distributor" });
   }
 };
+
+// Distributor Signup
+export const distributorSignup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      distributorName,
+      contactPersonName,
+      email,
+      mobileNumber,
+      gstNumber,
+      businessName,
+      businessAddress,
+      password,
+    } = req.body;
+
+    if (!distributorName || !contactPersonName || !email || !mobileNumber || !businessName || !businessAddress || !password) {
+      res.status(400).json({ success: false, message: "All required fields must be filled." });
+      return;
+    }
+
+    if (!isPasswordValid(password)) {
+      res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number."
+      });
+      return;
+    }
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (existingUser) {
+      res.status(400).json({ success: false, message: "Email is already registered" });
+      return;
+    }
+
+    // Check if phone number already exists
+    const existingPhone = await prisma.user.findUnique({
+      where: { phoneNumber: mobileNumber },
+    });
+    if (existingPhone) {
+      res.status(400).json({ success: false, message: "Phone number is already registered" });
+      return;
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Perform database transaction to create User and Address
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create User
+      const user = await tx.user.create({
+        data: {
+          email: email.toLowerCase(),
+          phoneNumber: mobileNumber,
+          password: hashedPassword,
+          firstName: contactPersonName,
+          lastName: distributorName, // Using distributorName as lastName
+          role: "DISTRIBUTOR",
+          approvalStatus: "PENDING",
+          companyName: businessName,
+          gstin: gstNumber || null,
+        },
+      });
+
+      // 2. Create Default Address
+      const address = await tx.address.create({
+        data: {
+          userId: user.id,
+          fullName: contactPersonName,
+          emailAddress: email.toLowerCase(),
+          mobileNumber: mobileNumber,
+          companyName: businessName,
+          addressLine1: businessAddress,
+          city: "N/A",
+          state: "N/A",
+          pincode: "N/A",
+          gstin: gstNumber || null,
+          isDefault: true,
+        },
+      });
+
+      return { user, address };
+    });
+
+    // Generate JWT token so they can login immediately
+    const token = jwt.sign(
+      { id: result.user.id, email: result.user.email, role: result.user.role },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Distributor registered successfully and pending approval.",
+      token,
+      user: {
+        id: result.user.id,
+        name: `${result.user.firstName} ${result.user.lastName}`,
+        email: result.user.email,
+        phoneNumber: result.user.phoneNumber,
+        firstName: result.user.firstName,
+        lastName: result.user.lastName,
+        role: result.user.role,
+        companyName: result.user.companyName,
+        gstin: result.user.gstin,
+        approvalStatus: result.user.approvalStatus,
+      },
+    });
+  } catch (error: any) {
+    console.error("Distributor signup error:", error);
+    res.status(500).json({ success: false, message: "Server error during distributor registration" });
+  }
+};
+
+// Admin: Get all distributors
+export const getDistributors = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const isAdmin = user && (user.role === "ADMIN" || user.role === "admin" || user.role === "superadmin");
+    if (!isAdmin) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    const distributors = await prisma.user.findMany({
+      where: {
+        role: "DISTRIBUTOR"
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      include: {
+        addresses: {
+          where: {
+            isDefault: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      distributors: distributors.map(d => ({
+        id: d.id,
+        email: d.email,
+        phoneNumber: d.phoneNumber,
+        firstName: d.firstName, // Contact Person
+        lastName: d.lastName,   // Distributor Name
+        companyName: d.companyName, // Business Name
+        gstin: d.gstin,
+        approvalStatus: d.approvalStatus,
+        createdAt: d.createdAt,
+        businessAddress: d.addresses[0]?.addressLine1 || "N/A"
+      }))
+    });
+  } catch (error: any) {
+    console.error("Get distributors error:", error);
+    res.status(500).json({ success: false, message: "Server error retrieving distributors" });
+  }
+};
+
+// Admin: Update distributor approval status
+export const updateDistributorStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const isAdmin = user && (user.role === "ADMIN" || user.role === "admin" || user.role === "superadmin");
+    if (!isAdmin) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    const { id } = req.params;
+    const targetId = id as string;
+    const { status } = req.body; // APPROVED or REJECTED
+
+    if (status !== "APPROVED" && status !== "REJECTED") {
+      res.status(400).json({ success: false, message: "Invalid status. Must be APPROVED or REJECTED." });
+      return;
+    }
+
+    const distributor = await prisma.user.findUnique({
+      where: { id: targetId }
+    });
+
+    if (!distributor || distributor.role !== "DISTRIBUTOR") {
+      res.status(404).json({ success: false, message: "Distributor not found." });
+      return;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: targetId },
+      data: {
+        approvalStatus: status as any
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Distributor status successfully updated to ${status}.`,
+      distributor: {
+        id: updated.id,
+        email: updated.email,
+        approvalStatus: updated.approvalStatus
+      }
+    });
+  } catch (error: any) {
+    console.error("Update distributor status error:", error);
+    res.status(500).json({ success: false, message: "Server error updating distributor status" });
+  }
+};
+
+// Admin: Delete distributor and all associated data
+export const deleteDistributor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const isAdmin = user && (user.role === "ADMIN" || user.role === "admin" || user.role === "superadmin");
+    if (!isAdmin) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    const { id } = req.params;
+    const targetId = id as string;
+
+    const distributor = await prisma.user.findUnique({
+      where: { id: targetId }
+    });
+
+    if (!distributor || distributor.role !== "DISTRIBUTOR") {
+      res.status(404).json({ success: false, message: "Distributor not found." });
+      return;
+    }
+
+    // Delete orders and then the user in a transaction
+    await prisma.$transaction([
+      prisma.order.deleteMany({
+        where: { userId: targetId }
+      }),
+      prisma.user.delete({
+        where: { id: targetId }
+      })
+    ]);
+
+    res.json({
+      success: true,
+      message: "Distributor and all associated data successfully deleted."
+    });
+  } catch (error: any) {
+    console.error("Delete distributor error:", error);
+    res.status(500).json({ success: false, message: "Server error deleting distributor" });
+  }
+};
+
 

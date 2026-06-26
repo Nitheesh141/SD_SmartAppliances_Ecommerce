@@ -12,6 +12,7 @@ interface UserProfile {
   role?: string;
   companyName?: string | null;
   gstin?: string | null;
+  approvalStatus?: string | null;
 }
 
 interface AuthContextType {
@@ -21,6 +22,7 @@ interface AuthContextType {
   login: (emailOrPhone: string, password: string) => Promise<void>;
   signup: (email: string, password: string, firstName: string, lastName: string, phoneNumber?: string) => Promise<void>;
   adminSignup: (email: string, password: string, firstName: string, lastName: string, phoneNumber?: string) => Promise<void>;
+  distributorSignup: (distributorData: any) => Promise<void>;
   logout: () => void;
   resetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
   sendOtp: (phone: string) => Promise<void>;
@@ -151,6 +153,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const distributorSignup = async (distributorData: any) => {
+    setLoading(true);
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/distributor/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(distributorData),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || "Distributor registration failed");
+      }
+
+      const data = await response.json();
+      localStorage.setItem("authToken", data.token);
+      localStorage.setItem("userProfile", JSON.stringify(data.user));
+      setUser(data.user);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error("Distributor signup error:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("userProfile");
@@ -259,6 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         signup,
         adminSignup,
+        distributorSignup,
         logout,
         resetPassword,
         sendOtp,

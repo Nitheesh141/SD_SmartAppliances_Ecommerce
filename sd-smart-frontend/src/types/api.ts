@@ -53,6 +53,7 @@ export interface User {
   role?: string;
   companyName?: string;
   gstin?: string;
+  approvalStatus?: string;
   createdAt: string;
   updatedAt: string;
 }

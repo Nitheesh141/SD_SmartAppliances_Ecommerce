@@ -45,7 +45,7 @@ interface SpecItem {
 export default function ProductDetailPage() {
   const router = useRouter();
   const pathname = usePathname() || "";
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { addToCart } = useCart();
   const { wishlistItems, addToWishlist, removeFromWishlist } = useWishlist();
 
@@ -533,6 +533,21 @@ export default function ProductDetailPage() {
       router.push("/auth/login");
       return;
     }
+
+    // Guard: Block unapproved distributors
+    const isUnapproved = user && 
+      (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor") && 
+      user.approvalStatus?.toUpperCase() !== "APPROVED";
+
+    if (isUnapproved) {
+      toast.error(
+        user.approvalStatus?.toUpperCase() === "REJECTED"
+          ? "Your distributor application has been rejected. Please contact support."
+          : "Your distributor account is currently under review. Please wait for admin approval before placing orders."
+      );
+      return;
+    }
+
     try {
       // Check if already in cart or add it
       await addToCart(product.id, 1);

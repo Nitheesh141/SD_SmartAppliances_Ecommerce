@@ -5,14 +5,16 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 // import { announcements } from "../LandingPage/data/announcements";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
-import { ShoppingBag, ArrowRight, Trash2, Minus, Plus, ShieldCheck, Check, Truck, Tag, CheckCircle2 } from "lucide-react";
+import { ShoppingBag, ArrowRight, Trash2, Minus, Plus, ShieldCheck, Check, Truck, Tag, CheckCircle2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/providers/CartProvider";
+import { useAuth } from "@/providers/AuthProvider";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useMemo } from "react";
 
 export default function CartPage() {
   const { cartItems, cartTotal, cartCount, updateQuantity, removeFromCart, isLoading } = useCart();
+  const { user } = useAuth();
   const [excludedItems, setExcludedItems] = useState<Set<string>>(new Set());
   const [calculationResult, setCalculationResult] = useState<any>(null);
   const [calculating, setCalculating] = useState(false);
@@ -456,11 +458,28 @@ export default function CartPage() {
                   </div>
                 )}
 
-                <Link href="/checkout" className="w-full relative group overflow-hidden bg-[#1C1C1C] hover:bg-black text-white py-4 rounded-xl font-bold text-sm transition-all duration-300 shadow-lg shadow-black/10 flex items-center justify-center gap-2 cursor-pointer">
-                  <span className="relative z-10">Proceed to Checkout</span>
-                  <ArrowRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform" />
-                  <div className="absolute inset-0 h-full w-0 bg-[#D71920] transition-all duration-300 ease-out group-hover:w-full z-0"></div>
-                </Link>
+                {user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor") && user.approvalStatus?.toUpperCase() !== "APPROVED" ? (
+                  <div className="space-y-3 w-full">
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-xl text-xs text-amber-800 dark:text-amber-300 font-medium leading-relaxed text-left flex items-start gap-2">
+                      <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <span>
+                        {user.approvalStatus?.toUpperCase() === "REJECTED" 
+                          ? "Your distributor application has been rejected. Please contact support."
+                          : "Your distributor account is currently under review. Please wait for admin approval before placing orders."
+                        }
+                      </span>
+                    </div>
+                    <button disabled className="w-full bg-neutral-200 dark:bg-slate-800 text-neutral-400 dark:text-slate-500 py-4 rounded-xl font-bold text-sm cursor-not-allowed flex items-center justify-center gap-2">
+                      <span>Checkout Disabled</span>
+                    </button>
+                  </div>
+                ) : (
+                  <Link href="/checkout" className="w-full relative group overflow-hidden bg-[#1C1C1C] hover:bg-black text-white py-4 rounded-xl font-bold text-sm transition-all duration-300 shadow-lg shadow-black/10 flex items-center justify-center gap-2 cursor-pointer">
+                    <span className="relative z-10">Proceed to Checkout</span>
+                    <ArrowRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform" />
+                    <div className="absolute inset-0 h-full w-0 bg-[#D71920] transition-all duration-300 ease-out group-hover:w-full z-0"></div>
+                  </Link>
+                )}
                 
                 <div className="mt-4 flex items-center justify-center gap-2 text-xs text-neutral-500 font-medium">
                   <ShieldCheck size={14} className="text-green-600" />

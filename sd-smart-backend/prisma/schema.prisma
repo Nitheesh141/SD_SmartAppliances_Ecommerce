@@ -11,23 +11,37 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  phoneNumber String?  @unique
-  password    String
-  firstName   String
-  lastName    String
-  role        String   @default("user")
-  companyName String?
-  gstin       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  cart        Cart?
-  wishlist    Wishlist?
-  addresses   Address[]
-  orders      Order[]
+enum UserRole {
+  ADMIN
+  DISTRIBUTOR
+  CUSTOMER
 }
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  phoneNumber    String?         @unique
+  password       String
+  firstName      String
+  lastName       String
+  role           UserRole        @default(CUSTOMER)
+  approvalStatus ApprovalStatus?
+  companyName    String?
+  gstin          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  cart           Cart?
+  wishlist       Wishlist?
+  addresses      Address[]
+  orders         Order[]
+}
+
 
 model OtpVerification {
   id        String   @id @default(uuid())
