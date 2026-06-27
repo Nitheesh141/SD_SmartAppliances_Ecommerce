@@ -62,9 +62,13 @@ function AccountPageContent() {
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (tab && ["orders", "profile", "addresses", "pan", "password", "forgot-password", "distributor"].includes(tab)) {
-      setActiveTab(tab);
+      if (tab === "distributor" && user?.role?.toUpperCase() === "DISTRIBUTOR") {
+        setActiveTab("profile");
+      } else {
+        setActiveTab(tab);
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, user]);
 
   // Local state for personal profile edits
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -723,15 +727,17 @@ function AccountPageContent() {
                   >
                     Forgot Password
                   </button>
-                  <button
-                    onClick={() => setActiveTab("distributor")}
-                    className={`pl-14 pr-6 py-2 text-sm text-left cursor-pointer transition-colors ${activeTab === "distributor"
-                      ? "text-[#D71920] font-bold"
-                      : "text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400"
-                      }`}
-                  >
-                    {user?.role === "distributor" ? "Distributor Profile" : "Become a Distributor"}
-                  </button>
+                  {user?.role?.toUpperCase() !== "DISTRIBUTOR" && (
+                    <button
+                      onClick={() => setActiveTab("distributor")}
+                      className={`pl-14 pr-6 py-2 text-sm text-left cursor-pointer transition-colors ${activeTab === "distributor"
+                        ? "text-[#D71920] font-bold"
+                        : "text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400"
+                        }`}
+                    >
+                      Become a Distributor
+                    </button>
+                  )}
                 </div>
               </div>
 

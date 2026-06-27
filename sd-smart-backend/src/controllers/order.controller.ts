@@ -183,6 +183,26 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         where: { id: { in: activeCartItemIds } }
       });
 
+      // d. Auto-generate Invoice
+      const invoiceCount = await tx.invoice.count();
+      const nextInvoiceNum = `INV-2026-${String(invoiceCount + 1).padStart(6, '0')}`;
+      const taxAmount = (newOrder.cgst || 0) + (newOrder.sgst || 0) + (newOrder.igst || 0);
+
+      await tx.invoice.create({
+        data: {
+          invoiceNumber: nextInvoiceNum,
+          orderId: newOrder.id,
+          distributorId: user.id,
+          subtotal: newOrder.subtotal,
+          discountAmount: newOrder.discount,
+          taxAmount,
+          shippingAmount: newOrder.deliveryCharges,
+          grandTotal: newOrder.grandTotal,
+          generatedBy: userName,
+          pdfUrl: `/api/orders/${newOrder.id}/invoice/pdf`
+        }
+      });
+
       return newOrder;
     });
 
@@ -258,6 +278,29 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
+    }
+
+    if (!order.invoice) {
+      const invoiceCount = await prisma.invoice.count();
+      const nextInvoiceNum = `INV-2026-${String(invoiceCount + 1).padStart(6, '0')}`;
+      const taxAmount = (order.cgst || 0) + (order.sgst || 0) + (order.igst || 0);
+      
+      const newInvoice = await prisma.invoice.create({
+        data: {
+          invoiceNumber: nextInvoiceNum,
+          orderId: order.id,
+          distributorId: order.userId,
+          subtotal: order.subtotal,
+          discountAmount: order.discount,
+          taxAmount,
+          shippingAmount: order.deliveryCharges,
+          grandTotal: order.grandTotal,
+          generatedBy: "System",
+          pdfUrl: `/api/orders/${order.id}/invoice/pdf`
+        }
+      });
+      // @ts-ignore
+      order.invoice = newInvoice;
     }
 
     res.json({ success: true, order });
@@ -554,8 +597,27 @@ export const getOrderInvoice = async (req: Request, res: Response): Promise<void
     }
 
     if (!order.invoice) {
-      res.status(404).json({ success: false, message: "Invoice not generated yet" });
-      return;
+      const invoiceCount = await prisma.invoice.count();
+      const nextInvoiceNum = `INV-2026-${String(invoiceCount + 1).padStart(6, '0')}`;
+      const taxAmount = (order.cgst || 0) + (order.sgst || 0) + (order.igst || 0);
+      const userName = order.user ? `${order.user.firstName} ${order.user.lastName}` : "System";
+
+      const newInvoice = await prisma.invoice.create({
+        data: {
+          invoiceNumber: nextInvoiceNum,
+          orderId: order.id,
+          distributorId: order.userId,
+          subtotal: order.subtotal,
+          discountAmount: order.discount,
+          taxAmount,
+          shippingAmount: order.deliveryCharges,
+          grandTotal: order.grandTotal,
+          generatedBy: userName,
+          pdfUrl: `/api/orders/${order.id}/invoice/pdf`
+        }
+      });
+      // @ts-ignore
+      order.invoice = newInvoice;
     }
 
     res.json({ success: true, invoice: order.invoice, order });
