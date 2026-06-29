@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { 
   LayoutDashboard, PlusCircle, LogOut, Sun, Moon, 
-  Home, Shield, Menu, X, ArrowLeftRight, Package, Percent, Settings
+  Home, Shield, Menu, X, ArrowLeftRight, Package, Percent, Settings, Headphones
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -45,6 +45,11 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       label: "Distributors",
       icon: Shield,
       href: "/admin/distributors",
+    },
+    {
+      label: "Service Requests",
+      icon: Headphones,
+      href: "/admin/service-requests",
     },
     {
       label: "Marketing",

@@ -421,6 +421,13 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                       >
                         My Orders
                       </Link>
+                      <Link
+                        href="/service-request"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                      >
+                        Service Requests
+                      </Link>
                       <hr className="border-neutral-100 dark:border-neutral-800/60 my-1" />
                       <button
                         onClick={async () => {

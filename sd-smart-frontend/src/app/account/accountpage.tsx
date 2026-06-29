@@ -822,6 +822,12 @@ function AccountPageContent() {
                   >
                     My Wishlist
                   </button>
+                  <button
+                    onClick={() => router.push("/service-request")}
+                    className="pl-14 pr-6 py-2 text-sm text-left cursor-pointer transition-colors text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400"
+                  >
+                    Service Requests
+                  </button>
                 </div>
               </div>
 
@@ -844,6 +850,7 @@ function AccountPageContent() {
               <div className="flex gap-4 text-xs text-neutral-500">
                 <button onClick={() => router.push("/track-order")} className="hover:text-[#D71920] hover:underline cursor-pointer">Track Order</button>
                 <button onClick={() => router.push("/support")} className="hover:text-[#D71920] hover:underline cursor-pointer">Help Center</button>
+                <button onClick={() => router.push("/service-request")} className="hover:text-[#D71920] hover:underline cursor-pointer">Service Requests</button>
               </div>
             </div>
 
