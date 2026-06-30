@@ -308,6 +308,11 @@ model ServiceRequest {
   warrantyExpiryDate  DateTime
   warrantyStatus      String                     // UNDER_WARRANTY or WARRANTY_EXPIRED
   currentStatus       String                     // PENDING_VERIFICATION, VERIFIED, PICKUP_SCHEDULED, etc.
+  serviceCharge       Float?
+  sparePartsCost      Float?
+  totalServiceCost    Float?
+  inspectionRemarks   String?
+  cancellationReason  String?
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt
   attachments         ServiceRequestAttachment[]

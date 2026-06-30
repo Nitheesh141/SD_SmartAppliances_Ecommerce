@@ -40,8 +40,24 @@ export const serviceRequestService = {
    */
   updateServiceRequestStatus: async (
     id: string,
-    data: { status: string; remarks?: string }
+    data: { 
+      status: string; 
+      remarks?: string;
+      serviceCharge?: number;
+      sparePartsCost?: number;
+      inspectionRemarks?: string;
+    }
   ): Promise<ApiResponse<any>> => {
     return apiPatch<any>(`/service-requests/${id}/status`, data);
+  },
+
+  /**
+   * Respond to cost estimate (Customer action)
+   */
+  respondToEstimate: async (
+    id: string,
+    data: { action: "APPROVE" | "REJECT"; cancellationReason?: string }
+  ): Promise<ApiResponse<any>> => {
+    return apiPatch<any>(`/service-requests/${id}/customer-response`, data);
   },
 };

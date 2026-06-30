@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
@@ -65,8 +65,8 @@ export default function AdminDistributorsPage() {
   }, [isAuthenticated, user, authLoading, router]);
 
   // Fetch distributors
-  const fetchDistributors = async () => {
-    setLoading(true);
+  const fetchDistributors = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const token = localStorage.getItem("authToken");
       if (!token) return;
@@ -78,20 +78,46 @@ export default function AdminDistributorsPage() {
       const data = await res.json();
       if (data.success) {
         setDistributors(data.distributors || []);
+        
+        // Update selectedDistributor in-place if open
+        setSelectedDistributor(prev => {
+          if (!prev) return null;
+          const updated = data.distributors?.find((d: any) => d.id === prev.id);
+          return updated || prev;
+        });
       } else {
-        toast.error(data.message || "Failed to fetch distributors");
+        if (!isBackground) toast.error(data.message || "Failed to fetch distributors");
       }
     } catch (err) {
       console.error("Error fetching distributors:", err);
-      toast.error("Failed to load distributors list");
+      if (!isBackground) toast.error("Failed to load distributors list");
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
+  // Track whether the detail drawer is open to pause polling
+  const isEditingRef = useRef(false);
+  useEffect(() => {
+    isEditingRef.current = !!selectedDistributor;
+  }, [selectedDistributor]);
+
   useEffect(() => {
     if (isAuthenticated) {
-      fetchDistributors();
+      fetchDistributors(false);
+
+      const interval = setInterval(() => {
+        const activeEl = document.activeElement;
+        const isInputFocused = activeEl && (
+          ["INPUT", "TEXTAREA", "SELECT"].includes(activeEl.tagName.toUpperCase()) ||
+          activeEl.getAttribute("contenteditable") === "true"
+        );
+        if (!isEditingRef.current && !isInputFocused) {
+          fetchDistributors(true);
+        }
+      }, 5000);
+
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
 
@@ -293,7 +319,7 @@ export default function AdminDistributorsPage() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={fetchDistributors}
+              onClick={() => fetchDistributors(false)}
               disabled={loading}
               className={cn(
                 "p-2.5 rounded-xl border flex items-center justify-center transition-all cursor-pointer disabled:opacity-50",

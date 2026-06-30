@@ -1,15 +1,33 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateServiceRequestStatus = exports.getPurchasedProducts = exports.getServiceRequestById = exports.getServiceRequests = exports.createServiceRequest = void 0;
+exports.respondToEstimate = exports.updateServiceRequestStatus = exports.getPurchasedProducts = exports.getServiceRequestById = exports.getServiceRequests = exports.createServiceRequest = void 0;
 const db_1 = require("../utils/db");
 /**
  * Calculates warranty expiry date and determines status
  */
 const calculateWarrantyStatus = (purchaseDateStr, warrantyText) => {
     const purchaseDate = new Date(purchaseDateStr);
+    const text = (warrantyText || "").trim().toLowerCase();
+    const hasNoWarranty = !text ||
+        text === "0" ||
+        text === "no" ||
+        text.includes("0 day") ||
+        text.includes("0 month") ||
+        text.includes("0 year") ||
+        text.includes("0 yr") ||
+        text.includes("0 mo") ||
+        text.includes("0 d") ||
+        text.includes("no warranty") ||
+        text.includes("none") ||
+        text.startsWith("0");
+    if (hasNoWarranty) {
+        return {
+            expiryDate: new Date(purchaseDate),
+            status: "Warranty Expired"
+        };
+    }
     let monthsToAdd = 12; // Default to 1 Year
     if (warrantyText) {
-        const text = warrantyText.toLowerCase();
         const match = text.match(/(\d+)\s*(year|month|day|yr|mo|d)s?/);
         if (match && match[1] && match[2]) {
             const value = parseInt(match[1], 10);
@@ -92,7 +110,7 @@ const createServiceRequest = async (req, res) => {
             return;
         }
         // 2. Validate Warranty
-        const { expiryDate, status: warrantyStatus } = calculateWarrantyStatus(purchaseDate, product.warranty || "1 Year");
+        const { expiryDate, status: warrantyStatus } = calculateWarrantyStatus(purchaseDate, product.warranty ?? "1 Year");
         // 3. Generate Ticket ID
         const ticketId = await generateTicketId();
         // 4. Create Service Request with Transaction to ensure all relations are saved
@@ -344,7 +362,7 @@ const updateServiceRequestStatus = async (req, res) => {
             return;
         }
         const id = req.params.id;
-        const { status, remarks } = req.body;
+        const { status, remarks, serviceCharge, sparePartsCost, inspectionRemarks } = req.body;
         if (!status) {
             res.status(400).json({ success: false, message: "Status is required" });
             return;
@@ -360,12 +378,23 @@ const updateServiceRequestStatus = async (req, res) => {
         // Update Request status & log history
         const dbUser = await db_1.prisma.user.findUnique({ where: { id: user.id } });
         const updaterName = dbUser ? `${dbUser.firstName} ${dbUser.lastName} (Admin)` : "Admin";
+        const dataToUpdate = {
+            currentStatus: status,
+        };
+        if (serviceCharge !== undefined && serviceCharge !== null) {
+            const charge = parseFloat(serviceCharge);
+            const partsCost = sparePartsCost !== undefined && sparePartsCost !== null ? parseFloat(sparePartsCost) || 0 : 0;
+            dataToUpdate.serviceCharge = charge;
+            dataToUpdate.sparePartsCost = sparePartsCost !== undefined && sparePartsCost !== null ? partsCost : null;
+            dataToUpdate.totalServiceCost = charge + partsCost;
+        }
+        if (inspectionRemarks !== undefined) {
+            dataToUpdate.inspectionRemarks = inspectionRemarks;
+        }
         const updatedRequest = await db_1.prisma.$transaction(async (tx) => {
             const updated = await tx.serviceRequest.update({
                 where: { id },
-                data: {
-                    currentStatus: status,
-                }
+                data: dataToUpdate
             });
             await tx.serviceRequestHistory.create({
                 data: {
@@ -389,3 +418,70 @@ const updateServiceRequestStatus = async (req, res) => {
     }
 };
 exports.updateServiceRequestStatus = updateServiceRequestStatus;
+/**
+ * Respond to cost estimate (Customer action)
+ */
+const respondToEstimate = async (req, res) => {
+    try {
+        const user = req.user;
+        if (!user) {
+            res.status(401).json({ success: false, message: "Unauthorized" });
+            return;
+        }
+        const id = req.params.id;
+        const { action } = req.body;
+        if (!action || (action !== "APPROVE" && action !== "REJECT")) {
+            res.status(400).json({ success: false, message: "Action must be APPROVE or REJECT" });
+            return;
+        }
+        const request = await db_1.prisma.serviceRequest.findUnique({
+            where: { id }
+        });
+        if (!request) {
+            res.status(404).json({ success: false, message: "Service request not found" });
+            return;
+        }
+        // Owner check
+        if (request.userId !== user.id) {
+            res.status(403).json({ success: false, message: "Forbidden" });
+            return;
+        }
+        if (request.currentStatus !== "Awaiting Customer Approval") {
+            res.status(400).json({ success: false, message: "Service request is not awaiting customer approval" });
+            return;
+        }
+        const nextStatus = action === "APPROVE" ? "Cost Approved" : "Service Cancelled";
+        const statusRemarks = action === "APPROVE"
+            ? "Customer approved the estimated service cost."
+            : "Customer rejected the estimated service cost.";
+        const dbUser = await db_1.prisma.user.findUnique({ where: { id: user.id } });
+        const updaterName = dbUser ? `${dbUser.firstName} ${dbUser.lastName}` : "Customer";
+        const updatedRequest = await db_1.prisma.$transaction(async (tx) => {
+            const updated = await tx.serviceRequest.update({
+                where: { id },
+                data: {
+                    currentStatus: nextStatus,
+                }
+            });
+            await tx.serviceRequestHistory.create({
+                data: {
+                    serviceRequestId: id,
+                    status: nextStatus,
+                    remarks: statusRemarks,
+                    updatedBy: updaterName
+                }
+            });
+            return updated;
+        });
+        res.status(200).json({
+            success: true,
+            message: `Successfully ${action === "APPROVE" ? "approved" : "rejected"} the service cost estimate`,
+            data: updatedRequest
+        });
+    }
+    catch (error) {
+        console.error("Customer response to estimate error:", error);
+        res.status(500).json({ success: false, message: "Failed to submit estimate response" });
+    }
+};
+exports.respondToEstimate = respondToEstimate;

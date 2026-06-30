@@ -151,35 +151,48 @@ export default function DistributerDashboardPage() {
   }, [isAuthenticated, user, authLoading, router]);
 
   // Fetch distributor orders
-  useEffect(() => {
-    const fetchOrders = async () => {
-      if (!user) return;
-      setLoadingOrders(true);
-      try {
-        const token = localStorage.getItem("authToken");
-        if (!token) return;
+  const fetchOrders = async (isBackground = false) => {
+    if (!user) return;
+    if (!isBackground) setLoadingOrders(true);
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) return;
 
-        const response = await fetch("http://localhost:5000/api/orders", {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            setOrders(data.orders || []);
-          }
+      const response = await fetch("http://localhost:5000/api/orders", {
+        headers: {
+          "Authorization": `Bearer ${token}`
         }
-      } catch (err) {
-        console.error("Error fetching distributor orders:", err);
-      } finally {
-        setLoadingOrders(false);
-      }
-    };
+      });
 
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setOrders(data.orders || []);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching distributor orders:", err);
+    } finally {
+      if (!isBackground) setLoadingOrders(false);
+    }
+  };
+
+  useEffect(() => {
     if (isAuthenticated && user) {
-      fetchOrders();
+      fetchOrders(false);
+
+      const interval = setInterval(() => {
+        const activeEl = document.activeElement;
+        const isInputFocused = activeEl && (
+          ["INPUT", "TEXTAREA", "SELECT"].includes(activeEl.tagName.toUpperCase()) ||
+          activeEl.getAttribute("contenteditable") === "true"
+        );
+        if (!isInputFocused) {
+          fetchOrders(true);
+        }
+      }, 5000);
+
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated, user]);
 
