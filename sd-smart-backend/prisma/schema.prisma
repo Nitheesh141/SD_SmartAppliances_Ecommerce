@@ -40,6 +40,7 @@ model User {
   wishlist       Wishlist?
   addresses      Address[]
   orders         Order[]
+  serviceRequests ServiceRequest[]
 }
 
 
@@ -101,6 +102,7 @@ model Product {
   cartItems          CartItem[]
   wishlistItems      WishlistItem[]
   orderItems         OrderItem[]
+  serviceRequests    ServiceRequest[]
 }
 
 model InventoryTransaction {
@@ -287,4 +289,47 @@ model SystemSetting {
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ServiceRequest {
+  id                  String                     @id @default(uuid())
+  ticketId            String                     @unique // e.g., SR-2026-000001
+  userId              String
+  user                User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId           String
+  product             Product                    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderId             String?                    // Optional Order ID / Order Number
+  purchaseDate        DateTime
+  serviceCategory     String                     // Repair, Installation, Warranty Claim, Product Not Working, Spare Parts Request
+  issueDescription    String
+  preferredPickupDate DateTime
+  contactNumber       String
+  pickupAddress       String
+  warrantyExpiryDate  DateTime
+  warrantyStatus      String                     // UNDER_WARRANTY or WARRANTY_EXPIRED
+  currentStatus       String                     // PENDING_VERIFICATION, VERIFIED, PICKUP_SCHEDULED, etc.
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  attachments         ServiceRequestAttachment[]
+  history             ServiceRequestHistory[]
+}
+
+model ServiceRequestAttachment {
+  id               String         @id @default(uuid())
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  fileUrl          String
+  fileType         String         // PRODUCT_IMAGE or WARRANTY_CARD
+  fileName         String
+  createdAt        DateTime       @default(now())
+}
+
+model ServiceRequestHistory {
+  id               String         @id @default(uuid())
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  status           String
+  remarks          String?
+  updatedBy        String         // User's name or role (e.g. Admin or customer/distributor)
+  updatedAt        DateTime       @default(now())
 }

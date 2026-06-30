@@ -209,6 +209,16 @@ export default function CheckoutPage() {
       alert("Please select a delivery address.");
       return;
     }
+
+    const activeAddress = addresses.find(a => a.id === selectedAddressId);
+    if (activeAddress) {
+      const { city, state, pincode, addressLine1, fullName, mobileNumber } = activeAddress;
+      const isInvalid = (val: string | null | undefined) => !val || val.trim() === "" || val.trim().toUpperCase() === "N/A";
+      if (isInvalid(fullName) || isInvalid(mobileNumber) || isInvalid(addressLine1) || isInvalid(city) || isInvalid(state) || isInvalid(pincode)) {
+        alert("The selected address is incomplete. Please edit this address and fill in all required fields (Full Name, Phone, Address, City, State, and Pincode) before placing the order.");
+        return;
+      }
+    }
     if (!paymentMethod) {
       alert("Please select a payment method.");
       return;

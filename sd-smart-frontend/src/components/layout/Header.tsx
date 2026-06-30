@@ -317,7 +317,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
           </nav>
 
           {/* Search & Actions Group */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 ml-auto flex-shrink-0">
+          <div className="flex items-center gap-3 ml-auto flex-shrink-0">
 
             {/* Search Input inline - permanently open and bigger */}
             <div className="hidden md:block relative w-36 lg:w-44 xl:w-52 2xl:w-72 transition-all duration-300">
@@ -327,13 +327,13 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Search pressure cookers, wet grinders..."
-                className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm font-semibold border border-[#D71920] dark:border-[#D71920]/80 rounded-xl bg-white dark:bg-neutral-900 focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 text-slate-800 dark:text-neutral-100 shadow-sm focus:border-[#D71920] transition-colors placeholder-neutral-400 dark:placeholder-neutral-500"
+                className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm font-semibold border border-neutral-300 dark:border-slate-800 hover:border-[#D71920] rounded-full bg-white dark:bg-neutral-900 focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 text-slate-800 dark:text-neutral-100 shadow-sm focus:border-[#D71920] transition-all placeholder-neutral-400 dark:placeholder-neutral-500"
               />
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#D71920] dark:text-[#D71920]" />
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#D71920]" />
 
               {/* Suggestions List dropdown */}
               {suggestions.length > 0 && (
-                <div className="absolute top-full right-0 mt-2 w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-2 z-50 max-h-60 overflow-y-auto">
+                <div className="absolute top-full right-0 mt-2 w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl py-2 z-50 max-h-60 overflow-y-auto">
                   {suggestions.map((product) => (
                     <button
                       key={product.id}
@@ -353,37 +353,53 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
               <>
                 {/* Authenticated: Profile Dropdown, Wishlist, Cart */}
                 {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
-                  <Link href="/admin/dashboard" className="px-2 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg hover:bg-[#B91520] transition-colors flex items-center mr-1" title="Admin Dashboard">
+                  <Link 
+                    href="/admin/dashboard" 
+                    className="px-4 py-2 bg-[#D71920] hover:bg-[#B91520] text-white text-[11px] font-black uppercase tracking-wider rounded-full transition-all shadow-md shadow-red-500/10 hover:shadow-lg hover:shadow-red-500/20 active:scale-95 flex items-center mr-1"
+                    title="Admin Dashboard"
+                  >
                     <span className="hidden xl:inline">Admin Panel</span>
                     <span className="xl:hidden">Admin</span>
                   </Link>
                 )}
+
 
                 {/* Profile dropdown container */}
                 <div className="relative">
                   <button
                     id="profile-menu-button"
                     onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                    className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-neutral-900 border border-neutral-250 dark:border-neutral-800 hover:border-[#D71920] hover:bg-red-50/10 rounded-full transition-all cursor-pointer shadow-sm text-neutral-700 dark:text-neutral-200 focus:outline-none"
                     aria-label="Account Menu"
                   >
-                    <User size={20} className="text-neutral-700 dark:text-neutral-300" />
-                    <span className="text-xs xl:text-sm font-semibold text-neutral-800 dark:text-neutral-200 max-w-[100px] truncate hidden xl:inline-block">
+                    <div className="w-5.5 h-5.5 rounded-full bg-neutral-800 dark:bg-slate-700 text-white text-[10px] font-black flex items-center justify-center uppercase shadow-sm">
+                      {userProfile?.name ? userProfile.name.split(" ").map((n: string) => n[0]).join("").substring(0, 2) : "U"}
+                    </div>
+                    <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 max-w-[100px] truncate hidden xl:inline-block">
                       {userProfile?.name?.split(" ")[0] || "Account"}
                     </span>
-                    <ChevronDown size={14} className={cn("transition-transform text-neutral-400", profileDropdownOpen && "rotate-180")} />
+                    <ChevronDown size={12} className={cn("transition-transform text-neutral-400 shrink-0", profileDropdownOpen && "rotate-185")} />
                   </button>
 
                   {/* Profile Dropdown */}
                   {profileDropdownOpen && (
                     <div
                       id="profile-dropdown-menu"
-                      className="absolute right-0 mt-1 w-56 bg-white dark:bg-[#1A090A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                      className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#1A090A] border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                     >
                       <div className="px-5 py-3 border-b border-neutral-100 dark:border-neutral-800/60 mb-1">
                         <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100 truncate">{userProfile?.name || "User"}</p>
                         <p className="text-xs text-neutral-400 dark:text-neutral-500 truncate">{userProfile?.email}</p>
                       </div>
+                      {userProfile && (userProfile.role?.toUpperCase() === "DISTRIBUTOR") && (
+                        <Link
+                          href="/distributor/dashboard"
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="block px-5 py-2.5 text-sm font-bold text-[#D71920] dark:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        >
+                          Distributor Portal
+                        </Link>
+                      )}
                       <Link
                         href="/account?tab=profile"
                         onClick={() => setProfileDropdownOpen(false)}
@@ -405,6 +421,13 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                       >
                         My Orders
                       </Link>
+                      <Link
+                        href="/service-request"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                      >
+                        Service Requests
+                      </Link>
                       <hr className="border-neutral-100 dark:border-neutral-800/60 my-1" />
                       <button
                         onClick={async () => {
@@ -424,10 +447,10 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                   )}
                 </div>
 
-                <Link href="/cart" className="relative p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Cart">
-                  <ShoppingCart size={20} className="text-neutral-700 dark:text-neutral-300" />
+                <Link href="/cart" className="relative p-2 bg-white dark:bg-neutral-900 border border-neutral-250 dark:border-neutral-800 hover:border-[#D71920] hover:text-[#D71920] rounded-full transition-all shadow-sm flex items-center justify-center" aria-label="Cart">
+                  <ShoppingCart size={18} className="text-neutral-700 dark:text-neutral-300" />
                   {cartCount > 0 && (
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-[#D71920] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 bg-[#D71920] text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 shadow-md">
                       {cartCount > 99 ? '99+' : cartCount}
                     </span>
                   )}
@@ -563,6 +586,28 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                 >
                   Register
                 </Link>
+              </div>
+            )}
+            {isAuthenticated && (
+              <div className="mt-4 pt-4 border-t border-neutral-200/10 dark:border-neutral-800/60 flex flex-col gap-2">
+                {userProfile && (userProfile.role?.toUpperCase() === "DISTRIBUTOR") && (
+                  <Link
+                    href="/distributor/dashboard"
+                    className="px-3 py-2.5 text-sm font-bold text-white bg-[#D71920] rounded-lg hover:bg-[#B91520] transition-colors text-center"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    Distributor Portal
+                  </Link>
+                )}
+                {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
+                  <Link
+                    href="/admin/dashboard"
+                    className="px-3 py-2.5 text-sm font-bold text-white bg-[#D71920] rounded-lg hover:bg-[#B91520] transition-colors text-center"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    Admin Panel
+                  </Link>
+                )}
               </div>
             )}
           </div>
