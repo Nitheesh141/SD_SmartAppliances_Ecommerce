@@ -5,7 +5,8 @@ import {
   getServiceRequests,
   getServiceRequestById,
   getPurchasedProducts,
-  updateServiceRequestStatus
+  updateServiceRequestStatus,
+  respondToEstimate
 } from "../controllers/serviceRequest.controller";
 
 const router = Router();
@@ -18,5 +19,6 @@ router.get("/", getServiceRequests);
 router.get("/purchased-products", getPurchasedProducts);
 router.get("/:id", getServiceRequestById);
 router.patch("/:id/status", updateServiceRequestStatus);
+router.patch("/:id/customer-response", respondToEstimate);
 
 export default router;

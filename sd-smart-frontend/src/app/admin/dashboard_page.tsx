@@ -113,35 +113,49 @@ export default function AdminDashboardPage() {
   }, [isAuthenticated, user, authLoading, router]);
 
   // Fetch transactions
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        const token = localStorage.getItem("authToken");
-        if (!token) {
-          setLoadingTransactions(false);
-          return;
-        }
-        
-        const res = await fetch("http://localhost:5000/api/products/transactions", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-          setTransactions(data.transactions);
-        } else {
-          toast.error(data.message || "Failed to fetch transactions");
-        }
-      } catch (err) {
-        console.error("Error fetching transactions:", err);
-        toast.error("Failed to load dashboard data");
-      } finally {
-        setLoadingTransactions(false);
+  const fetchTransactions = async (isBackground = false) => {
+    if (!isBackground) setLoadingTransactions(true);
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        if (!isBackground) setLoadingTransactions(false);
+        return;
       }
-    };
+      
+      const res = await fetch("http://localhost:5000/api/products/transactions", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setTransactions(data.transactions);
+      } else {
+        if (!isBackground) toast.error(data.message || "Failed to fetch transactions");
+      }
+    } catch (err) {
+      console.error("Error fetching transactions:", err);
+      if (!isBackground) toast.error("Failed to load dashboard data");
+    } finally {
+      if (!isBackground) setLoadingTransactions(false);
+    }
+  };
 
+  useEffect(() => {
     if (isAuthenticated) {
-      fetchTransactions();
+      fetchTransactions(false);
+
+      const interval = setInterval(() => {
+        const activeEl = document.activeElement;
+        const isInputFocused = activeEl && (
+          ["INPUT", "TEXTAREA", "SELECT"].includes(activeEl.tagName.toUpperCase()) ||
+          activeEl.getAttribute("contenteditable") === "true"
+        );
+        if (!isInputFocused) {
+          fetchTransactions(true);
+        }
+      }, 5000);
+
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
 

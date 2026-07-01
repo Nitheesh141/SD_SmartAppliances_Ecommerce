@@ -42,6 +42,28 @@ interface SpecItem {
   value: string;
 }
 
+const getDisplayWarranty = (warrantyText?: string) => {
+  if (warrantyText === undefined) return "1 Year Warranty";
+  const text = (warrantyText || "").trim().toLowerCase();
+  if (
+    !text || 
+    text === "0" || 
+    text === "no" ||
+    text.includes("0 day") || 
+    text.includes("0 month") || 
+    text.includes("0 year") || 
+    text.includes("0 yr") || 
+    text.includes("0 mo") || 
+    text.includes("0 d") || 
+    text.includes("no warranty") || 
+    text.includes("none") ||
+    text.startsWith("0")
+  ) {
+    return "No Warranty";
+  }
+  return warrantyText.toLowerCase().includes("warranty") ? warrantyText : `${warrantyText} Warranty`;
+};
+
 export default function ProductDetailPage() {
   const router = useRouter();
   const pathname = usePathname() || "";
@@ -700,8 +722,8 @@ export default function ProductDetailPage() {
     }
 
     // Add Warranty
-    if (product.warranty) {
-      specs.push({ label: "Warranty", value: product.warranty });
+    if (product.warranty !== undefined) {
+      specs.push({ label: "Warranty", value: getDisplayWarranty(product.warranty) });
     }
 
     return specs;
@@ -1202,7 +1224,7 @@ export default function ProductDetailPage() {
                   <ShieldCheck size={28} className="text-[#D71920] shrink-0" />
                   <div className="text-left">
                     <p className="text-[10px] font-extrabold text-slate-400 uppercase">Warranty</p>
-                    <p className="text-xs font-bold text-slate-850 dark:text-neutral-200">{product.warranty || "1 Year Warranty"}</p>
+                    <p className="text-xs font-bold text-slate-850 dark:text-neutral-200">{getDisplayWarranty(product.warranty)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 dark:bg-neutral-900/20 border border-slate-100/50 dark:border-slate-850">

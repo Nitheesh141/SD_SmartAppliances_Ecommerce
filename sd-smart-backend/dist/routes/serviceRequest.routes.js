@@ -11,4 +11,5 @@ router.get("/", serviceRequest_controller_1.getServiceRequests);
 router.get("/purchased-products", serviceRequest_controller_1.getPurchasedProducts);
 router.get("/:id", serviceRequest_controller_1.getServiceRequestById);
 router.patch("/:id/status", serviceRequest_controller_1.updateServiceRequestStatus);
+router.patch("/:id/customer-response", serviceRequest_controller_1.respondToEstimate);
 exports.default = router;

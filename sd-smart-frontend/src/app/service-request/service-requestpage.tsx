@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
@@ -25,18 +25,52 @@ const SERVICE_CATEGORIES = [
   "Spare Parts Request"
 ];
 
-const STATUS_STEPS = [
-  { label: "Request Submitted", key: "Pending Verification" },
-  { label: "Verified", key: "Verified" },
-  { label: "Pickup Scheduled", key: "Pickup Scheduled" },
-  { label: "Product Collected", key: "Product Collected" },
-  { label: "Under Inspection", key: "Under Inspection" },
-  { label: "Under Repair", key: "Under Repair" },
-  { label: "Service Completed", key: "Service Completed" },
-  { label: "Ready For Delivery", key: "Ready For Delivery" },
-  { label: "Delivered", key: "Delivered" },
-  { label: "Closed", key: "Closed" }
-];
+const getStatusSteps = (warrantyStatus: string, currentStatus: string, cancellationReason?: string | null) => {
+  if (currentStatus === "Request Rejected") {
+    return [
+      { label: "Request Submitted", key: "Pending Verification" },
+      { label: "Request Rejected", key: "Request Rejected" }
+    ];
+  }
+
+  const isExpired = warrantyStatus === "Warranty Expired";
+  
+  const steps = [
+    { label: "Request Submitted", key: "Pending Verification" },
+    { label: "Verified", key: "Verified" },
+    { label: "Pickup Scheduled", key: "Pickup Scheduled" },
+    { label: "Product Collected", key: "Product Collected" },
+    { label: "Under Inspection", key: "Under Inspection" },
+  ];
+
+  if (isExpired) {
+    steps.push(
+      { label: "Awaiting Cost Estimation", key: "Awaiting Cost Estimation" },
+      { label: "Awaiting Customer Approval", key: "Awaiting Customer Approval" }
+    );
+    
+    if (cancellationReason || currentStatus === "Cancellation Requested" || currentStatus === "Service Cancelled") {
+      steps.push({ label: "Cancellation Requested", key: "Cancellation Requested" });
+      steps.push({ label: "Service Cancelled", key: "Service Cancelled" });
+      if (currentStatus === "Closed") {
+        steps.push({ label: "Closed", key: "Closed" });
+      }
+      return steps;
+    }
+    
+    steps.push({ label: "Cost Approved", key: "Cost Approved" });
+  }
+
+  steps.push(
+    { label: "Under Repair", key: "Under Repair" },
+    { label: "Service Completed", key: "Service Completed" },
+    { label: "Ready For Delivery", key: "Ready For Delivery" },
+    { label: "Delivered", key: "Delivered" },
+    { label: "Closed", key: "Closed" }
+  );
+
+  return steps;
+};
 
 export default function ServiceRequestPage() {
   const router = useRouter();
@@ -52,6 +86,9 @@ export default function ServiceRequestPage() {
 
   // Selected request details modal
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [respondingEstimate, setRespondingEstimate] = useState(false);
+  const [showCancelReasonModal, setShowCancelReasonModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
 
   // Form states
   const [selectedProductId, setSelectedProductId] = useState("");
@@ -77,24 +114,50 @@ export default function ServiceRequestPage() {
   }, [authLoading, isAuthenticated, router]);
 
   // Load service requests
-  const fetchRequests = async () => {
-    setLoadingRequests(true);
+  const fetchRequests = async (isBackground = false) => {
+    if (!isBackground) setLoadingRequests(true);
     try {
       const res = await serviceRequestService.getServiceRequests();
       if (res.success) {
         setRequests(res.data || []);
+        
+        // Update selectedRequest in-place if open
+        setSelectedRequest((prev: any) => {
+          if (!prev) return null;
+          const updated = res.data?.find((r: any) => r.id === prev.id);
+          return updated || prev;
+        });
       }
     } catch (err: any) {
       console.error(err);
-      toast.error("Failed to load service requests");
+      if (!isBackground) toast.error("Failed to load service requests");
     } finally {
-      setLoadingRequests(false);
+      if (!isBackground) setLoadingRequests(false);
     }
   };
 
+  // Track whether a form or detail modal is open to pause polling
+  const isEditingRef = useRef(false);
+  useEffect(() => {
+    isEditingRef.current = view === "CREATE" || !!selectedRequest || showCancelReasonModal;
+  }, [view, selectedRequest, showCancelReasonModal]);
+
   useEffect(() => {
     if (isAuthenticated && user) {
-      fetchRequests();
+      fetchRequests(false);
+
+      const interval = setInterval(() => {
+        const activeEl = document.activeElement;
+        const isInputFocused = activeEl && (
+          ["INPUT", "TEXTAREA", "SELECT"].includes(activeEl.tagName.toUpperCase()) ||
+          activeEl.getAttribute("contenteditable") === "true"
+        );
+        if (!isEditingRef.current && !isInputFocused) {
+          fetchRequests(true);
+        }
+      }, 5000);
+
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated, user]);
 
@@ -301,8 +364,38 @@ export default function ServiceRequestPage() {
     }
   };
 
+  // Handle customer response to cost estimate
+  const handleEstimateResponse = async (id: string, action: "APPROVE" | "REJECT", reason?: string) => {
+    setRespondingEstimate(true);
+    try {
+      const res = await serviceRequestService.respondToEstimate(id, { 
+        action, 
+        cancellationReason: reason 
+      });
+      if (res.success) {
+        toast.success(`Successfully submitted estimate response`);
+        
+        // Refresh requests list
+        await fetchRequests();
+        
+        // Refresh selectedRequest detail
+        const detailRes = await serviceRequestService.getServiceRequestById(id);
+        if (detailRes.success) {
+          setSelectedRequest(detailRes.data);
+        }
+      } else {
+        toast.error(res.message || "Failed to submit estimate response");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to submit estimate response");
+    } finally {
+      setRespondingEstimate(false);
+    }
+  };
+
   // Render status badge
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, cancellationReason?: string | null) => {
     switch (status) {
       case "Pending Verification":
         return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-950/20 dark:text-yellow-400">Pending Verification</span>;
@@ -314,11 +407,26 @@ export default function ServiceRequestPage() {
       case "Under Inspection":
       case "Under Repair":
         return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950/20 dark:text-indigo-400">{status}</span>;
+      case "Awaiting Cost Estimation":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-orange-100 text-orange-800 dark:bg-orange-950/20 dark:text-orange-400">Awaiting Cost Estimation</span>;
+      case "Awaiting Customer Approval":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-cyan-100 text-cyan-800 dark:bg-cyan-950/20 dark:text-cyan-400">Awaiting Customer Approval</span>;
+      case "Cost Approved":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-400">Cost Approved</span>;
+      case "Cancellation Requested":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-orange-100 text-orange-850 dark:bg-amber-950/20 dark:text-amber-400">Cancellation Requested</span>;
+      case "Service Cancelled":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800 dark:bg-red-950/20 dark:text-red-400">Service Cancelled</span>;
+      case "Request Rejected":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800 dark:bg-red-950/20 dark:text-red-400">Request Rejected</span>;
       case "Service Completed":
       case "Ready For Delivery":
       case "Delivered":
         return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-green-100 text-green-800 dark:bg-green-950/20 dark:text-green-400">{status}</span>;
       case "Closed":
+        if (cancellationReason) {
+          return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-red-100 text-red-850 dark:bg-red-950/20 dark:text-red-400">Closed (Cancelled)</span>;
+        }
         return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-400">Closed</span>;
       default:
         return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-400">{status}</span>;
@@ -334,8 +442,8 @@ export default function ServiceRequestPage() {
   };
 
   // Calculate current status index in timeline
-  const getStatusIndex = (currentStatus: string) => {
-    return STATUS_STEPS.findIndex(step => step.key === currentStatus);
+  const getStatusIndex = (currentStatus: string, steps: any[]) => {
+    return steps.findIndex(step => step.key === currentStatus);
   };
 
   if (authLoading || !user) {
@@ -348,10 +456,10 @@ export default function ServiceRequestPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F9FAFB] dark:bg-slate-950 font-sans text-neutral-800 dark:text-neutral-100">
+    <div className="min-h-screen flex flex-col bg-[#F9FAFB] dark:bg-slate-950 font-sans text-neutral-800 dark:text-neutral-100 w-full max-w-full overflow-x-hidden">
       <Header navLinks={navLinks} />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 text-left">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 text-left overflow-x-hidden">
         
         {/* VIEW: DASHBOARD LIST */}
         {view === "LIST" && (
@@ -404,52 +512,52 @@ export default function ServiceRequestPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Desktop View: Table */}
-                <div className="hidden md:block bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-neutral-50 dark:bg-slate-800/40 border-b border-neutral-200 dark:border-slate-800 text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                          <th className="px-6 py-4">Ticket ID</th>
-                          <th className="px-6 py-4">Product Name</th>
-                          <th className="px-6 py-4">Warranty Status</th>
-                          <th className="px-6 py-4">Preferred Pickup</th>
-                          <th className="px-6 py-4">Current Status</th>
-                          <th className="px-6 py-4">Created Date</th>
-                          <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-neutral-100 dark:divide-slate-800 text-sm">
-                        {requests.map((req) => (
-                          <tr key={req.id} className="hover:bg-neutral-50/50 dark:hover:bg-slate-800/20 transition-colors">
-                            <td className="px-6 py-4 font-bold font-mono text-[#D71920]">{req.ticketId}</td>
-                            <td className="px-6 py-4 font-semibold">{req.product?.name || "Product"}</td>
-                            <td className="px-6 py-4">{getWarrantyBadge(req.warrantyStatus)}</td>
-                            <td className="px-6 py-4 text-xs font-semibold text-neutral-600 dark:text-neutral-350 whitespace-nowrap">
-                              {new Date(req.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                            </td>
-                            <td className="px-6 py-4">{getStatusBadge(req.currentStatus)}</td>
-                            <td className="px-6 py-4 text-xs text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
-                              {new Date(req.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <button
-                                onClick={() => viewTicketDetail(req.id)}
-                                className="px-4 py-2 border border-neutral-200 hover:border-[#D71920] hover:text-[#D71920] dark:border-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5"
-                              >
-                                <Eye size={13} />
-                                <span>View Details</span>
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Mobile View: Card List */}
-                <div className="grid grid-cols-1 gap-4 md:hidden">
+                 {/* Desktop/Tablet View: Table */}
+                 <div className="hidden md:block bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                   <div className="w-full">
+                     <table className="w-full text-left border-collapse">
+                       <thead>
+                         <tr className="bg-neutral-50 dark:bg-slate-800/40 border-b border-neutral-200 dark:border-slate-800 text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                           <th className="px-6 py-4">Ticket ID</th>
+                           <th className="px-6 py-4">Product Name</th>
+                           <th className="px-6 py-4">Warranty Status</th>
+                           <th className="px-6 py-4 hidden xl:table-cell">Preferred Pickup</th>
+                           <th className="px-6 py-4">Current Status</th>
+                           <th className="px-6 py-4 hidden xl:table-cell">Created Date</th>
+                           <th className="px-6 py-4 text-right">Actions</th>
+                         </tr>
+                       </thead>
+                       <tbody className="divide-y divide-neutral-100 dark:divide-slate-800 text-sm">
+                         {requests.map((req) => (
+                           <tr key={req.id} className="hover:bg-neutral-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                             <td className="px-6 py-4 font-bold font-mono text-[#D71920] whitespace-nowrap">{req.ticketId}</td>
+                             <td className="px-6 py-4 font-semibold">{req.product?.name || "Product"}</td>
+                             <td className="px-6 py-4">{getWarrantyBadge(req.warrantyStatus)}</td>
+                             <td className="px-6 py-4 text-xs font-semibold text-neutral-600 dark:text-neutral-350 whitespace-nowrap hidden xl:table-cell">
+                               {new Date(req.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                             </td>
+                             <td className="px-6 py-4">{getStatusBadge(req.currentStatus, req.cancellationReason)}</td>
+                             <td className="px-6 py-4 text-xs text-neutral-500 dark:text-neutral-400 whitespace-nowrap hidden xl:table-cell">
+                               {new Date(req.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                             </td>
+                             <td className="px-6 py-4 text-right">
+                               <button
+                                 onClick={() => viewTicketDetail(req.id)}
+                                 className="px-4 py-2 border border-neutral-200 hover:border-[#D71920] hover:text-[#D71920] dark:border-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5"
+                               >
+                                 <Eye size={13} />
+                                 <span>View Details</span>
+                               </button>
+                             </td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>
+ 
+                 {/* Mobile View: Card List */}
+                 <div className="grid grid-cols-1 gap-4 md:hidden">
                   {requests.map((req) => (
                     <div 
                       key={req.id} 
@@ -477,7 +585,7 @@ export default function ServiceRequestPage() {
                         </div>
                         <div>
                           <span className="block text-[9px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Current Status</span>
-                          {getStatusBadge(req.currentStatus)}
+                          {getStatusBadge(req.currentStatus, req.cancellationReason)}
                         </div>
                       </div>
 
@@ -792,14 +900,14 @@ export default function ServiceRequestPage() {
       {/* MODAL: DETAIL MODAL VIEW */}
       {selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 rounded-2xl overflow-y-auto shadow-2xl flex flex-col text-left animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-full lg:max-w-4xl max-h-[90vh] bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 rounded-2xl overflow-y-auto overflow-x-hidden shadow-2xl flex flex-col text-left animate-in zoom-in-95 duration-200">
             
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-neutral-50 dark:bg-slate-800/40 border-b border-neutral-100 dark:border-slate-800/70 flex items-center justify-between sticky top-0 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
-              <div className="flex items-center gap-3">
-                <Headphones size={20} className="text-[#D71920]" />
-                <div>
-                  <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
+            <div className="px-6 py-4 bg-neutral-50 dark:bg-slate-800/40 border-b border-neutral-100 dark:border-slate-800/70 flex items-center justify-between sticky top-0 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur w-full">
+              <div className="flex items-center gap-3 min-w-0">
+                <Headphones size={20} className="text-[#D71920] shrink-0" />
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-lg font-black flex items-center gap-2 break-all">
                     Service Ticket: <span className="font-mono text-[#D71920]">{selectedRequest.ticketId}</span>
                   </h2>
                   <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
@@ -809,14 +917,14 @@ export default function ServiceRequestPage() {
               </div>
               <button
                 onClick={() => setSelectedRequest(null)}
-                className="p-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 cursor-pointer text-neutral-500 hover:text-neutral-800"
+                className="p-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 cursor-pointer text-neutral-500 hover:text-neutral-800 shrink-0"
               >
                 <X size={16} />
               </button>
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="p-6 overflow-y-auto overflow-x-hidden flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8 w-full break-words [word-break:break-word] [overflow-wrap:break-word]">
               
               {/* Left Column (2 cols wide): Request & product details */}
               <div className="lg:col-span-2 space-y-6">
@@ -827,11 +935,11 @@ export default function ServiceRequestPage() {
                   <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
                     <div>
                       <p className="text-neutral-400 mb-0.5">Product Name</p>
-                      <p className="font-bold">{selectedRequest.product?.name || "Product"}</p>
+                      <p className="font-bold break-words">{selectedRequest.product?.name || "Product"}</p>
                     </div>
                     <div>
                       <p className="text-neutral-400 mb-0.5">Order ID</p>
-                      <p className="font-semibold font-mono">{selectedRequest.orderId || "N/A"}</p>
+                      <p className="font-semibold font-mono break-all">{selectedRequest.orderId || "N/A"}</p>
                     </div>
                     <div>
                       <p className="text-neutral-400 mb-0.5">Purchase Date</p>
@@ -858,7 +966,7 @@ export default function ServiceRequestPage() {
                   <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
                     <div>
                       <p className="text-neutral-400 mb-0.5">Service Category</p>
-                      <p className="font-bold text-neutral-700 dark:text-neutral-200">{selectedRequest.serviceCategory}</p>
+                      <p className="font-bold text-neutral-700 dark:text-neutral-200 break-words">{selectedRequest.serviceCategory}</p>
                     </div>
                     <div>
                       <p className="text-neutral-400 mb-0.5">Preferred Pickup Date</p>
@@ -868,26 +976,79 @@ export default function ServiceRequestPage() {
                     </div>
                     <div className="col-span-2">
                       <p className="text-neutral-400 mb-0.5">Contact Number</p>
-                      <p className="font-semibold text-neutral-700 dark:text-neutral-200 flex items-center gap-1.5">
+                      <p className="font-semibold text-neutral-700 dark:text-neutral-200 flex items-center gap-1.5 break-all">
                         <Phone size={12} className="text-neutral-400" />
                         <span>{selectedRequest.contactNumber}</span>
                       </p>
                     </div>
                     <div className="col-span-2">
                       <p className="text-neutral-400 mb-0.5">Pickup Address</p>
-                      <p className="font-semibold text-neutral-700 dark:text-neutral-200 flex items-start gap-1.5">
+                      <p className="font-semibold text-neutral-700 dark:text-neutral-200 flex items-start gap-1.5 break-words">
                         <MapPin size={12} className="text-neutral-400 mt-0.5 flex-shrink-0" />
                         <span>{selectedRequest.pickupAddress}</span>
                       </p>
                     </div>
                     <div className="col-span-2">
                       <p className="text-neutral-400 mb-1">Issue Description</p>
-                      <div className="p-3 bg-neutral-50 dark:bg-slate-850 rounded-lg text-xs leading-relaxed text-neutral-600 dark:text-neutral-350">
+                      <div className="p-3 bg-neutral-50 dark:bg-slate-850 rounded-lg text-xs leading-relaxed text-neutral-600 dark:text-neutral-350 break-words">
                         {selectedRequest.issueDescription}
                       </div>
                     </div>
                   </div>
                 </div>
+
+                {/* Out of Warranty Charges & Approval */}
+                {selectedRequest.warrantyStatus === "Warranty Expired" && selectedRequest.serviceCharge !== null && selectedRequest.serviceCharge !== undefined && (
+                  <div className="p-4 bg-orange-50 dark:bg-slate-800/30 border border-orange-100 dark:border-slate-800 rounded-xl space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-orange-500 border-b dark:border-slate-805 pb-1">Out of Warranty Service Estimate</h4>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+                      <div>
+                        <p className="text-neutral-400 mb-0.5">Service Charge</p>
+                        <p className="font-bold text-neutral-700 dark:text-neutral-200">₹{selectedRequest.serviceCharge}</p>
+                      </div>
+                      <div>
+                        <p className="text-neutral-400 mb-0.5">Spare Parts Cost</p>
+                        <p className="font-bold text-neutral-700 dark:text-neutral-200">₹{selectedRequest.sparePartsCost || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-neutral-400 mb-0.5">Total Service Cost</p>
+                        <p className="font-extrabold text-[#D71920]">₹{selectedRequest.totalServiceCost}</p>
+                      </div>
+                      <div className="col-span-2 md:col-span-3">
+                        <p className="text-neutral-400 mb-0.5">Inspection Remarks</p>
+                        <p className="font-semibold text-neutral-700 dark:text-neutral-200 italic">
+                          "{selectedRequest.inspectionRemarks || "No remarks provided"}"
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions if Awaiting Customer Approval */}
+                    {selectedRequest.currentStatus === "Awaiting Customer Approval" && (
+                      <div className="pt-2 border-t dark:border-slate-800/40 flex flex-col sm:flex-row gap-3">
+                        <button
+                          onClick={() => handleEstimateResponse(selectedRequest.id, "APPROVE")}
+                          disabled={respondingEstimate}
+                          className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1 transition-colors"
+                        >
+                          <CheckCircle size={14} />
+                          <span>APPROVE SERVICE & PROCEED</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCancellationReason("");
+                            setShowCancelReasonModal(true);
+                          }}
+                          disabled={respondingEstimate}
+                          className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1 transition-colors"
+                        >
+                          <X size={14} />
+                          <span>REJECT SERVICE & CANCEL</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Uploaded Files */}
                 <div className="space-y-3">
@@ -927,8 +1088,8 @@ export default function ServiceRequestPage() {
                 <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b pb-1">Ticket Progress</h4>
 
                 <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-neutral-200 dark:before:bg-slate-800">
-                  {STATUS_STEPS.map((step, idx) => {
-                    const statusIdx = getStatusIndex(selectedRequest.currentStatus);
+                  {getStatusSteps(selectedRequest.warrantyStatus, selectedRequest.currentStatus, selectedRequest.cancellationReason).map((step, idx, arr) => {
+                    const statusIdx = getStatusIndex(selectedRequest.currentStatus, arr);
                     const isCompleted = idx <= statusIdx;
                     const isActive = idx === statusIdx;
                     
@@ -973,6 +1134,60 @@ export default function ServiceRequestPage() {
 
               </div>
 
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL: ENTER CANCELLATION REASON */}
+      {showCancelReasonModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 text-left">
+            <div className="flex items-center gap-2 text-red-500 border-b pb-3 dark:border-slate-800">
+              <AlertCircle size={20} />
+              <h3 className="text-sm font-black uppercase tracking-wider">Cancellation Reason Required</h3>
+            </div>
+            
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+              Please enter a valid and detailed reason for rejecting the service estimate and canceling this ticket.
+            </p>
+
+            <div>
+              <label className="block text-[9px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1.5">
+                Cancellation Reason (Min. 10 chars)
+              </label>
+              <textarea
+                required
+                rows={4}
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                placeholder="Why are you canceling this service request?..."
+                className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (cancellationReason.trim().length < 10) {
+                    toast.error("Please provide a more detailed reason (minimum 10 characters)");
+                    return;
+                  }
+                  setShowCancelReasonModal(false);
+                  await handleEstimateResponse(selectedRequest.id, "REJECT", cancellationReason);
+                  setSelectedRequest(null);
+                }}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-750 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors text-center"
+              >
+                CONFIRM CANCELLATION
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCancelReasonModal(false)}
+                className="px-4 py-2.5 border border-neutral-300 dark:border-slate-750 hover:bg-neutral-50 dark:hover:bg-slate-800 text-neutral-700 dark:text-neutral-300 font-bold text-xs rounded-xl cursor-pointer transition-colors"
+              >
+                GO BACK
+              </button>
             </div>
           </div>
         </div>

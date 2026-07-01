@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useCart } from "@/providers/CartProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 
 export default function CartPage() {
   const { cartItems, cartTotal, cartCount, updateQuantity, removeFromCart, isLoading } = useCart();
@@ -52,14 +52,21 @@ export default function CartPage() {
     [includedItems]
   );
 
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (includedItems.length === 0) {
       setCalculationResult(null);
+      setCalculating(false);
       return;
     }
 
     let cancelled = false;
-    const calculatePricing = async () => {
+
+    // Debounce: wait 300ms after last change before firing the API call
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
+    debounceTimerRef.current = setTimeout(async () => {
       setCalculating(true);
       try {
         const token = localStorage.getItem("authToken");
@@ -86,11 +93,13 @@ export default function CartPage() {
       } finally {
         if (!cancelled) setCalculating(false);
       }
-    };
+    }, 300);
 
-    calculatePricing();
-    // Cleanup: ignore stale responses if cart changes before fetch completes
-    return () => { cancelled = true; };
+    // Cleanup: ignore stale responses and clear pending timer
+    return () => {
+      cancelled = true;
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
   // cartKey is the stable primitive that represents the cart contents
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartKey]);
@@ -328,7 +337,7 @@ export default function CartPage() {
                 <h2 className="text-lg font-bold text-[#1C1C1C] mb-4">Order Summary</h2>
 
                 {/* Smart Delivery Banner */}
-                {!calculating && (() => {
+                {(() => {
                   const deliveryInfo = calculationResult?.deliveryInfo;
                   const effectiveDC = calculationResult ? calculationResult.summary.deliveryCharges : (calculatedCartTotal >= 10000 ? 0 : 200);
                   const isFree = effectiveDC === 0;

@@ -7,10 +7,32 @@ import { AuthenticatedRequest } from "../middleware/auth.middleware";
  */
 const calculateWarrantyStatus = (purchaseDateStr: string | Date, warrantyText: string): { expiryDate: Date; status: string } => {
   const purchaseDate = new Date(purchaseDateStr);
+  const text = (warrantyText || "").trim().toLowerCase();
+  
+  const hasNoWarranty = 
+    !text || 
+    text === "0" || 
+    text === "no" ||
+    text.includes("0 day") || 
+    text.includes("0 month") || 
+    text.includes("0 year") || 
+    text.includes("0 yr") || 
+    text.includes("0 mo") || 
+    text.includes("0 d") || 
+    text.includes("no warranty") || 
+    text.includes("none") ||
+    text.startsWith("0");
+
+  if (hasNoWarranty) {
+    return {
+      expiryDate: new Date(purchaseDate),
+      status: "Warranty Expired"
+    };
+  }
+
   let monthsToAdd = 12; // Default to 1 Year
 
   if (warrantyText) {
-    const text = warrantyText.toLowerCase();
     const match = text.match(/(\d+)\s*(year|month|day|yr|mo|d)s?/);
     if (match && match[1] && match[2]) {
       const value = parseInt(match[1], 10);
@@ -112,7 +134,7 @@ export const createServiceRequest = async (req: Request, res: Response): Promise
     }
 
     // 2. Validate Warranty
-    const { expiryDate, status: warrantyStatus } = calculateWarrantyStatus(purchaseDate, product.warranty || "1 Year");
+    const { expiryDate, status: warrantyStatus } = calculateWarrantyStatus(purchaseDate, product.warranty ?? "1 Year");
 
     // 3. Generate Ticket ID
     const ticketId = await generateTicketId();
@@ -385,7 +407,7 @@ export const updateServiceRequestStatus = async (req: Request, res: Response): P
     }
 
     const id = req.params.id as string;
-    const { status, remarks } = req.body;
+    const { status, remarks, serviceCharge, sparePartsCost, inspectionRemarks } = req.body;
 
     if (!status) {
       res.status(400).json({ success: false, message: "Status is required" });
@@ -406,12 +428,26 @@ export const updateServiceRequestStatus = async (req: Request, res: Response): P
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
     const updaterName = dbUser ? `${dbUser.firstName} ${dbUser.lastName} (Admin)` : "Admin";
 
+    const dataToUpdate: any = {
+      currentStatus: status,
+    };
+
+    if (serviceCharge !== undefined && serviceCharge !== null) {
+      const charge = parseFloat(serviceCharge);
+      const partsCost = sparePartsCost !== undefined && sparePartsCost !== null ? parseFloat(sparePartsCost) || 0 : 0;
+      dataToUpdate.serviceCharge = charge;
+      dataToUpdate.sparePartsCost = sparePartsCost !== undefined && sparePartsCost !== null ? partsCost : null;
+      dataToUpdate.totalServiceCost = charge + partsCost;
+    }
+
+    if (inspectionRemarks !== undefined) {
+      dataToUpdate.inspectionRemarks = inspectionRemarks;
+    }
+
     const updatedRequest = await prisma.$transaction(async (tx) => {
       const updated = await tx.serviceRequest.update({
         where: { id },
-        data: {
-          currentStatus: status,
-        }
+        data: dataToUpdate
       });
 
       await tx.serviceRequestHistory.create({
@@ -434,5 +470,89 @@ export const updateServiceRequestStatus = async (req: Request, res: Response): P
   } catch (error: any) {
     console.error("Update service request status error:", error);
     res.status(500).json({ success: false, message: "Failed to update service request status" });
+  }
+};
+
+/**
+ * Respond to cost estimate (Customer action)
+ */
+export const respondToEstimate = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    const id = req.params.id as string;
+    const { action, cancellationReason } = req.body;
+
+    if (!action || (action !== "APPROVE" && action !== "REJECT")) {
+      res.status(400).json({ success: false, message: "Action must be APPROVE or REJECT" });
+      return;
+    }
+
+    if (action === "REJECT" && (!cancellationReason || !cancellationReason.trim())) {
+      res.status(400).json({ success: false, message: "Cancellation reason is required" });
+      return;
+    }
+
+    const request = await prisma.serviceRequest.findUnique({
+      where: { id }
+    });
+
+    if (!request) {
+      res.status(404).json({ success: false, message: "Service request not found" });
+      return;
+    }
+
+    // Owner check
+    if (request.userId !== user.id) {
+      res.status(403).json({ success: false, message: "Forbidden" });
+      return;
+    }
+
+    if (request.currentStatus !== "Awaiting Customer Approval") {
+      res.status(400).json({ success: false, message: "Service request is not awaiting customer approval" });
+      return;
+    }
+
+    const nextStatus = action === "APPROVE" ? "Cost Approved" : "Cancellation Requested";
+    const statusRemarks = action === "APPROVE"
+      ? "Customer approved the estimated service cost."
+      : `Customer rejected the estimated service cost. Reason: ${cancellationReason}`;
+
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+    const updaterName = dbUser ? `${dbUser.firstName} ${dbUser.lastName}` : "Customer";
+
+    const updatedRequest = await prisma.$transaction(async (tx) => {
+      const updated = await tx.serviceRequest.update({
+        where: { id },
+        data: {
+          currentStatus: nextStatus,
+          cancellationReason: action === "REJECT" ? cancellationReason : null,
+        }
+      });
+
+      await tx.serviceRequestHistory.create({
+        data: {
+          serviceRequestId: id,
+          status: nextStatus,
+          remarks: statusRemarks,
+          updatedBy: updaterName
+        }
+      });
+
+      return updated;
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully ${action === "APPROVE" ? "approved" : "rejected"} the service cost estimate`,
+      data: updatedRequest
+    });
+  } catch (error: any) {
+    console.error("Customer response to estimate error:", error);
+    res.status(500).json({ success: false, message: "Failed to submit estimate response" });
   }
 };

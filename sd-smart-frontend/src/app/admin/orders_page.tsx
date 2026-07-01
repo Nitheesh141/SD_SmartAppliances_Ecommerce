@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
@@ -169,8 +169,8 @@ export default function AdminOrdersPage() {
     }
   }, [selectedOrder]);
 
-  const fetchOrders = async () => {
-    setLoadingOrders(true);
+  const fetchOrders = async (isBackground = false) => {
+    if (!isBackground) setLoadingOrders(true);
     try {
       const token = localStorage.getItem("authToken");
       if (!token) return;
@@ -181,14 +181,21 @@ export default function AdminOrdersPage() {
       const data = await res.json();
       if (data.success) {
         setOrders(data.orders);
+        
+        // Update selectedOrder in-place if open
+        setSelectedOrder(prev => {
+          if (!prev) return null;
+          const updated = data.orders?.find((o: any) => o.id === prev.id);
+          return updated || prev;
+        });
       } else {
-        toast.error(data.message || "Failed to fetch orders");
+        if (!isBackground) toast.error(data.message || "Failed to fetch orders");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to connect to backend server");
+      if (!isBackground) toast.error("Failed to connect to backend server");
     } finally {
-      setLoadingOrders(false);
+      if (!isBackground) setLoadingOrders(false);
     }
   };
 
@@ -208,9 +215,28 @@ export default function AdminOrdersPage() {
       }
     };
 
+  // Track whether the detail drawer is open to pause polling
+  const isEditingRef = useRef(false);
+  useEffect(() => {
+    isEditingRef.current = !!selectedOrder;
+  }, [selectedOrder]);
+
     if (isAuthenticated) {
-      fetchOrders();
+      fetchOrders(false);
       fetchSettings();
+
+      const interval = setInterval(() => {
+        const activeEl = document.activeElement;
+        const isInputFocused = activeEl && (
+          ["INPUT", "TEXTAREA", "SELECT"].includes(activeEl.tagName.toUpperCase()) ||
+          activeEl.getAttribute("contenteditable") === "true"
+        );
+        if (!isEditingRef.current && !isInputFocused) {
+          fetchOrders(true);
+        }
+      }, 5000);
+
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
 
@@ -349,7 +375,7 @@ export default function AdminOrdersPage() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={fetchOrders}
+              onClick={() => fetchOrders(false)}
               className={cn(
                 "p-2.5 rounded-lg border transition-all flex items-center justify-center cursor-pointer",
                 isDark ? "bg-neutral-900 border-neutral-800 text-white hover:bg-neutral-800" : "bg-white border-neutral-200 text-slate-700 hover:bg-slate-50"
