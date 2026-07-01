@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 interface Option {
   value: string;
   label: string;
+  subLabel?: string;
 }
 
 interface Group {
@@ -49,10 +50,12 @@ export function CustomSelect({
 
   // Find the selected option label
   let selectedLabel = "";
+  let selectedSubLabel = "";
   for (const group of groups) {
     const found = group.options.find(opt => opt.value === value);
     if (found) {
       selectedLabel = found.label;
+      selectedSubLabel = found.subLabel || "";
       break;
     }
   }
@@ -69,13 +72,18 @@ export function CustomSelect({
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between px-4 py-2.5 bg-white border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all cursor-pointer text-left"
       >
-        <span className={cn(
-          "truncate",
-          !value && "text-neutral-400 dark:text-neutral-500"
-        )}>
-          {selectedLabel || placeholder}
-        </span>
-        <ChevronDown size={16} className={cn("text-neutral-400 dark:text-neutral-500 transition-transform duration-200", isOpen && "rotate-180")} />
+        <div className="flex flex-col min-w-0 pr-4">
+          <span className={cn(
+            "truncate",
+            !value && "text-neutral-400 dark:text-neutral-500"
+          )}>
+            {selectedLabel || placeholder}
+          </span>
+          {value && selectedSubLabel ? (
+            <span className="text-[10px] text-neutral-500 truncate mt-0.5">{selectedSubLabel}</span>
+          ) : null}
+        </div>
+        <ChevronDown size={16} className={cn("text-neutral-400 dark:text-neutral-500 transition-transform duration-200 shrink-0", isOpen && "rotate-180")} />
       </button>
 
       {isOpen && (
@@ -112,11 +120,14 @@ export function CustomSelect({
                           type="button"
                           onClick={() => handleSelect(opt.value)}
                           className={cn(
-                            "w-full px-4 py-2.5 text-left text-sm text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-slate-900/50 cursor-pointer flex justify-between items-center transition-colors",
+                            "w-full px-4 py-2 text-left text-sm text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-slate-900/50 cursor-pointer flex justify-between items-center transition-colors",
                             isSelected && "bg-[#D71920]/5 dark:bg-[#D71920]/10 font-bold text-[#D71920] dark:text-red-400"
                           )}
                         >
-                          <span className="truncate pr-4">{opt.label}</span>
+                          <div className="flex flex-col min-w-0 pr-4">
+                            <span className="truncate">{opt.label}</span>
+                            {opt.subLabel && <span className="text-[10px] text-neutral-500 truncate mt-0.5 font-normal">{opt.subLabel}</span>}
+                          </div>
                           {isSelected && <Check size={14} className="shrink-0 text-[#D71920] dark:text-red-400" />}
                         </button>
                       );

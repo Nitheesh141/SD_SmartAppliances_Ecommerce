@@ -101,6 +101,10 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     // 4. Perform Transaction
     const order = await prisma.$transaction(async (tx) => {
+      const isCustomer = user.role?.toUpperCase() === "CUSTOMER";
+      const initialStatus = isCustomer ? "APPROVED" : "PENDING_APPROVAL";
+      const initialRemarks = isCustomer ? "Order placed and automatically approved." : "Order submitted and pending admin approval.";
+
       // a. Create Order
       const newOrder = await tx.order.create({
         data: {
@@ -109,7 +113,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
           addressId,
           poNumber: poNumber || null,
           paymentMethod,
-          status: "PENDING_APPROVAL",
+          status: initialStatus,
           subtotal,
           cgst,
           sgst,
@@ -117,10 +121,12 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
           deliveryCharges,
           discount,
           grandTotal,
+          approvedAt: isCustomer ? new Date() : null,
+          approvedBy: isCustomer ? "System" : null,
           statusHistory: {
             create: {
-              status: "PENDING_APPROVAL",
-              remarks: "Order submitted and pending admin approval.",
+              status: initialStatus,
+              remarks: initialRemarks,
               updatedBy: userName
             }
           },
@@ -330,6 +336,7 @@ export const getAllOrders = async (req: Request, res: Response): Promise<void> =
             lastName: true,
             email: true,
             phoneNumber: true,
+            role: true,
           }
         },
         address: true,

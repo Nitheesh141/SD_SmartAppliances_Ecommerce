@@ -13,6 +13,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
 import { serviceRequestService } from "@/services/serviceRequestService";
+import { productService } from "@/services/productService";
 import { apiGet } from "@/utils/api";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
@@ -90,20 +91,31 @@ export default function ServiceRequestPage() {
   const [showCancelReasonModal, setShowCancelReasonModal] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
 
-  // Form states
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [orderId, setOrderId] = useState("");
-  const [purchaseDate, setPurchaseDate] = useState("");
-  const [serviceCategory, setServiceCategory] = useState(SERVICE_CATEGORIES[0]);
-  const [issueDescription, setIssueDescription] = useState("");
+  const isDistributor = user?.role === "DISTRIBUTOR";
+  
+  const [addedProducts, setAddedProducts] = useState([{
+    localId: Math.random().toString(36).substr(2, 9),
+    categoryLabel: "",
+    productId: "",
+    serviceCategory: SERVICE_CATEGORIES[0],
+    issueDescription: "",
+    productImages: [] as string[],
+    warrantyCard: "",
+    orderId: "",
+    purchaseDate: ""
+  }]);
+
+  // Removed global orderId and purchaseDate
   const [preferredPickupDate, setPreferredPickupDate] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [pickupAddress, setPickupAddress] = useState("");
   
   // Attachments state
-  const [productImages, setProductImages] = useState<string[]>([]);
   const [warrantyCard, setWarrantyCard] = useState<string>("");
   const [uploading, setUploading] = useState(false);
+
+  // Derived categories
+  const categories = Array.from(new Set(allProducts.map(p => p.categoryLabel || p.category))).filter(Boolean);
 
   // Auth redirection
   useEffect(() => {
@@ -196,12 +208,9 @@ export default function ServiceRequestPage() {
           }
 
           // Fetch all products as fallback
-          const allProdRes = await fetch("http://localhost:5000/api/products");
-          if (allProdRes.ok) {
-            const allProdData = await allProdRes.json();
-            if (allProdData.success) {
-              setAllProducts(allProdData.data || []);
-            }
+          const allProdRes = await productService.getProducts({ limit: 100 });
+          if (allProdRes.success && allProdRes.data) {
+            setAllProducts(allProdRes.data.products || []);
           }
         } catch (error) {
           console.error("Error loading products details:", error);
@@ -215,24 +224,23 @@ export default function ServiceRequestPage() {
   }, [view, isAuthenticated, user]);
 
   // Handle product dropdown selection
-  const handleProductChange = (productId: string) => {
-    setSelectedProductId(productId);
-    
-    // Check if the product was purchased
+  const handleProductChange = (productId: string, localId: string) => {
     const purchased = purchasedProducts.find(p => p.id === productId);
-    if (purchased) {
-      setOrderId(purchased.orderNumber || "");
-      if (purchased.purchaseDate) {
-        setPurchaseDate(new Date(purchased.purchaseDate).toISOString().split('T')[0]);
+    setAddedProducts(prev => prev.map(p => {
+      if (p.localId === localId) {
+        return {
+          ...p,
+          productId,
+          orderId: purchased?.orderNumber || "",
+          purchaseDate: purchased?.purchaseDate ? new Date(purchased.purchaseDate).toISOString().split('T')[0] : ""
+        };
       }
-    } else {
-      setOrderId("");
-      setPurchaseDate("");
-    }
+      return p;
+    }));
   };
 
   // Upload file to server
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: "PRODUCT_IMAGE" | "WARRANTY_CARD") => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: "PRODUCT_IMAGE" | "WARRANTY_CARD", localId?: string) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const fileArray = Array.from(e.target.files);
     
@@ -255,10 +263,22 @@ export default function ServiceRequestPage() {
       const result = await response.json();
       if (result.success && result.urls) {
         if (fileType === "WARRANTY_CARD") {
-          setWarrantyCard(result.urls[0]);
+          if (localId) {
+            setAddedProducts(prev => prev.map(p => 
+              p.localId === localId 
+                ? { ...p, warrantyCard: result.urls[0] }
+                : p
+            ));
+          } else {
+            setWarrantyCard(result.urls[0]);
+          }
           toast.success("Warranty card uploaded successfully");
-        } else {
-          setProductImages(prev => [...prev, ...result.urls]);
+        } else if (fileType === "PRODUCT_IMAGE" && localId) {
+          setAddedProducts(prev => prev.map(p => 
+            p.localId === localId 
+              ? { ...p, productImages: [...p.productImages, ...result.urls] }
+              : p
+          ));
           toast.success(`${result.urls.length} product image(s) uploaded`);
         }
       } else {
@@ -276,68 +296,76 @@ export default function ServiceRequestPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedProductId) {
-      toast.error("Please select a product");
-      return;
+    // Per-product validations
+    for (const [index, p] of addedProducts.entries()) {
+      if (!p.productId) { toast.error(`Please select a product for item #${index + 1}`); return; }
+      if (!p.purchaseDate) { toast.error(`Please select purchase date for item #${index + 1}`); return; }
+      if (!p.issueDescription) { toast.error(`Please provide issue description for item #${index + 1}`); return; }
     }
-    if (!purchaseDate) {
-      toast.error("Purchase date is required");
-      return;
-    }
-    if (!issueDescription.trim()) {
-      toast.error("Please describe the issue");
-      return;
-    }
-    if (!warrantyCard) {
-      toast.error("Warranty card upload is mandatory");
-      return;
-    }
+
+    if (!contactNumber) { toast.error("Please provide Contact Number"); return; }
+    if (!pickupAddress) { toast.error("Please provide Pickup Address"); return; }
     if (!preferredPickupDate) {
       toast.error("Preferred pickup date is required");
       return;
     }
-    if (!contactNumber.trim()) {
-      toast.error("Contact number is required");
-      return;
-    }
-    if (!pickupAddress.trim()) {
-      toast.error("Pickup address is required");
-      return;
-    }
-
-    const payload = {
-      productId: selectedProductId,
-      orderId: orderId || null,
-      purchaseDate: new Date(purchaseDate),
-      serviceCategory,
-      issueDescription,
-      preferredPickupDate: new Date(preferredPickupDate),
-      contactNumber,
-      pickupAddress,
-      attachments: [
-        { fileUrl: warrantyCard, fileType: "WARRANTY_CARD", fileName: "warranty_card" },
-        ...productImages.map((url, idx) => ({
-          fileUrl: url,
-          fileType: "PRODUCT_IMAGE",
-          fileName: `product_image_${idx + 1}`
-        }))
-      ]
-    };
 
     try {
+      setUploading(true);
+      
+      const payload = {
+        userId: user?.id,
+        productId: addedProducts[0].productId,
+        orderId: addedProducts[0].orderId || null,
+        purchaseDate: new Date(addedProducts[0].purchaseDate),
+        serviceCategory: addedProducts[0].serviceCategory,
+        issueDescription: addedProducts[0].issueDescription,
+        preferredPickupDate: new Date(preferredPickupDate),
+        contactNumber,
+        pickupAddress,
+        // Send the full array of items for distributors
+        distributorItems: isDistributor ? addedProducts.map(p => {
+          const productDetails = allProducts.find(prod => prod.id === p.productId) || {};
+          return {
+            productId: p.productId,
+            productName: productDetails.name || "Unknown Product",
+            sku: productDetails.sku || "Unknown SKU",
+            serviceCategory: p.serviceCategory,
+            issueDescription: p.issueDescription,
+            productImages: p.productImages,
+            warrantyCard: p.warrantyCard,
+            orderId: p.orderId,
+            purchaseDate: p.purchaseDate
+          };
+        }) : null,
+        attachments: [
+          { fileUrl: addedProducts[0].warrantyCard, fileType: "WARRANTY_CARD", fileName: "warranty_card" },
+          // Flatten all product images for the main attachments array if needed, or just let them stay in distributorItems.
+          ...(!isDistributor ? addedProducts[0].productImages.map((img, i) => ({
+            fileUrl: img,
+            fileType: "PRODUCT_IMAGE",
+            fileName: `product_img_${i + 1}`
+          })) : [])
+        ].filter(a => a.fileUrl)
+      };
+
       const res = await serviceRequestService.createServiceRequest(payload);
       if (res.success) {
         const ticketId = res.data?.ticketId || (res as any).ticketId || "";
         toast.success(`Service request submitted successfully! Ticket ID: ${ticketId}`);
         // Reset form
-        setSelectedProductId("");
-        setOrderId("");
-        setPurchaseDate("");
-        setServiceCategory(SERVICE_CATEGORIES[0]);
-        setIssueDescription("");
+        setAddedProducts([{
+          localId: Math.random().toString(36).substr(2, 9),
+          categoryLabel: "",
+          productId: "",
+          serviceCategory: SERVICE_CATEGORIES[0],
+          issueDescription: "",
+          productImages: [],
+          warrantyCard: "",
+          orderId: "",
+          purchaseDate: ""
+        }]);
         setPreferredPickupDate("");
-        setProductImages([]);
-        setWarrantyCard("");
         
         // Go back to dashboard list and refresh
         setView("LIST");
@@ -348,6 +376,8 @@ export default function ServiceRequestPage() {
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Server error while submitting request");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -365,13 +395,18 @@ export default function ServiceRequestPage() {
   };
 
   // Handle customer response to cost estimate
-  const handleEstimateResponse = async (id: string, action: "APPROVE" | "REJECT", reason?: string) => {
+  const handleEstimateResponse = async (id: string, action: "APPROVE" | "REJECT", reason?: string, itemIndex?: number) => {
     setRespondingEstimate(true);
     try {
-      const res = await serviceRequestService.respondToEstimate(id, { 
+      const payload: any = { 
         action, 
         cancellationReason: reason 
-      });
+      };
+      if (itemIndex !== undefined) {
+        payload.itemIndex = itemIndex;
+      }
+      
+      const res = await serviceRequestService.respondToEstimate(id, payload);
       if (res.success) {
         toast.success(`Successfully submitted estimate response`);
         
@@ -635,196 +670,209 @@ export default function ServiceRequestPage() {
             {/* Form Box */}
             <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 rounded-2xl p-6 sm:p-10 space-y-8 shadow-md text-left">
               
-              {/* Product details section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[#D71920] border-b border-neutral-100 dark:border-slate-800/80 pb-2">
-                  1. Product Information
-                </h3>
-                
+              {/* Per-Product Entry Section */}
+              <div className="space-y-6">
+                <div className="flex items-center justify-between border-b border-neutral-100 dark:border-slate-800/80 pb-2">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-[#D71920]">
+                    1. Product & Service Details
+                  </h3>
+                  {isDistributor && (
+                    <button
+                      type="button"
+                      onClick={() => setAddedProducts(prev => [...prev, {
+                        localId: Math.random().toString(36).substr(2, 9),
+                        categoryLabel: "",
+                        productId: "",
+                        serviceCategory: SERVICE_CATEGORIES[0],
+                        issueDescription: "",
+                        productImages: [],
+                        warrantyCard: "",
+                        orderId: "",
+                        purchaseDate: ""
+                      }])}
+                      className="px-3 py-1.5 text-xs font-bold text-[#D71920] bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-950/50 rounded-lg transition-colors flex items-center gap-1"
+                    >
+                      <Plus size={14} /> Add Product
+                    </button>
+                  )}
+                </div>
+
                 {loadingProducts ? (
                   <div className="py-4 flex gap-2 items-center text-xs text-neutral-500 font-semibold"><Loader2 size={14} className="animate-spin" /> Loading your orders details...</div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Product Name <span className="text-red-500">*</span></label>
-                      <CustomSelect
-                        required
-                        value={selectedProductId}
-                        onChange={(val) => handleProductChange(val)}
-                        placeholder="Select a product..."
-                        groups={[
-                          ...(purchasedProducts.length > 0 ? [{
-                            label: "Your Purchased Products",
-                            options: purchasedProducts.map(p => ({ value: p.id, label: `${p.name} (Order: ${p.orderNumber})` }))
-                          }] : []),
-                          {
-                            label: "Other SD Smart Products",
-                            options: allProducts
-                              .filter(p => !purchasedProducts.some(pp => pp.id === p.id))
-                              .map(p => ({ value: p.id, label: p.name }))
-                          }
-                        ]}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Order ID / Order Number (Optional)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. ORD-12345"
-                        value={orderId}
-                        onChange={(e) => setOrderId(e.target.value)}
-                        className="w-full px-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Purchase Date <span className="text-red-500">*</span></label>
-                      <CustomDatePicker
-                        required
-                        value={purchaseDate}
-                        onChange={(val) => setPurchaseDate(val)}
-                        placeholder="Select purchase date..."
-                        max={new Date().toISOString().split('T')[0]}
-                      />
-                      <p className="text-[10px] text-neutral-400 mt-1">Used to determine your product's current warranty status automatically.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Service information */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[#D71920] border-b border-neutral-100 dark:border-slate-800/80 pb-2">
-                  2. Service Details
-                </h3>
-                <div className="grid grid-cols-1 gap-6">
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Service Category <span className="text-red-500">*</span></label>
-                    <div className="flex flex-wrap gap-2.5">
-                      {SERVICE_CATEGORIES.map(cat => (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => setServiceCategory(cat)}
-                          className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                            serviceCategory === cat
-                              ? "bg-[#D71920] border-[#D71920] text-white shadow-md shadow-red-500/10"
-                              : "bg-white border-neutral-200 dark:bg-slate-900 dark:border-slate-800 hover:border-neutral-300"
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Detailed Issue Description <span className="text-red-500">*</span></label>
-                    <textarea
-                      required
-                      rows={4}
-                      placeholder="Please describe in detail what is wrong with the appliance, any error messages shown, or what part is required."
-                      value={issueDescription}
-                      onChange={(e) => setIssueDescription(e.target.value)}
-                      className="w-full px-4 py-3 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all resize-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Attachments Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[#D71920] border-b border-neutral-100 dark:border-slate-800/80 pb-2">
-                  3. Upload Attachments
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  {/* Warranty card upload (Mandatory) */}
-                  <div className="p-5 border border-dashed border-neutral-300 dark:border-slate-800 rounded-xl space-y-4 bg-neutral-50/50 dark:bg-slate-900/50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FileText size={18} className="text-[#D71920]" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200">Warranty Card <span className="text-red-500">*</span></span>
-                      </div>
-                      {warrantyCard && <span className="text-[10px] bg-green-100 text-green-800 dark:bg-green-950/20 dark:text-green-400 px-2 py-0.5 rounded font-black">UPLOADED</span>}
-                    </div>
-                    <p className="text-xs text-neutral-400 leading-relaxed">Please upload a photo of the original warranty card or billing invoice showing purchase details.</p>
-                    
-                    {warrantyCard ? (
-                      <div className="relative w-full h-32 rounded-lg overflow-hidden border">
-                        <img src={warrantyCard} alt="Warranty Card" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => setWarrantyCard("")}
-                          className="absolute top-2 right-2 p-1 bg-black/60 rounded-full text-white hover:bg-black"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="flex flex-col items-center justify-center py-6 bg-white dark:bg-slate-950 border border-neutral-200 dark:border-slate-800 rounded-lg cursor-pointer hover:bg-neutral-50 dark:hover:bg-slate-900">
-                        <FileText size={24} className="text-neutral-400 mb-1" />
-                        <span className="text-xs font-bold text-neutral-600">Select File</span>
-                        <input
-                          type="file"
-                          accept="image/*,.pdf"
-                          disabled={uploading}
-                          onChange={(e) => handleFileUpload(e, "WARRANTY_CARD")}
-                          className="hidden"
-                        />
-                      </label>
-                    )}
-                  </div>
-
-                  {/* Product Images Upload */}
-                  <div className="p-5 border border-dashed border-neutral-300 dark:border-slate-800 rounded-xl space-y-4 bg-neutral-50/50 dark:bg-slate-900/50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ImageIcon size={18} className="text-[#D71920]" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200">Product Images (Optional)</span>
-                      </div>
-                      {productImages.length > 0 && <span className="text-[10px] bg-indigo-100 text-indigo-800 dark:bg-indigo-950/20 dark:text-indigo-400 px-2 py-0.5 rounded font-black">{productImages.length} FILES</span>}
-                    </div>
-                    <p className="text-xs text-neutral-400 leading-relaxed">Add close-up photos of the product and the specific damage or issue area if visible.</p>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      {productImages.map((img, idx) => (
-                        <div key={idx} className="relative h-20 border rounded-lg overflow-hidden">
-                          <img src={img} alt="Product upload" className="w-full h-full object-cover" />
+                  <div className="space-y-8">
+                    {addedProducts.map((product, idx) => (
+                      <div key={product.localId} className="p-5 border border-neutral-200 dark:border-slate-800 rounded-xl space-y-6 bg-neutral-50/30 dark:bg-slate-800/20 relative">
+                        {isDistributor && addedProducts.length > 1 && (
                           <button
                             type="button"
-                            onClick={() => setProductImages(prev => prev.filter((_, i) => i !== idx))}
-                            className="absolute top-1 right-1 p-0.5 bg-black/60 rounded-full text-white hover:bg-black"
+                            onClick={() => setAddedProducts(prev => prev.filter(p => p.localId !== product.localId))}
+                            className="absolute top-4 right-4 p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-lg transition-colors"
                           >
-                            <X size={10} />
+                            <X size={16} />
                           </button>
+                        )}
+                        
+                        {/* Product Selection */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                          {isDistributor && (
+                            <div>
+                              <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Category <span className="text-red-500">*</span></label>
+                              <CustomSelect
+                                required
+                                value={product.categoryLabel}
+                                onChange={(val) => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, categoryLabel: val, productId: "" } : p))}
+                                placeholder="Select category..."
+                                groups={[{
+                                  label: "Categories",
+                                  options: categories.map(c => ({ value: c, label: c }))
+                                }]}
+                              />
+                            </div>
+                          )}
+                          
+                          <div className={!isDistributor ? "sm:col-span-2" : ""}>
+                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Product Name <span className="text-red-500">*</span></label>
+                            <CustomSelect
+                              required
+                              value={product.productId}
+                              onChange={(val) => handleProductChange(val, product.localId)}
+                              placeholder="Select a product..."
+                              groups={
+                                isDistributor 
+                                  ? [{
+                                      label: product.categoryLabel ? `Products in ${product.categoryLabel}` : "Select a category first",
+                                      options: allProducts.filter(p => (p.categoryLabel || p.category) === product.categoryLabel).map(p => ({ value: p.id, label: p.name, subLabel: `SKU: ${p.sku || "N/A"}` }))
+                                    }]
+                                  : [{
+                                      label: "Your Purchased Products",
+                                      options: purchasedProducts.map(p => ({ value: p.id, label: p.name, subLabel: `SKU: ${p.sku || "N/A"}` }))
+                                    }, {
+                                      label: "All Other Products",
+                                      options: allProducts.filter(p => !purchasedProducts.some(pp => pp.id === p.id)).map(p => ({ value: p.id, label: p.name, subLabel: `SKU: ${p.sku || "N/A"}` }))
+                                    }]
+                              }
+                            />
+                          </div>
                         </div>
-                      ))}
-                      {productImages.length < 3 && (
-                        <label className="flex flex-col items-center justify-center h-20 bg-white dark:bg-slate-950 border border-neutral-200 dark:border-slate-800 rounded-lg cursor-pointer hover:bg-neutral-50 dark:hover:bg-slate-900">
-                          <Plus size={18} className="text-neutral-400" />
-                          <span className="text-[9px] font-bold text-neutral-500">Add Photo</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            disabled={uploading}
-                            onChange={(e) => handleFileUpload(e, "PRODUCT_IMAGE")}
-                            className="hidden"
-                          />
-                        </label>
-                      )}
-                    </div>
-                  </div>
 
-                </div>
+                        {/* Order ID & Purchase Date (Per Product) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Order ID / Order Number (Optional)</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. ORD-12345"
+                              value={product.orderId}
+                              onChange={(e) => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, orderId: e.target.value } : p))}
+                              className="w-full px-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Purchase Date <span className="text-red-500">*</span></label>
+                            <CustomDatePicker
+                              required
+                              value={product.purchaseDate}
+                              onChange={(val) => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, purchaseDate: val } : p))}
+                              placeholder="Select purchase date..."
+                              max={new Date().toISOString().split('T')[0]}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Service Category */}
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Service Category <span className="text-red-500">*</span></label>
+                          <div className="flex flex-wrap gap-2.5">
+                            {SERVICE_CATEGORIES.map(cat => (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, serviceCategory: cat } : p))}
+                                className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                                  product.serviceCategory === cat
+                                    ? "bg-[#D71920] border-[#D71920] text-white shadow-md shadow-red-500/10"
+                                    : "bg-white border-neutral-200 dark:bg-slate-900 dark:border-slate-700 hover:border-neutral-300"
+                                }`}
+                              >
+                                {cat}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Issue Description */}
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Detailed Issue Description <span className="text-red-500">*</span></label>
+                          <textarea
+                            required
+                            rows={3}
+                            placeholder="Please describe in detail what is wrong with the appliance..."
+                            value={product.issueDescription}
+                            onChange={(e) => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, issueDescription: e.target.value } : p))}
+                            className="w-full px-4 py-3 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all resize-none"
+                          />
+                        </div>
+
+                        {/* Product Images & Warranty Card */}
+                        <div className="space-y-4">
+                          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider">Product Images & Warranty Card <span className="text-red-500">*</span></label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-neutral-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/50 hover:bg-neutral-50 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
+                              <ImageIcon size={20} className="text-neutral-400 group-hover:text-[#D71920] mb-2 transition-colors" />
+                              <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 group-hover:text-[#D71920] transition-colors">Upload Product Images</span>
+                              <span className="text-[10px] text-neutral-400 mt-1">JPEG, PNG, WEBP (Max 5MB)</span>
+                              <input type="file" className="hidden" accept="image/*" multiple onChange={(e) => handleFileUpload(e, "PRODUCT_IMAGE", product.localId)} disabled={uploading} />
+                            </label>
+                            <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-neutral-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/50 hover:bg-neutral-50 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
+                              <FileText size={20} className="text-neutral-400 group-hover:text-[#D71920] mb-2 transition-colors" />
+                              <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 group-hover:text-[#D71920] transition-colors">Upload Warranty Card</span>
+                              <span className="text-[10px] text-neutral-400 mt-1">Optional for verification</span>
+                              <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => handleFileUpload(e, "WARRANTY_CARD", product.localId)} disabled={uploading} />
+                            </label>
+                          </div>
+                          
+                          {/* Preview uploaded images for this product */}
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {product.productImages.map((img, i) => (
+                              <div key={i} className="relative w-16 h-16 rounded overflow-hidden border border-neutral-200 dark:border-slate-700">
+                                <img src={img} alt={`Preview ${i+1}`} className="w-full h-full object-cover" />
+                                <button
+                                  type="button"
+                                  onClick={() => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, productImages: p.productImages.filter((_, index) => index !== i) } : p))}
+                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+                                >
+                                  <X size={10} />
+                                </button>
+                              </div>
+                            ))}
+                            {product.warrantyCard && (
+                              <div className="relative w-16 h-16 rounded overflow-hidden border border-green-500 bg-green-50 dark:bg-green-900/20 flex flex-col items-center justify-center">
+                                <FileText size={16} className="text-green-600" />
+                                <span className="text-[8px] font-bold mt-1 text-green-700 uppercase">Warranty</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, warrantyCard: "" } : p))}
+                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+                                >
+                                  <X size={10} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Pickup & Contact Information */}
               <div className="space-y-4">
                 <h3 className="text-sm font-black uppercase tracking-widest text-[#D71920] border-b border-neutral-100 dark:border-slate-800/80 pb-2">
-                  4. Pickup & Contact Information
+                  2. Pickup & Contact Information
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
@@ -929,76 +977,173 @@ export default function ServiceRequestPage() {
               {/* Left Column (2 cols wide): Request & product details */}
               <div className="lg:col-span-2 space-y-6">
                 
-                {/* Product details */}
-                <div className="p-4 bg-neutral-50 dark:bg-slate-850 border border-neutral-100 dark:border-slate-800 rounded-xl space-y-2.5">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400">Product Details</h4>
-                  <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
-                    <div>
-                      <p className="text-neutral-400 mb-0.5">Product Name</p>
-                      <p className="font-bold break-words">{selectedRequest.product?.name || "Product"}</p>
-                    </div>
-                    <div>
-                      <p className="text-neutral-400 mb-0.5">Order ID</p>
-                      <p className="font-semibold font-mono break-all">{selectedRequest.orderId || "N/A"}</p>
-                    </div>
-                    <div>
-                      <p className="text-neutral-400 mb-0.5">Purchase Date</p>
-                      <p className="font-semibold">
-                        {new Date(selectedRequest.purchaseDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-neutral-400 mb-0.5">Warranty Expiry Date</p>
-                      <p className="font-semibold">
-                        {new Date(selectedRequest.warrantyExpiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-neutral-400 mb-1">Warranty Status</p>
-                      <div>{getWarrantyBadge(selectedRequest.warrantyStatus)}</div>
-                    </div>
-                  </div>
-                </div>
+                {/* Distributor Items or Single Product Details */}
+                {selectedRequest.distributorItems && selectedRequest.distributorItems.length > 0 ? (
+                  <div className="space-y-6">
+                    {selectedRequest.distributorItems.map((item: any, idx: number) => (
+                      <div key={idx} className="p-4 bg-neutral-50 dark:bg-slate-850 border border-neutral-100 dark:border-slate-800 rounded-xl space-y-4">
+                        <div className="flex items-center justify-between border-b dark:border-slate-800 pb-2 mb-2">
+                          <h4 className="text-xs font-black uppercase tracking-wider text-[#D71920]">Product {idx + 1}</h4>
+                          <div>{getWarrantyBadge(item.warrantyStatus)}</div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
+                          <div>
+                            <p className="text-neutral-400 mb-0.5">Product Name</p>
+                            <p className="font-bold break-words">{item.productName || "Product"}</p>
+                          </div>
+                          <div>
+                            <p className="text-neutral-400 mb-0.5">Order ID</p>
+                            <p className="font-semibold font-mono break-all">{item.orderId || "N/A"}</p>
+                          </div>
+                          <div>
+                            <p className="text-neutral-400 mb-0.5">Service Category</p>
+                            <p className="font-bold text-neutral-700 dark:text-neutral-200 break-words">{item.serviceCategory}</p>
+                          </div>
+                          <div>
+                            <p className="text-neutral-400 mb-0.5">Purchase Date</p>
+                            <p className="font-semibold">
+                              {item.purchaseDate ? new Date(item.purchaseDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}
+                            </p>
+                          </div>
+                          <div className="col-span-2">
+                            <p className="text-neutral-400 mb-1">Issue Description</p>
+                            <div className="p-3 bg-white dark:bg-slate-900 rounded-lg text-xs leading-relaxed text-neutral-600 dark:text-neutral-350 break-words border border-neutral-100 dark:border-slate-800">
+                              {item.issueDescription}
+                            </div>
+                          </div>
+                        </div>
 
-                {/* Service Details */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b pb-1">Service Details</h4>
-                  <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
-                    <div>
-                      <p className="text-neutral-400 mb-0.5">Service Category</p>
-                      <p className="font-bold text-neutral-700 dark:text-neutral-200 break-words">{selectedRequest.serviceCategory}</p>
+                        {/* Out of Warranty Charges & Approval for THIS ITEM */}
+                        {item.warrantyStatus === "Warranty Expired" && item.serviceCharge !== null && item.serviceCharge !== undefined && (
+                          <div className="p-4 bg-orange-50 dark:bg-slate-800/30 border border-orange-100 dark:border-slate-800 rounded-xl space-y-4 mt-4">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-orange-500 border-b dark:border-slate-805 pb-1">Out of Warranty Service Estimate</h4>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+                              <div>
+                                <p className="text-neutral-400 mb-0.5">Service Charge</p>
+                                <p className="font-bold text-neutral-700 dark:text-neutral-200">₹{item.serviceCharge}</p>
+                              </div>
+                              <div>
+                                <p className="text-neutral-400 mb-0.5">Spare Parts Cost</p>
+                                <p className="font-bold text-neutral-700 dark:text-neutral-200">₹{item.sparePartsCost || 0}</p>
+                              </div>
+                              <div>
+                                <p className="text-neutral-400 mb-0.5">Total Service Cost</p>
+                                <p className="font-extrabold text-[#D71920]">₹{item.totalServiceCost}</p>
+                              </div>
+                              <div className="col-span-2 md:col-span-3">
+                                <p className="text-neutral-400 mb-0.5">Inspection Remarks</p>
+                                <p className="font-semibold text-neutral-700 dark:text-neutral-200 italic">
+                                  "{item.inspectionRemarks || "No remarks provided"}"
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Actions if Awaiting Customer Approval */}
+                            {item.currentStatus === "Awaiting Customer Approval" && (
+                              <div className="pt-2 border-t dark:border-slate-800/40 flex flex-col sm:flex-row gap-3">
+                                <button
+                                  onClick={() => handleEstimateResponse(selectedRequest.id, "APPROVE", undefined, idx)}
+                                  disabled={respondingEstimate}
+                                  className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1 transition-colors"
+                                >
+                                  <CheckCircle size={14} />
+                                  <span>APPROVE ESTIMATE</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setCancellationReason(`Rejected estimate for item ${idx + 1}`);
+                                    handleEstimateResponse(selectedRequest.id, "REJECT", `Rejected estimate for item ${idx + 1}`, idx);
+                                  }}
+                                  disabled={respondingEstimate}
+                                  className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1 transition-colors"
+                                >
+                                  <X size={14} />
+                                  <span>REJECT ESTIMATE</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Single Product details */}
+                    <div className="p-4 bg-neutral-50 dark:bg-slate-850 border border-neutral-100 dark:border-slate-800 rounded-xl space-y-2.5">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400">Product Details</h4>
+                      <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
+                        <div>
+                          <p className="text-neutral-400 mb-0.5">Product Name</p>
+                          <p className="font-bold break-words">{selectedRequest.product?.name || "Product"}</p>
+                        </div>
+                        <div>
+                          <p className="text-neutral-400 mb-0.5">Order ID</p>
+                          <p className="font-semibold font-mono break-all">{selectedRequest.orderId || "N/A"}</p>
+                        </div>
+                        <div>
+                          <p className="text-neutral-400 mb-0.5">Purchase Date</p>
+                          <p className="font-semibold">
+                            {new Date(selectedRequest.purchaseDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-neutral-400 mb-0.5">Warranty Expiry Date</p>
+                          <p className="font-semibold">
+                            {new Date(selectedRequest.warrantyExpiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-neutral-400 mb-1">Warranty Status</p>
+                          <div>{getWarrantyBadge(selectedRequest.warrantyStatus)}</div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-neutral-400 mb-0.5">Preferred Pickup Date</p>
-                      <p className="font-semibold text-neutral-700 dark:text-neutral-200">
-                        {new Date(selectedRequest.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-neutral-400 mb-0.5">Contact Number</p>
-                      <p className="font-semibold text-neutral-700 dark:text-neutral-200 flex items-center gap-1.5 break-all">
-                        <Phone size={12} className="text-neutral-400" />
-                        <span>{selectedRequest.contactNumber}</span>
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-neutral-400 mb-0.5">Pickup Address</p>
-                      <p className="font-semibold text-neutral-700 dark:text-neutral-200 flex items-start gap-1.5 break-words">
-                        <MapPin size={12} className="text-neutral-400 mt-0.5 flex-shrink-0" />
-                        <span>{selectedRequest.pickupAddress}</span>
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-neutral-400 mb-1">Issue Description</p>
-                      <div className="p-3 bg-neutral-50 dark:bg-slate-850 rounded-lg text-xs leading-relaxed text-neutral-600 dark:text-neutral-350 break-words">
-                        {selectedRequest.issueDescription}
+
+                    {/* Service Details */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b pb-1">Service Details</h4>
+                      <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
+                        <div>
+                          <p className="text-neutral-400 mb-0.5">Service Category</p>
+                          <p className="font-bold text-neutral-700 dark:text-neutral-200 break-words">{selectedRequest.serviceCategory}</p>
+                        </div>
+                        <div>
+                          <p className="text-neutral-400 mb-0.5">Preferred Pickup Date</p>
+                          <p className="font-semibold text-neutral-700 dark:text-neutral-200">
+                            {new Date(selectedRequest.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-neutral-400 mb-0.5">Contact Number</p>
+                          <p className="font-semibold text-neutral-700 dark:text-neutral-200 flex items-center gap-1.5 break-all">
+                            <Phone size={12} className="text-neutral-400" />
+                            <span>{selectedRequest.contactNumber}</span>
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-neutral-400 mb-0.5">Pickup Address</p>
+                          <p className="font-semibold text-neutral-700 dark:text-neutral-200 flex items-start gap-1.5 break-words">
+                            <MapPin size={12} className="text-neutral-400 mt-0.5 flex-shrink-0" />
+                            <span>{selectedRequest.pickupAddress}</span>
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-neutral-400 mb-1">Issue Description</p>
+                          <div className="p-3 bg-neutral-50 dark:bg-slate-850 rounded-lg text-xs leading-relaxed text-neutral-600 dark:text-neutral-350 break-words">
+                            {selectedRequest.issueDescription}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Out of Warranty Charges & Approval */}
-                {selectedRequest.warrantyStatus === "Warranty Expired" && selectedRequest.serviceCharge !== null && selectedRequest.serviceCharge !== undefined && (
+                {/* Out of Warranty Charges & Approval (Single Product Only) */}
+                {(!selectedRequest.distributorItems || selectedRequest.distributorItems.length === 0) && selectedRequest.warrantyStatus === "Warranty Expired" && selectedRequest.serviceCharge !== null && selectedRequest.serviceCharge !== undefined && (
                   <div className="p-4 bg-orange-50 dark:bg-slate-800/30 border border-orange-100 dark:border-slate-800 rounded-xl space-y-4">
                     <h4 className="text-xs font-black uppercase tracking-wider text-orange-500 border-b dark:border-slate-805 pb-1">Out of Warranty Service Estimate</h4>
                     
