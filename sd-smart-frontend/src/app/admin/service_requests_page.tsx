@@ -13,6 +13,7 @@ import AdminSidebar from "@/components/layout/AdminSidebar";
 import { cn } from "@/lib/utils";
 import { serviceRequestService } from "@/services/serviceRequestService";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
+import { AdminStatusActionPanel } from "@/components/admin/AdminStatusActionPanel";
 
 type TabType = "ALL" | "PENDING_VERIFICATION" | "PICKUP_SCHEDULED" | "UNDER_SERVICE" | "COMPLETED" | "CLOSED";
 
@@ -34,22 +35,10 @@ export default function AdminServiceRequestsPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   // Out of Warranty Cost Estimate State
-  const [serviceCharge, setServiceCharge] = useState<string>("");
-  const [sparePartsCost, setSparePartsCost] = useState<string>("");
-  const [inspectionRemarks, setInspectionRemarks] = useState<string>("");
+  // (State removed - moved to AdminStatusActionPanel)
 
   // Sync estimate states
-  useEffect(() => {
-    if (selectedRequest) {
-      setServiceCharge(selectedRequest.serviceCharge?.toString() || "");
-      setSparePartsCost(selectedRequest.sparePartsCost?.toString() || "");
-      setInspectionRemarks(selectedRequest.inspectionRemarks || "");
-    } else {
-      setServiceCharge("");
-      setSparePartsCost("");
-      setInspectionRemarks("");
-    }
-  }, [selectedRequest]);
+  // (Effect removed - moved to AdminStatusActionPanel)
 
   // Load theme
   useEffect(() => {
@@ -123,68 +112,7 @@ export default function AdminServiceRequestsPage() {
   }, [isAuthenticated]);
 
   // Handle status update action
-  const handleStatusUpdate = async (id: string, newStatus: string) => {
-    if (newStatus === "Pickup Scheduled" && !scheduledDate) {
-      toast.error("Please select a pickup date");
-      return;
-    }
-
-    setUpdatingStatus(true);
-    try {
-      let remarks = actionRemarks.trim();
-      
-      // If it's pickup scheduled, format scheduled date in remarks
-      if (newStatus === "Pickup Scheduled") {
-        const formattedDate = new Date(scheduledDate).toLocaleDateString("en-IN", {
-          day: "numeric",
-          month: "short",
-          year: "numeric"
-        });
-        remarks = `Pickup scheduled for ${formattedDate}. ${remarks}`;
-      }
-
-      let payload: any = {
-        status: newStatus,
-        remarks: remarks || undefined
-      };
-
-      if (newStatus === "Awaiting Customer Approval") {
-        if (!serviceCharge) {
-          toast.error("Service Charge is required");
-          setUpdatingStatus(false);
-          return;
-        }
-        payload.serviceCharge = parseFloat(serviceCharge);
-        payload.sparePartsCost = sparePartsCost ? parseFloat(sparePartsCost) : 0;
-        payload.inspectionRemarks = inspectionRemarks.trim();
-        payload.remarks = remarks || `Estimated Service Cost: ₹${payload.serviceCharge + payload.sparePartsCost} (Service Charge: ₹${payload.serviceCharge}, Spare Parts: ₹${payload.sparePartsCost}). Remarks: ${payload.inspectionRemarks}`;
-      }
-
-      const res = await serviceRequestService.updateServiceRequestStatus(id, payload);
-
-      if (res.success) {
-        toast.success(`Ticket status updated to "${newStatus}"`);
-        setActionRemarks("");
-        setScheduledDate("");
-        
-        // Refresh requests and active ticket
-        await fetchRequests();
-        
-        // Refresh selectedRequest details
-        const detailRes = await serviceRequestService.getServiceRequestById(id);
-        if (detailRes.success) {
-          setSelectedRequest(detailRes.data);
-        }
-      } else {
-        toast.error(res.message || "Failed to update status");
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || "Failed to update status");
-    } finally {
-      setUpdatingStatus(false);
-    }
-  };
+  // (Moved to AdminStatusActionPanel)
 
   // Filter requests based on search query and tab selection
   const filteredRequests = requests.filter(req => {
@@ -385,21 +313,21 @@ export default function AdminServiceRequestsPage() {
                       "border-b font-bold uppercase tracking-wider text-neutral-500",
                       isDark ? "bg-neutral-900/60 border-neutral-800" : "bg-neutral-50 border-neutral-200"
                     )}>
-                      <th className="px-6 py-4">Ticket ID</th>
-                      <th className="px-6 py-4">User Details</th>
-                      <th className="px-6 py-4">Product Name</th>
-                      <th className="px-6 py-4 hidden 2xl:table-cell">Purchase Date</th>
-                      <th className="px-6 py-4">Warranty Status</th>
-                      <th className="px-6 py-4 hidden 2xl:table-cell">Preferred Pickup</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4 text-right">Action</th>
+                      <th className="px-3 py-4">Ticket ID</th>
+                      <th className="px-3 py-4">User Details</th>
+                      <th className="px-3 py-4">Product Name</th>
+                      <th className="px-3 py-4 hidden lg:table-cell">Purchase Date</th>
+                      <th className="px-3 py-4">Warranty Status</th>
+                      <th className="px-3 py-4 hidden lg:table-cell">Preferred Pickup</th>
+                      <th className="px-3 py-4">Status</th>
+                      <th className="px-3 py-4 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className={cn("divide-y text-xs", isDark ? "divide-neutral-800/80" : "divide-neutral-100")}>
                     {filteredRequests.map((req) => (
                       <tr key={req.id} className={cn("transition-colors", isDark ? "hover:bg-neutral-900/40" : "hover:bg-neutral-50/50")}>
-                        <td className="px-6 py-4 font-mono font-bold text-[#D71920] whitespace-nowrap">{req.ticketId}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-4 font-mono font-bold text-[#D71920] whitespace-nowrap">{req.ticketId}</td>
+                        <td className="px-3 py-4">
                           <div className="font-bold text-sm">{req.user?.firstName} {req.user?.lastName}</div>
                           <div className="text-[10px] text-neutral-500 mt-0.5 uppercase tracking-wider font-extrabold flex items-center gap-1">
                             <span className={cn(
@@ -409,21 +337,21 @@ export default function AdminServiceRequestsPage() {
                             {req.user?.companyName && <span className="truncate max-w-[120px]">- {req.user.companyName}</span>}
                           </div>
                         </td>
-                        <td className="px-6 py-4 font-semibold text-sm">{req.product?.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap hidden 2xl:table-cell">
+                        <td className="px-3 py-4 font-semibold text-sm">{req.product?.name}</td>
+                        <td className="px-3 py-4 whitespace-nowrap hidden lg:table-cell">
                           {new Date(req.purchaseDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-4">
                           <span className={cn(
                             "px-2 py-0.5 font-bold rounded text-[9px] inline-block whitespace-nowrap",
                             req.warrantyStatus === "Under Warranty" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
                           )}>{req.warrantyStatus.toUpperCase()}</span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap hidden 2xl:table-cell">
+                        <td className="px-3 py-4 whitespace-nowrap hidden lg:table-cell">
                           {new Date(req.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                         </td>
-                        <td className="px-6 py-4">{getStatusBadge(req.currentStatus, req.cancellationReason)}</td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-3 py-4">{getStatusBadge(req.currentStatus, req.cancellationReason)}</td>
+                        <td className="px-3 py-4 text-right">
                           <button
                             onClick={() => setSelectedRequest(req)}
                             className={cn(
@@ -575,392 +503,20 @@ export default function AdminServiceRequestsPage() {
             {/* Scrollable Container */}
             <div className="p-6 overflow-y-auto overflow-x-hidden flex-1 space-y-8 w-full break-words [word-break:break-word] [overflow-wrap:break-word]">
               
-              {/* STATUS ACTION FORM SECTION */}
-              <div className={cn(
-                "p-5 rounded-2xl border space-y-4 shadow-sm",
-                isDark ? "bg-[#141414] border-neutral-800/70" : "bg-red-50/10 border-red-100"
-              )}>
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-[#D71920]">Manage Status Flow</h4>
-                  <div>{getStatusBadge(selectedRequest.currentStatus)}</div>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Status-specific action form */}
-                  {selectedRequest.currentStatus === "Pending Verification" && (
-                    <div className="flex flex-col gap-3">
-                      <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Action Required</p>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => handleStatusUpdate(selectedRequest.id, "Verified")}
-                          disabled={updatingStatus}
-                          className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <Check size={14} />
-                          <span>VERIFY REQUEST</span>
-                        </button>
-                        <button
-                          onClick={() => handleStatusUpdate(selectedRequest.id, "Request Rejected")}
-                          disabled={updatingStatus}
-                          className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <X size={14} />
-                          <span>REJECT REQUEST</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedRequest.currentStatus === "Verified" && (
-                    <div className="space-y-3">
-                      <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Action Required: Schedule Pickup</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Pickup Date</label>
-                          <CustomDatePicker
-                            required
-                            value={scheduledDate}
-                            onChange={(val) => setScheduledDate(val)}
-                            placeholder="Select date..."
-                            min={new Date().toISOString().split('T')[0]}
-                          />
-                        </div>
-                        <div className="flex items-end">
-                          <button
-                            onClick={() => handleStatusUpdate(selectedRequest.id, "Pickup Scheduled")}
-                            disabled={updatingStatus}
-                            className="w-full py-2 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1"
-                          >
-                            <Calendar size={14} />
-                            <span>SCHEDULE PICKUP</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedRequest.currentStatus === "Pickup Scheduled" && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedRequest.id, "Product Collected")}
-                      disabled={updatingStatus}
-                      className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <Truck size={15} />
-                      <span>MARK PRODUCT COLLECTED</span>
-                    </button>
-                  )}
-
-                  {selectedRequest.currentStatus === "Product Collected" && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedRequest.id, "Under Inspection")}
-                      disabled={updatingStatus}
-                      className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <Info size={15} />
-                      <span>MOVE TO UNDER INSPECTION</span>
-                    </button>
-                  )}
-
-                  {selectedRequest.currentStatus === "Under Inspection" && (
-                    selectedRequest.warrantyStatus === "Warranty Expired" ? (
-                      <button
-                        onClick={() => handleStatusUpdate(selectedRequest.id, "Awaiting Cost Estimation")}
-                        disabled={updatingStatus}
-                        className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <Info size={15} />
-                        <span>MOVE TO AWAITING COST ESTIMATION</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleStatusUpdate(selectedRequest.id, "Under Repair")}
-                        disabled={updatingStatus}
-                        className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <Plus size={15} />
-                        <span>MOVE TO UNDER REPAIR</span>
-                      </button>
-                    )
-                  )}
-
-                  {selectedRequest.currentStatus === "Awaiting Cost Estimation" && (
-                    <div className="text-xs text-orange-400 font-semibold text-center py-2 bg-orange-500/5 rounded-xl border border-orange-500/10">
-                      Please enter the service charges in the section below to proceed.
-                    </div>
-                  )}
-
-                  {selectedRequest.currentStatus === "Awaiting Customer Approval" && (
-                    <div className="text-xs text-cyan-400 font-semibold text-center py-2 bg-cyan-500/5 rounded-xl border border-cyan-500/10">
-                      Estimated cost is sent. Awaiting Customer/Distributor Approval.
-                    </div>
-                  )}
-
-                  {selectedRequest.currentStatus === "Cost Approved" && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedRequest.id, "Under Repair")}
-                      disabled={updatingStatus}
-                      className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <Plus size={15} />
-                      <span>START REPAIR PROCESS</span>
-                    </button>
-                  )}
-
-                  {selectedRequest.currentStatus === "Cancellation Requested" && (() => {
-                    const phone = selectedRequest.contactNumber || selectedRequest.user?.phoneNumber;
-                    const isPhoneAvailable = !!phone && phone.trim().length > 0;
-                    const customerName = selectedRequest.user ? `${selectedRequest.user.firstName} ${selectedRequest.user.lastName}` : "Customer";
-                    return (
-                      <div className="flex flex-col gap-3.5 p-4 rounded-xl border border-orange-500/10 bg-orange-500/5 text-left">
-                        <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
-                          <AlertCircle size={15} />
-                          <span>Cancellation Requested by User</span>
-                        </div>
-                        
-                        <div className="text-xs text-neutral-300 bg-neutral-900/40 p-3 rounded-lg border border-neutral-800 italic">
-                          <span className="font-extrabold text-[10px] uppercase text-neutral-400 block mb-1">Cancelled Message:</span>
-                          "{selectedRequest.cancellationReason}"
-                        </div>
-
-                        <div className="text-xs space-y-1.5 text-neutral-400">
-                          <div>
-                            Customer Name: <span className="text-neutral-200 font-bold">{customerName}</span>
-                          </div>
-                          <div>
-                            Customer Phone: <span className="text-neutral-200 font-mono font-bold">{isPhoneAvailable ? phone : "Not Available"}</span>
-                          </div>
-                        </div>
-
-                        <div className="pt-2">
-                          <button
-                            onClick={() => handleStatusUpdate(selectedRequest.id, "Service Cancelled")}
-                            disabled={updatingStatus}
-                            className="w-full py-2.5 bg-red-650 hover:bg-red-750 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                          >
-                            <Check size={13} />
-                            <span>CONFIRM CANCELLATION</span>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {selectedRequest.currentStatus === "Service Cancelled" && (
-                    <div className="flex flex-col gap-3">
-                      <div className="text-xs text-red-400 font-semibold text-center py-2 bg-red-500/5 rounded-xl border border-red-500/10">
-                        Service request was rejected/cancelled by the customer.
-                      </div>
-                      {selectedRequest.cancellationReason && (
-                        <div className="text-xs text-neutral-300 bg-neutral-900/40 p-3 rounded-lg border border-neutral-800 italic">
-                          <span className="font-extrabold text-[10px] uppercase text-neutral-400 block mb-1">Cancellation Reason:</span>
-                          "{selectedRequest.cancellationReason}"
-                        </div>
-                      )}
-                      <button
-                        onClick={() => handleStatusUpdate(selectedRequest.id, "Closed")}
-                        disabled={updatingStatus}
-                        className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <ShieldCheck size={15} />
-                        <span>CLOSE TICKET</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {selectedRequest.currentStatus === "Under Repair" && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedRequest.id, "Service Completed")}
-                      disabled={updatingStatus}
-                      className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <CheckCircle size={15} />
-                      <span>MOVE TO SERVICE COMPLETED</span>
-                    </button>
-                  )}
-
-                  {selectedRequest.currentStatus === "Service Completed" && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedRequest.id, "Ready For Delivery")}
-                      disabled={updatingStatus}
-                      className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <Truck size={15} />
-                      <span>MARK READY FOR DELIVERY</span>
-                    </button>
-                  )}
-
-                  {selectedRequest.currentStatus === "Ready For Delivery" && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedRequest.id, "Delivered")}
-                      disabled={updatingStatus}
-                      className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <CheckCircle size={15} />
-                      <span>MARK DELIVERED</span>
-                    </button>
-                  )}
-
-                  {selectedRequest.currentStatus === "Delivered" && (
-                    <button
-                      onClick={() => handleStatusUpdate(selectedRequest.id, "Closed")}
-                      disabled={updatingStatus}
-                      className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <ShieldCheck size={15} />
-                      <span>CLOSE TICKET</span>
-                    </button>
-                  )}
-
-                  {selectedRequest.currentStatus === "Closed" && (
-                    <div className="flex flex-col gap-2.5 p-4 rounded-xl border border-neutral-800 bg-neutral-900/20 text-center">
-                      <div className="flex gap-2 items-center text-xs text-neutral-400 justify-center italic font-semibold">
-                        {selectedRequest.cancellationReason ? (
-                          <>
-                            <AlertCircle size={14} className="text-red-500" />
-                            <span>This service request was cancelled and closed.</span>
-                          </>
-                        ) : (
-                          <>
-                            <ShieldCheck size={14} className="text-green-500" />
-                            <span>This service request is completed and closed.</span>
-                          </>
-                        )}
-                      </div>
-                      {selectedRequest.cancellationReason && (
-                        <div className="text-[11px] text-neutral-400 italic bg-neutral-900/40 p-2.5 rounded-lg border border-neutral-850">
-                          <span className="font-extrabold text-[9px] uppercase text-neutral-500 block mb-0.5">Cancellation Reason:</span>
-                          "{selectedRequest.cancellationReason}"
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {selectedRequest.currentStatus === "Request Rejected" && (
-                    <div className="flex gap-2 items-center text-xs text-red-500 justify-center py-2 bg-red-500/5 rounded-xl border border-red-500/10 italic font-semibold">
-                      <ShieldAlert size={14} className="text-red-500" />
-                      <span>This service request was rejected by the admin.</span>
-                    </div>
-                  )}
-
-                  {/* Remarks input */}
-                  {selectedRequest.currentStatus !== "Closed" && selectedRequest.currentStatus !== "Request Rejected" && (
-                    <div className="mt-3">
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Add Remarks / History Log Message</label>
-                      <div className="relative">
-                        <MessageSquare className="absolute left-3 top-3 text-neutral-500" size={14} />
-                        <input
-                          type="text"
-                          placeholder="e.g. Parts replaced, verification approved, etc."
-                          value={actionRemarks}
-                          onChange={(e) => setActionRemarks(e.target.value)}
-                          className={cn(
-                            "w-full pl-9 pr-4 py-2.5 text-xs rounded-xl border outline-none",
-                            isDark ? "bg-slate-950 border-neutral-800 text-white" : "bg-white border-neutral-300"
-                          )}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-              </div>
-
-              {/* OUT OF WARRANTY SERVICE CHARGES SECTION */}
-              {selectedRequest.warrantyStatus === "Warranty Expired" && (
-                <div className={cn(
-                  "p-5 rounded-2xl border space-y-4 shadow-sm",
-                  isDark ? "bg-[#141414] border-neutral-800/70" : "bg-orange-50/10 border-orange-100"
-                )}>
-                  <div className="flex items-center justify-between border-b border-neutral-800/60 pb-2">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-orange-500">Out of Warranty Service Charges</h4>
-                    {selectedRequest.totalServiceCost !== null && selectedRequest.totalServiceCost !== undefined && (
-                      <span className="text-xs font-bold bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-full">
-                        Total Estimate: ₹{selectedRequest.totalServiceCost}
-                      </span>
-                    )}
-                  </div>
-
-                  {selectedRequest.currentStatus === "Awaiting Cost Estimation" ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Service Charge (₹) *</label>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="e.g. 500"
-                            value={serviceCharge}
-                            onChange={(e) => setServiceCharge(e.target.value)}
-                            className={cn(
-                              "w-full px-3 py-2 text-xs rounded-xl border outline-none",
-                              isDark ? "bg-slate-950 border-neutral-800 text-white" : "bg-white border-neutral-300"
-                            )}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Spare Parts Cost (₹) (Optional)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="e.g. 1200"
-                            value={sparePartsCost}
-                            onChange={(e) => setSparePartsCost(e.target.value)}
-                            className={cn(
-                              "w-full px-3 py-2 text-xs rounded-xl border outline-none",
-                              isDark ? "bg-slate-950 border-neutral-800 text-white" : "bg-white border-neutral-300"
-                            )}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Inspection Remarks</label>
-                        <textarea
-                          rows={2}
-                          placeholder="Describe inspection results and reason for spare parts..."
-                          value={inspectionRemarks}
-                          onChange={(e) => setInspectionRemarks(e.target.value)}
-                          className={cn(
-                            "w-full px-3 py-2 text-xs rounded-xl border outline-none resize-none",
-                            isDark ? "bg-slate-950 border-neutral-800 text-white" : "bg-white border-neutral-300"
-                          )}
-                        />
-                      </div>
-
-                      <div className="flex justify-between items-center pt-2">
-                        <div className="text-xs font-semibold text-neutral-400">
-                          Calculated Total: <span className="text-orange-500 font-bold">₹{(parseFloat(serviceCharge) || 0) + (parseFloat(sparePartsCost) || 0)}</span>
-                        </div>
-                        <button
-                          onClick={() => handleStatusUpdate(selectedRequest.id, "Awaiting Customer Approval")}
-                          disabled={updatingStatus}
-                          className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center gap-1.5 transition-colors"
-                        >
-                          <Check size={14} />
-                          <span>SAVE ESTIMATE</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                      <div>
-                        <p className="text-neutral-500">Service Charge</p>
-                        <p className="font-bold mt-0.5">₹{selectedRequest.serviceCharge ?? "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-neutral-500">Spare Parts Cost</p>
-                        <p className="font-bold mt-0.5">₹{selectedRequest.sparePartsCost ?? "0"}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-neutral-500">Inspection Remarks</p>
-                        <p className="font-semibold text-neutral-300 mt-0.5 italic">
-                          "{selectedRequest.inspectionRemarks || "No remarks provided"}"
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+              {/* STATUS ACTION FORM SECTION (For Single Items) */}
+              {(!selectedRequest.distributorItems || selectedRequest.distributorItems.length === 0) && (
+                <AdminStatusActionPanel
+                  request={selectedRequest}
+                  isDark={isDark}
+                  onUpdate={async () => {
+                    await fetchRequests();
+                    const detailRes = await serviceRequestService.getServiceRequestById(selectedRequest.id);
+                    if (detailRes.success) setSelectedRequest(detailRes.data);
+                  }}
+                  getStatusBadge={getStatusBadge}
+                />
               )}
+
 
               {/* USER METADATA */}
               <div className="space-y-3.5">
@@ -1002,55 +558,137 @@ export default function AdminServiceRequestsPage() {
                 </div>
               </div>
 
-              {/* PRODUCT DETAILS */}
-              <div className="space-y-3.5">
-                <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b pb-1">Product Details</h4>
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <p className="text-neutral-500">Product Name</p>
-                    <p className="font-bold mt-0.5 break-words">{selectedRequest.product?.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">SKU Code</p>
-                    <p className="font-mono font-bold mt-0.5 break-all">{selectedRequest.product?.sku || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">Variant Group</p>
-                    <p className="font-semibold mt-0.5 break-words">{selectedRequest.product?.variantGroup || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">Internal Product ID</p>
-                    <p className="font-mono text-neutral-450 mt-0.5 break-all">{selectedRequest.product?.id}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">Purchase Date</p>
-                    <p className="font-semibold mt-0.5">
-                      {new Date(selectedRequest.purchaseDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">Warranty Expiry Date</p>
-                    <p className="font-semibold mt-0.5">
-                      {new Date(selectedRequest.warrantyExpiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">Warranty Status</p>
-                    <p className="mt-0.5">
-                      <span className={cn(
-                        "px-2 py-0.5 rounded font-black text-[9px] inline-block whitespace-nowrap",
-                        selectedRequest.warrantyStatus === "Under Warranty" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
-                      )}>{selectedRequest.warrantyStatus.toUpperCase()}</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">Warranty Duration</p>
-                    <p className="font-semibold mt-0.5">{selectedRequest.product?.warranty || "1 Year"}</p>
+              {/* PRODUCT(S) DETAILS */}
+              {selectedRequest.distributorItems && selectedRequest.distributorItems.length > 0 ? (
+                <div className="space-y-4">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b pb-1">Products in this Batch</h4>
+                  <div className="space-y-4">
+                    {selectedRequest.distributorItems.map((item: any, idx: number) => (
+                      <div key={idx} className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/30">
+                        <div className="flex justify-between items-start mb-3">
+                          <h5 className="text-xs font-bold text-[#D71920]">Product {idx + 1}: {item.productName}</h5>
+                          <span className="text-[10px] font-mono bg-neutral-800 px-2 py-1 rounded text-neutral-300">SKU: {item.sku}</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 text-xs">
+                          <div>
+                            <p className="text-neutral-500">Order ID</p>
+                            <p className="font-bold mt-0.5">{item.orderId || "N/A"}</p>
+                          </div>
+                          <div>
+                            <p className="text-neutral-500">Purchase Date</p>
+                            <p className="font-bold mt-0.5">
+                              {item.purchaseDate ? new Date(item.purchaseDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-neutral-500">Service Category</p>
+                            <p className="font-bold mt-0.5">{item.serviceCategory}</p>
+                          </div>
+                          <div>
+                            <p className="text-neutral-500">Issue Description</p>
+                            <p className="italic text-neutral-300 mt-0.5">"{item.issueDescription}"</p>
+                          </div>
+                        </div>
+
+                        {(item.productImages?.length > 0 || item.warrantyCard) && (
+                          <div className="pt-3 border-t border-neutral-800/50">
+                            <p className="text-[10px] font-bold text-neutral-500 uppercase mb-2">Attached Documents & Images</p>
+                            <div className="flex flex-wrap gap-2">
+                              {item.productImages?.map((imgUrl: string, imgIdx: number) => (
+                                <a key={`img-${imgIdx}`} href={imgUrl} target="_blank" rel="noreferrer" className="block relative w-12 h-12 rounded overflow-hidden border border-neutral-700 hover:border-neutral-500">
+                                  <img src={imgUrl} alt={`Product ${idx+1} img ${imgIdx+1}`} className="w-full h-full object-cover" />
+                                </a>
+                              ))}
+                              {item.warrantyCard && (
+                                <a href={item.warrantyCard} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center w-12 h-12 rounded border border-green-700/50 hover:border-green-500 bg-green-900/20 text-green-500">
+                                  <FileText size={16} className="mb-0.5" />
+                                  <span className="text-[7px] font-bold uppercase tracking-wider">Warranty</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Individual Item Action Panel */}
+                        <div className="mt-4 pt-4 border-t border-neutral-800">
+                          <AdminStatusActionPanel
+                            request={selectedRequest}
+                            item={item}
+                            itemIndex={idx}
+                            isDark={isDark}
+                            onUpdate={async () => {
+                              await fetchRequests();
+                              const detailRes = await serviceRequestService.getServiceRequestById(selectedRequest.id);
+                              if (detailRes.success) setSelectedRequest(detailRes.data);
+                            }}
+                            getStatusBadge={getStatusBadge}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  {/* SINGLE PRODUCT DETAILS */}
+                  <div className="space-y-3.5">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b pb-1">Product Details</h4>
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <p className="text-neutral-500">Product Name</p>
+                        <p className="font-bold mt-0.5 break-words">{selectedRequest.product?.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-neutral-500">SKU Code</p>
+                        <p className="font-mono font-bold mt-0.5 break-all">{selectedRequest.product?.sku || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-neutral-500">Variant Group</p>
+                        <p className="font-semibold mt-0.5 break-words">{selectedRequest.product?.variantGroup || "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-neutral-500">Internal Product ID</p>
+                        <p className="font-mono text-neutral-450 mt-0.5 break-all">{selectedRequest.product?.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-neutral-500">Purchase Date</p>
+                        <p className="font-semibold mt-0.5">
+                          {new Date(selectedRequest.purchaseDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-neutral-500">Warranty Expiry Date</p>
+                        <p className="font-semibold mt-0.5">
+                          {new Date(selectedRequest.warrantyExpiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-neutral-500">Warranty Status</p>
+                        <p className="mt-0.5">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded font-black text-[9px] inline-block whitespace-nowrap",
+                            selectedRequest.warrantyStatus === "Under Warranty" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
+                          )}>{selectedRequest.warrantyStatus.toUpperCase()}</span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-neutral-500">Warranty Duration</p>
+                        <p className="font-semibold mt-0.5">{selectedRequest.product?.warranty || "1 Year"}</p>
+                      </div>
+                    </div>
+                  </div>
 
-              {/* PICKUP & ATTACHMENTS */}
+                  {/* SERVICE CATEGORY (SINGLE ITEM) */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b pb-1">Service category</h4>
+                    <p className="text-xs font-bold bg-neutral-900 px-3 py-1.5 w-fit rounded-lg">{selectedRequest.serviceCategory}</p>
+                    <p className="text-[10px] text-neutral-500 leading-normal mt-1 italic">"{selectedRequest.issueDescription}"</p>
+                  </div>
+                </>
+              )}
+
+              {/* PICKUP INFORMATION (SHARED) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b pb-1">Pickup Details</h4>
@@ -1064,12 +702,6 @@ export default function AdminServiceRequestsPage() {
                       <span>{selectedRequest.pickupAddress}</span>
                     </p>
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b pb-1">Service category</h4>
-                  <p className="text-xs font-bold bg-neutral-900 px-3 py-1.5 w-fit rounded-lg">{selectedRequest.serviceCategory}</p>
-                  <p className="text-[10px] text-neutral-500 leading-normal mt-1 italic">"{selectedRequest.issueDescription}"</p>
                 </div>
               </div>
 

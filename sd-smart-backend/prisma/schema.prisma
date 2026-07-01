@@ -24,25 +24,24 @@ enum ApprovalStatus {
 }
 
 model User {
-  id             String          @id @default(uuid())
-  email          String          @unique
-  phoneNumber    String?         @unique
-  password       String
-  firstName      String
-  lastName       String
-  role           UserRole        @default(CUSTOMER)
-  approvalStatus ApprovalStatus?
-  companyName    String?
-  gstin          String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  cart           Cart?
-  wishlist       Wishlist?
-  addresses      Address[]
-  orders         Order[]
+  id              String           @id @default(uuid())
+  email           String           @unique
+  phoneNumber     String?          @unique
+  password        String
+  firstName       String
+  lastName        String
+  role            UserRole         @default(CUSTOMER)
+  approvalStatus  ApprovalStatus?
+  companyName     String?
+  gstin           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  cart            Cart?
+  wishlist        Wishlist?
+  addresses       Address[]
+  orders          Order[]
   serviceRequests ServiceRequest[]
 }
-
 
 model OtpVerification {
   id        String   @id @default(uuid())
@@ -244,43 +243,43 @@ model Invoice {
 }
 
 model OrderItem {
-  id          String   @id @default(uuid())
-  orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  quantity    Int
-  unitPrice   Float
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+  unitPrice Float
+  createdAt DateTime @default(now())
 }
 
 // Unified Offer model (Polymorphic JSON configuration)
 model Offer {
-  id                  String   @id @default(uuid())
-  name                String
-  code                String   @unique
-  description         String?
-  offerType           String   // e.g. "PRODUCT_DISCOUNT", "COUPON", "BOGO", "FLASH_SALE", etc.
-  bannerImage         String?
-  priority            Int      @default(0)
-  status              String   @default("ACTIVE") // "ACTIVE", "INACTIVE", "SCHEDULED"
-  startDate           DateTime
-  endDate             DateTime
-  applyAutomatically  Boolean  @default(true)
-  stackable           Boolean  @default(false)
-  maxUsageLimit       Int?
-  usagePerCustomer    Int?     @default(1)
-  displayBadgeText    String?
-  badgeColor          String?  @default("red")
-  termsConditions     String?
-  
+  id                 String   @id @default(uuid())
+  name               String
+  code               String   @unique
+  description        String?
+  offerType          String // e.g. "PRODUCT_DISCOUNT", "COUPON", "BOGO", "FLASH_SALE", etc.
+  bannerImage        String?
+  priority           Int      @default(0)
+  status             String   @default("ACTIVE") // "ACTIVE", "INACTIVE", "SCHEDULED"
+  startDate          DateTime
+  endDate            DateTime
+  applyAutomatically Boolean  @default(true)
+  stackable          Boolean  @default(false)
+  maxUsageLimit      Int?
+  usagePerCustomer   Int?     @default(1)
+  displayBadgeText   String?
+  badgeColor         String?  @default("red")
+  termsConditions    String?
+
   // Single JSON configuration column to store type-specific rules
-  configuration       Json     @default("{}")
-  
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  createdBy           String?
-  lastModifiedBy      String?
+  configuration Json @default("{}")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  createdBy      String?
+  lastModifiedBy String?
 }
 
 model SystemSetting {
@@ -298,21 +297,22 @@ model ServiceRequest {
   user                User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId           String
   product             Product                    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  orderId             String?                    // Optional Order ID / Order Number
+  orderId             String? // Optional Order ID / Order Number
   purchaseDate        DateTime
-  serviceCategory     String                     // Repair, Installation, Warranty Claim, Product Not Working, Spare Parts Request
+  serviceCategory     String // Repair, Installation, Warranty Claim, Product Not Working, Spare Parts Request
   issueDescription    String
   preferredPickupDate DateTime
   contactNumber       String
   pickupAddress       String
   warrantyExpiryDate  DateTime
-  warrantyStatus      String                     // UNDER_WARRANTY or WARRANTY_EXPIRED
-  currentStatus       String                     // PENDING_VERIFICATION, VERIFIED, PICKUP_SCHEDULED, etc.
+  warrantyStatus      String // UNDER_WARRANTY or WARRANTY_EXPIRED
+  currentStatus       String // PENDING_VERIFICATION, VERIFIED, PICKUP_SCHEDULED, etc.
   serviceCharge       Float?
   sparePartsCost      Float?
   totalServiceCost    Float?
   inspectionRemarks   String?
   cancellationReason  String?
+  distributorItems    Json?                      // Stores multiple product items for Distributor requests
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt
   attachments         ServiceRequestAttachment[]
@@ -324,7 +324,7 @@ model ServiceRequestAttachment {
   serviceRequestId String
   serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
   fileUrl          String
-  fileType         String         // PRODUCT_IMAGE or WARRANTY_CARD
+  fileType         String // PRODUCT_IMAGE or WARRANTY_CARD
   fileName         String
   createdAt        DateTime       @default(now())
 }
@@ -335,6 +335,6 @@ model ServiceRequestHistory {
   serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
   status           String
   remarks          String?
-  updatedBy        String         // User's name or role (e.g. Admin or customer/distributor)
+  updatedBy        String // User's name or role (e.g. Admin or customer/distributor)
   updatedAt        DateTime       @default(now())
 }

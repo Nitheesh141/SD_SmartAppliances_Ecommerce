@@ -55,6 +55,7 @@ interface Order {
     lastName: string;
     email: string;
     phoneNumber: string | null;
+    role?: string;
   };
   address: {
     fullName: string;
@@ -114,6 +115,12 @@ export default function AdminOrdersPage() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+
+  // Track whether the detail drawer is open to pause polling
+  const isEditingRef = useRef(false);
+  useEffect(() => {
+    isEditingRef.current = !!selectedOrder;
+  }, [selectedOrder]);
 
   // Status updating state
   const [trackingStatus, setTrackingStatus] = useState("");
@@ -215,11 +222,6 @@ export default function AdminOrdersPage() {
       }
     };
 
-  // Track whether the detail drawer is open to pause polling
-  const isEditingRef = useRef(false);
-  useEffect(() => {
-    isEditingRef.current = !!selectedOrder;
-  }, [selectedOrder]);
 
     if (isAuthenticated) {
       fetchOrders(false);
@@ -478,7 +480,7 @@ export default function AdminOrdersPage() {
                         </div>
                         
                         <div className="text-xs text-neutral-500 mt-2 space-y-1">
-                          <p><span className="font-semibold text-neutral-600 dark:text-neutral-400">Distributor:</span> {order.address?.fullName || "N/A"}</p>
+                          <p><span className="font-semibold text-neutral-600 dark:text-neutral-400">{order.user?.role?.toUpperCase() === 'DISTRIBUTOR' ? 'Distributor' : 'Customer'}:</span> {order.address?.fullName || "N/A"}</p>
                           {order.address?.companyName && <p><span className="font-semibold text-neutral-600 dark:text-neutral-400">Company:</span> {order.address.companyName}</p>}
                           <p><span className="font-semibold text-neutral-600 dark:text-neutral-400">Date:</span> {new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                         </div>
@@ -504,7 +506,7 @@ export default function AdminOrdersPage() {
                     <div className="flex justify-between items-start border-b border-neutral-200 dark:border-neutral-800 pb-4">
                       <div>
                         <h3 className="font-black text-base">{selectedOrder.orderNumber}</h3>
-                        <p className="text-xs text-neutral-500 mt-0.5">Distributor order details</p>
+                        <p className="text-xs text-neutral-500 mt-0.5">{selectedOrder.user?.role?.toUpperCase() === 'DISTRIBUTOR' ? 'Distributor' : 'Customer'} order details</p>
                       </div>
                       <span className={cn("px-2 py-0.5 border rounded-md text-[9px] font-bold uppercase tracking-wider", getStatusColor(selectedOrder.status))}>
                         {getStatusLabel(selectedOrder.status)}
@@ -513,7 +515,7 @@ export default function AdminOrdersPage() {
 
                     {/* Distributor Information */}
                     <div className="space-y-2 text-xs">
-                      <h4 className="font-bold text-[#D71920] uppercase tracking-wider text-[10px]">Distributor Contact</h4>
+                      <h4 className="font-bold text-[#D71920] uppercase tracking-wider text-[10px]">{selectedOrder.user?.role?.toUpperCase() === 'DISTRIBUTOR' ? 'Distributor' : 'Customer'} Contact</h4>
                       <p><span className="text-neutral-500">Name:</span> <span className="font-bold">{selectedOrder.address?.fullName || "N/A"}</span></p>
                       <p><span className="text-neutral-500">Email:</span> <span className="font-bold">{selectedOrder.user?.email || "N/A"}</span></p>
                       <p><span className="text-neutral-500">Mobile:</span> <span className="font-bold">{selectedOrder.address?.mobileNumber || "N/A"}</span></p>
