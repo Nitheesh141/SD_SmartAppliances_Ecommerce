@@ -34,6 +34,7 @@ model User {
   approvalStatus  ApprovalStatus?
   companyName     String?
   gstin           String?
+  viewedByAdmin   Boolean          @default(false)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   cart            Cart?
@@ -210,6 +211,7 @@ model Order {
   statusHistory   OrderStatusHistory[]
   invoice         Invoice?
   paymentStatus   String               @default("PENDING")
+  viewedByAdmin   Boolean              @default(false)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 }
@@ -313,6 +315,7 @@ model ServiceRequest {
   inspectionRemarks   String?
   cancellationReason  String?
   distributorItems    Json?                      // Stores multiple product items for Distributor requests
+  viewedByAdmin       Boolean                    @default(false)
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt
   attachments         ServiceRequestAttachment[]

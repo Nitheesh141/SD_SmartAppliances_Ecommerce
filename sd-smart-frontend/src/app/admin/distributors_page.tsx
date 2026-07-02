@@ -115,7 +115,7 @@ export default function AdminDistributorsPage() {
         if (!isEditingRef.current && !isInputFocused) {
           fetchDistributors(true);
         }
-      }, 5000);
+      }, 20000);
 
       return () => clearInterval(interval);
     }

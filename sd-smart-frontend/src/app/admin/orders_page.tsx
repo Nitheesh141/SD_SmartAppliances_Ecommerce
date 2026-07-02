@@ -236,7 +236,7 @@ export default function AdminOrdersPage() {
         if (!isEditingRef.current && !isInputFocused) {
           fetchOrders(true);
         }
-      }, 5000);
+      }, 20000);
 
       return () => clearInterval(interval);
     }
@@ -710,103 +710,112 @@ export default function AdminOrdersPage() {
 
                     {/* Manual Tracking Workflow updates */}
                     {selectedOrder.status !== "PENDING_APPROVAL" && selectedOrder.status !== "REJECTED" && selectedOrder.status !== "CANCELLED" && (
-                      <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 space-y-4">
-                        <h4 className="font-bold text-[#D71920] uppercase tracking-wider text-[10px]">
-                          Update Shipping Stage
-                        </h4>
-                        
-                        <div className="space-y-3">
-                          <div className="relative">
-                            {/* Custom Styled Trigger Button */}
-                            <button
-                              type="button"
-                              onClick={() => setIsTrackingDropdownOpen(!isTrackingDropdownOpen)}
-                              className={cn(
-                                "w-full p-2.5 border rounded-lg text-xs font-bold focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 focus:border-[#D71920] cursor-pointer text-left transition-all relative flex items-center justify-between shadow-sm",
-                                isDark 
-                                  ? "bg-neutral-950 border-neutral-800 text-white" 
-                                  : "bg-white border-slate-200 text-slate-900"
-                              )}
-                            >
-                              <span>{logisticsOptions.find(opt => opt.value === trackingStatus)?.label || "Select logistics stage..."}</span>
-                              <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-200", isTrackingDropdownOpen ? "rotate-180" : "")} />
-                            </button>
-
-                            {/* Dropdown Options List */}
-                            {isTrackingDropdownOpen && (
-                              <>
-                                {/* Backdrop to close on click outside */}
-                                <div 
-                                  className="fixed inset-0 z-40 cursor-default" 
-                                  onClick={() => setIsTrackingDropdownOpen(false)}
-                                />
-                                
-                                <div className={cn(
-                                  "absolute left-0 right-0 mt-1.5 border rounded-xl shadow-xl py-1.5 z-50 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-200",
+                      selectedOrder.status === "DELIVERED" ? (
+                        <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 text-center">
+                          <p className="text-xs font-bold text-green-600 bg-green-500/10 border border-green-500/20 p-3.5 rounded-xl leading-relaxed">
+                            This order has already been delivered and can no longer be moved to a previous status.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 space-y-4">
+                          <h4 className="font-bold text-[#D71920] uppercase tracking-wider text-[10px]">
+                            Update Shipping Stage
+                          </h4>
+                          
+                          <div className="space-y-3">
+                            <div className="relative">
+                              {/* Custom Styled Trigger Button */}
+                              <button
+                                type="button"
+                                onClick={() => setIsTrackingDropdownOpen(!isTrackingDropdownOpen)}
+                                className={cn(
+                                  "w-full p-2.5 border rounded-lg text-xs font-bold focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 focus:border-[#D71920] cursor-pointer text-left transition-all relative flex items-center justify-between shadow-sm",
                                   isDark 
                                     ? "bg-neutral-950 border-neutral-800 text-white" 
-                                    : "bg-white border-neutral-200 text-slate-900"
-                                )}>
-                                  {logisticsOptions
-                                    .filter(option => option.value !== "")
-                                    .map((option) => {
-                                      const isSelected = option.value === trackingStatus;
-                                      return (
-                                        <button
-                                          key={option.value}
-                                          type="button"
-                                          onClick={() => {
-                                            setTrackingStatus(option.value);
-                                            setIsTrackingDropdownOpen(false);
-                                          }}
-                                          className={cn(
-                                            "w-full text-left px-4 py-2 text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer",
-                                            isDark
-                                              ? isSelected
-                                                ? "bg-red-950/20 text-red-400"
-                                                : "text-neutral-300 hover:bg-neutral-900/50 hover:text-white"
-                                              : isSelected
-                                                ? "bg-red-50 text-[#D71920]"
-                                                : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-                                          )}
-                                        >
-                                          <span>{option.label}</span>
-                                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#D71920] dark:bg-red-400" />}
-                                        </button>
-                                      );
-                                    })}
-                                </div>
-                              </>
-                            )}
+                                    : "bg-white border-slate-200 text-slate-900"
+                                )}
+                              >
+                                <span>{logisticsOptions.find(opt => opt.value === trackingStatus)?.label || "Select logistics stage..."}</span>
+                                <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-200", isTrackingDropdownOpen ? "rotate-180" : "")} />
+                              </button>
+
+                              {/* Dropdown Options List */}
+                              {isTrackingDropdownOpen && (
+                                <>
+                                  {/* Backdrop to close on click outside */}
+                                  <div 
+                                    className="fixed inset-0 z-40 cursor-default" 
+                                    onClick={() => setIsTrackingDropdownOpen(false)}
+                                  />
+                                  
+                                  <div className={cn(
+                                    "absolute left-0 right-0 mt-1.5 border rounded-xl shadow-xl py-1.5 z-50 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-200",
+                                    isDark 
+                                      ? "bg-neutral-950 border-neutral-800 text-white" 
+                                      : "bg-white border-neutral-200 text-slate-900"
+                                  )}>
+                                    {logisticsOptions
+                                      .filter(option => option.value !== "")
+                                      .map((option) => {
+                                        const isSelected = option.value === trackingStatus;
+                                        return (
+                                          <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => {
+                                              setTrackingStatus(option.value);
+                                              setIsTrackingDropdownOpen(false);
+                                            }}
+                                            className={cn(
+                                              "w-full text-left px-4 py-2 text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer",
+                                              isDark
+                                                ? isSelected
+                                                  ? "bg-red-950/20 text-red-400"
+                                                  : "text-neutral-300 hover:bg-neutral-900/50 hover:text-white"
+                                                : isSelected
+                                                  ? "bg-red-50 text-[#D71920]"
+                                                  : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                                            )}
+                                          >
+                                            <span>{option.label}</span>
+                                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#D71920] dark:bg-red-400" />}
+                                          </button>
+                                        );
+                                      })}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+
+                            <textarea
+                              placeholder="Add tracking remarks/notes..."
+                              rows={2}
+                              value={trackingRemarks}
+                              onChange={(e) => setTrackingRemarks(e.target.value)}
+                              className={cn(
+                                "w-full p-2.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#D71920]",
+                                isDark ? "bg-neutral-950 border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
+                              )}
+                            />
+
+                            <button
+                              onClick={() => {
+                                if (!trackingStatus) {
+                                  toast.error("Please select a tracking status");
+                                  return;
+                                }
+                                handleUpdateStatus(trackingStatus, trackingRemarks);
+                              }}
+                              disabled={updatingStatus || !trackingStatus}
+                              className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-neutral-800 hover:bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-100 rounded-xl text-xs font-bold cursor-pointer transition-colors shadow"
+                            >
+                              <Truck size={14} /> Update Shipping Status
+                            </button>
                           </div>
-
-                          <textarea
-                            placeholder="Add tracking remarks/notes..."
-                            rows={2}
-                            value={trackingRemarks}
-                            onChange={(e) => setTrackingRemarks(e.target.value)}
-                            className={cn(
-                              "w-full p-2.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#D71920]",
-                              isDark ? "bg-neutral-950 border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
-                            )}
-                          />
-
-                          <button
-                            onClick={() => {
-                              if (!trackingStatus) {
-                                toast.error("Please select a tracking status");
-                                return;
-                              }
-                              handleUpdateStatus(trackingStatus, trackingRemarks);
-                            }}
-                            disabled={updatingStatus || !trackingStatus}
-                            className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-neutral-800 hover:bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-100 rounded-xl text-xs font-bold cursor-pointer transition-colors shadow"
-                          >
-                            <Truck size={14} /> Update Shipping Status
-                          </button>
                         </div>
-                      </div>
+                      )
                     )}
+
 
                     {/* Invoice View Control */}
                     {selectedOrder.invoice && selectedOrder.status !== "REJECTED" && (

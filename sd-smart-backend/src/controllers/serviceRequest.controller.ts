@@ -173,7 +173,7 @@ export const createServiceRequest = async (req: Request, res: Response): Promise
     const { expiryDate, status: warrantyStatus } = calculateWarrantyStatus(purchaseDate, product.warranty ?? "1 Year");
 
     // Process distributorItems if they exist
-    let processedDistributorItems = null;
+    let processedDistributorItems: any = null;
     if (req.body.distributorItems && Array.isArray(req.body.distributorItems)) {
       const productIds = req.body.distributorItems.map((item: any) => item.productId);
       const distributorProducts = await prisma.product.findMany({
@@ -199,6 +199,7 @@ export const createServiceRequest = async (req: Request, res: Response): Promise
         };
       });
     }
+    const isBatch = processedDistributorItems && processedDistributorItems.length > 1;
 
     // 3. Generate Ticket ID
     const ticketId = await generateTicketId();
@@ -218,9 +219,9 @@ export const createServiceRequest = async (req: Request, res: Response): Promise
           contactNumber,
           pickupAddress,
           warrantyExpiryDate: expiryDate,
-          warrantyStatus: processedDistributorItems ? "Batch Request" : warrantyStatus,
-          currentStatus: processedDistributorItems ? "Batch Process" : "Pending Verification",
-          distributorItems: processedDistributorItems,
+          warrantyStatus: isBatch ? "Batch Request" : warrantyStatus,
+          currentStatus: isBatch ? "Batch Process" : "Pending Verification",
+          distributorItems: isBatch ? processedDistributorItems : undefined,
         }
       });
 

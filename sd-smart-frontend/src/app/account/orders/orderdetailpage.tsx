@@ -45,9 +45,9 @@ export default function OrderDetailPage() {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    const fetchOrderDetails = async () => {
+    const fetchOrderDetails = async (isBackground = false) => {
       if (!orderId || !isAuthenticated) return;
-      setLoading(true);
+      if (!isBackground) setLoading(true);
       setError("");
       try {
         const token = localStorage.getItem("authToken");
@@ -58,13 +58,13 @@ export default function OrderDetailPage() {
         if (data.success && data.order) {
           setOrder(data.order);
         } else {
-          setError(data.message || "Failed to load order details");
+          if (!isBackground) setError(data.message || "Failed to load order details");
         }
       } catch (err) {
         console.error("Order details fetch error:", err);
-        setError("Unable to connect to the server.");
+        if (!isBackground) setError("Unable to connect to the server.");
       } finally {
-        setLoading(false);
+        if (!isBackground) setLoading(false);
       }
     };
 
@@ -83,8 +83,23 @@ export default function OrderDetailPage() {
       }
     };
 
-    fetchOrderDetails();
-    fetchSettings();
+    if (orderId && isAuthenticated) {
+      fetchOrderDetails(false);
+      fetchSettings();
+
+      const interval = setInterval(() => {
+        const activeEl = document.activeElement;
+        const isInputFocused = activeEl && (
+          ["INPUT", "TEXTAREA", "SELECT"].includes(activeEl.tagName.toUpperCase()) ||
+          activeEl.getAttribute("contenteditable") === "true"
+        );
+        if (!isInputFocused) {
+          fetchOrderDetails(true);
+        }
+      }, 20000);
+
+      return () => clearInterval(interval);
+    }
   }, [orderId, isAuthenticated]);
 
   const handleCancelOrder = async () => {
