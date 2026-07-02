@@ -418,6 +418,14 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
       return;
     }
 
+    if (order.status === "DELIVERED" && status && status !== "DELIVERED") {
+      res.status(400).json({
+        success: false,
+        message: "This order has already been delivered and can no longer be moved to a previous status."
+      });
+      return;
+    }
+
     const oldStatus = order.status;
 
     const dbUser = await prisma.user.findUnique({
@@ -725,3 +733,114 @@ export const cancelOrder = async (req: Request, res: Response): Promise<void> =>
     res.status(500).json({ success: false, message: error.message || "Failed to cancel order" });
   }
 };
+
+// Admin: Get unread counts for orders, distributor signups, and service requests
+export const getUnreadCounts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    const ordersCount = await prisma.order.count({
+      where: { viewedByAdmin: false }
+    });
+
+    const distributorsCount = await prisma.user.count({
+      where: {
+        role: "DISTRIBUTOR",
+        approvalStatus: "PENDING",
+        viewedByAdmin: false
+      }
+    });
+
+    const serviceRequestsCount = await prisma.serviceRequest.count({
+      where: { viewedByAdmin: false }
+    });
+
+    res.json({
+      success: true,
+      counts: {
+        orders: ordersCount,
+        distributors: distributorsCount,
+        serviceRequests: serviceRequestsCount
+      }
+    });
+  } catch (error: any) {
+    console.error("Get unread counts error:", error);
+    res.status(500).json({ success: false, message: "Failed to get unread counts" });
+  }
+};
+
+// Admin: Mark all unread orders as read
+export const markOrdersAsRead = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    await prisma.order.updateMany({
+      where: { viewedByAdmin: false },
+      data: { viewedByAdmin: true }
+    });
+
+    res.json({ success: true, message: "All orders marked as read" });
+  } catch (error: any) {
+    console.error("Mark orders as read error:", error);
+    res.status(500).json({ success: false, message: "Failed to mark orders as read" });
+  }
+};
+
+// Admin: Mark all unread distributor signup requests as read
+export const markDistributorsAsRead = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    await prisma.user.updateMany({
+      where: {
+        role: "DISTRIBUTOR",
+        approvalStatus: "PENDING",
+        viewedByAdmin: false
+      },
+      data: { viewedByAdmin: true }
+    });
+
+    res.json({ success: true, message: "All distributor requests marked as read" });
+  } catch (error: any) {
+    console.error("Mark distributors as read error:", error);
+    res.status(500).json({ success: false, message: "Failed to mark distributors as read" });
+  }
+};
+
+// Admin: Mark all unread service requests as read
+export const markServiceRequestsAsRead = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    await prisma.serviceRequest.updateMany({
+      where: { viewedByAdmin: false },
+      data: { viewedByAdmin: true }
+    });
+
+    res.json({ success: true, message: "All service requests marked as read" });
+  } catch (error: any) {
+    console.error("Mark service requests as read error:", error);
+    res.status(500).json({ success: false, message: "Failed to mark service requests as read" });
+  }
+};
+

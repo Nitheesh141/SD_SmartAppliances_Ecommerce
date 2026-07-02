@@ -153,7 +153,7 @@ export default function AdminDashboardPage() {
         if (!isInputFocused) {
           fetchTransactions(true);
         }
-      }, 5000);
+      }, 20000);
 
       return () => clearInterval(interval);
     }

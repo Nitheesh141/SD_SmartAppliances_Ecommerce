@@ -190,7 +190,7 @@ export default function DistributerDashboardPage() {
         if (!isInputFocused) {
           fetchOrders(true);
         }
-      }, 5000);
+      }, 20000);
 
       return () => clearInterval(interval);
     }

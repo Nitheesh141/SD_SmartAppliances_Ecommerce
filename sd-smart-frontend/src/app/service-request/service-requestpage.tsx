@@ -88,6 +88,30 @@ export default function ServiceRequestPage() {
   // Selected request details modal
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [respondingEstimate, setRespondingEstimate] = useState(false);
+
+  const getEffectiveWarrantyStatus = (req: any) => {
+    if (!req) return "";
+    const items = req.distributorItems;
+    if (items && Array.isArray(items) && items.length > 1) {
+      return "Batch Request";
+    }
+    if (items && Array.isArray(items) && items.length === 1) {
+      return items[0].warrantyStatus || req.warrantyStatus;
+    }
+    return req.warrantyStatus;
+  };
+
+  const getEffectiveCurrentStatus = (req: any) => {
+    if (!req) return "";
+    const items = req.distributorItems;
+    if (items && Array.isArray(items) && items.length > 1) {
+      return "Batch Process";
+    }
+    if (items && Array.isArray(items) && items.length === 1) {
+      return items[0].currentStatus || req.currentStatus;
+    }
+    return req.currentStatus;
+  };
   const [showCancelReasonModal, setShowCancelReasonModal] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
 
@@ -167,7 +191,7 @@ export default function ServiceRequestPage() {
         if (!isEditingRef.current && !isInputFocused) {
           fetchRequests(true);
         }
-      }, 5000);
+      }, 20000);
 
       return () => clearInterval(interval);
     }
@@ -473,6 +497,9 @@ export default function ServiceRequestPage() {
     if (status === "Under Warranty") {
       return <span className="inline-block whitespace-nowrap px-2 py-0.5 text-[10px] font-bold rounded bg-green-100 text-green-800 dark:bg-green-950/35 dark:text-green-400">UNDER WARRANTY</span>;
     }
+    if (status === "Batch Request") {
+      return <span className="inline-block whitespace-nowrap px-2 py-0.5 text-[10px] font-bold rounded bg-red-100/10 text-red-650 border border-red-500/20 dark:bg-red-950/35 dark:text-red-400">BATCH REQUEST</span>;
+    }
     return <span className="inline-block whitespace-nowrap px-2 py-0.5 text-[10px] font-bold rounded bg-red-100 text-red-800 dark:bg-red-950/35 dark:text-red-400">WARRANTY EXPIRED</span>;
   };
 
@@ -567,11 +594,11 @@ export default function ServiceRequestPage() {
                            <tr key={req.id} className="hover:bg-neutral-50/50 dark:hover:bg-slate-800/20 transition-colors">
                              <td className="px-6 py-4 font-bold font-mono text-[#D71920] whitespace-nowrap">{req.ticketId}</td>
                              <td className="px-6 py-4 font-semibold">{req.product?.name || "Product"}</td>
-                             <td className="px-6 py-4">{getWarrantyBadge(req.warrantyStatus)}</td>
+                             <td className="px-6 py-4">{getWarrantyBadge(getEffectiveWarrantyStatus(req))}</td>
                              <td className="px-6 py-4 text-xs font-semibold text-neutral-600 dark:text-neutral-350 whitespace-nowrap hidden xl:table-cell">
                                {new Date(req.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                              </td>
-                             <td className="px-6 py-4">{getStatusBadge(req.currentStatus, req.cancellationReason)}</td>
+                             <td className="px-6 py-4">{getStatusBadge(getEffectiveCurrentStatus(req), req.cancellationReason)}</td>
                              <td className="px-6 py-4 text-xs text-neutral-500 dark:text-neutral-400 whitespace-nowrap hidden xl:table-cell">
                                {new Date(req.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                              </td>
@@ -616,11 +643,11 @@ export default function ServiceRequestPage() {
                       <div className="grid grid-cols-2 gap-2 pt-1">
                         <div>
                           <span className="block text-[9px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Warranty Status</span>
-                          {getWarrantyBadge(req.warrantyStatus)}
+                          {getWarrantyBadge(getEffectiveWarrantyStatus(req))}
                         </div>
                         <div>
                           <span className="block text-[9px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Current Status</span>
-                          {getStatusBadge(req.currentStatus, req.cancellationReason)}
+                          {getStatusBadge(getEffectiveCurrentStatus(req), req.cancellationReason)}
                         </div>
                       </div>
 
@@ -747,9 +774,6 @@ export default function ServiceRequestPage() {
                                   : [{
                                       label: "Your Purchased Products",
                                       options: purchasedProducts.map(p => ({ value: p.id, label: p.name, subLabel: `SKU: ${p.sku || "N/A"}` }))
-                                    }, {
-                                      label: "All Other Products",
-                                      options: allProducts.filter(p => !purchasedProducts.some(pp => pp.id === p.id)).map(p => ({ value: p.id, label: p.name, subLabel: `SKU: ${p.sku || "N/A"}` }))
                                     }]
                               }
                             />
@@ -978,7 +1002,7 @@ export default function ServiceRequestPage() {
               <div className="lg:col-span-2 space-y-6">
                 
                 {/* Distributor Items or Single Product Details */}
-                {selectedRequest.distributorItems && selectedRequest.distributorItems.length > 0 ? (
+                {selectedRequest.distributorItems && selectedRequest.distributorItems.length > 1 ? (
                   <div className="space-y-6">
                     {selectedRequest.distributorItems.map((item: any, idx: number) => (
                       <div key={idx} className="p-4 bg-neutral-50 dark:bg-slate-850 border border-neutral-100 dark:border-slate-800 rounded-xl space-y-4">
@@ -1097,7 +1121,7 @@ export default function ServiceRequestPage() {
                         </div>
                         <div className="col-span-2">
                           <p className="text-neutral-400 mb-1">Warranty Status</p>
-                          <div>{getWarrantyBadge(selectedRequest.warrantyStatus)}</div>
+                          <div>{getWarrantyBadge(getEffectiveWarrantyStatus(selectedRequest))}</div>
                         </div>
                       </div>
                     </div>
@@ -1141,9 +1165,8 @@ export default function ServiceRequestPage() {
                   </div>
                 )}
 
-                {/* Out of Warranty Charges & Approval */}
                 {/* Out of Warranty Charges & Approval (Single Product Only) */}
-                {(!selectedRequest.distributorItems || selectedRequest.distributorItems.length === 0) && selectedRequest.warrantyStatus === "Warranty Expired" && selectedRequest.serviceCharge !== null && selectedRequest.serviceCharge !== undefined && (
+                {(!selectedRequest.distributorItems || selectedRequest.distributorItems.length <= 1) && getEffectiveWarrantyStatus(selectedRequest) === "Warranty Expired" && selectedRequest.serviceCharge !== null && selectedRequest.serviceCharge !== undefined && (
                   <div className="p-4 bg-orange-50 dark:bg-slate-800/30 border border-orange-100 dark:border-slate-800 rounded-xl space-y-4">
                     <h4 className="text-xs font-black uppercase tracking-wider text-orange-500 border-b dark:border-slate-805 pb-1">Out of Warranty Service Estimate</h4>
                     
@@ -1233,8 +1256,8 @@ export default function ServiceRequestPage() {
                 <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b pb-1">Ticket Progress</h4>
 
                 <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-neutral-200 dark:before:bg-slate-800">
-                  {getStatusSteps(selectedRequest.warrantyStatus, selectedRequest.currentStatus, selectedRequest.cancellationReason).map((step, idx, arr) => {
-                    const statusIdx = getStatusIndex(selectedRequest.currentStatus, arr);
+                  {getStatusSteps(getEffectiveWarrantyStatus(selectedRequest), getEffectiveCurrentStatus(selectedRequest), selectedRequest.cancellationReason).map((step, idx, arr) => {
+                    const statusIdx = getStatusIndex(getEffectiveCurrentStatus(selectedRequest), arr);
                     const isCompleted = idx <= statusIdx;
                     const isActive = idx === statusIdx;
                     

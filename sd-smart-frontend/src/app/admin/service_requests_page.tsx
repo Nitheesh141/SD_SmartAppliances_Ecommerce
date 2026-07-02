@@ -52,6 +52,30 @@ export default function AdminServiceRequestsPage() {
     localStorage.setItem("admin-theme", nextTheme);
   };
 
+  const getEffectiveWarrantyStatus = (req: any) => {
+    if (!req) return "";
+    const items = req.distributorItems;
+    if (items && Array.isArray(items) && items.length > 1) {
+      return "Batch Request";
+    }
+    if (items && Array.isArray(items) && items.length === 1) {
+      return items[0].warrantyStatus || req.warrantyStatus;
+    }
+    return req.warrantyStatus;
+  };
+
+  const getEffectiveCurrentStatus = (req: any) => {
+    if (!req) return "";
+    const items = req.distributorItems;
+    if (items && Array.isArray(items) && items.length > 1) {
+      return "Batch Process";
+    }
+    if (items && Array.isArray(items) && items.length === 1) {
+      return items[0].currentStatus || req.currentStatus;
+    }
+    return req.currentStatus;
+  };
+
   // Route protection
   useEffect(() => {
     if (!authLoading) {
@@ -105,7 +129,7 @@ export default function AdminServiceRequestsPage() {
         if (!isEditingRef.current && !isInputFocused) {
           fetchRequests(true);
         }
-      }, 5000);
+      }, 20000);
 
       return () => clearInterval(interval);
     }
@@ -126,17 +150,18 @@ export default function AdminServiceRequestsPage() {
     if (!matchesSearch) return false;
 
     // Tab filter
+    const effStatus = getEffectiveCurrentStatus(req);
     switch (activeTab) {
       case "PENDING_VERIFICATION":
-        return req.currentStatus === "Pending Verification";
+        return effStatus === "Pending Verification";
       case "PICKUP_SCHEDULED":
-        return req.currentStatus === "Pickup Scheduled";
+        return effStatus === "Pickup Scheduled";
       case "UNDER_SERVICE":
-        return ["Product Collected", "Under Inspection", "Awaiting Cost Estimation", "Awaiting Customer Approval", "Cost Approved", "Under Repair"].includes(req.currentStatus);
+        return ["Product Collected", "Under Inspection", "Awaiting Cost Estimation", "Awaiting Customer Approval", "Cost Approved", "Under Repair"].includes(effStatus);
       case "COMPLETED":
-        return ["Service Completed", "Ready For Delivery", "Delivered"].includes(req.currentStatus);
+        return ["Service Completed", "Ready For Delivery", "Delivered"].includes(effStatus);
       case "CLOSED":
-        return ["Closed", "Service Cancelled", "Request Rejected"].includes(req.currentStatus);
+        return ["Closed", "Service Cancelled", "Request Rejected"].includes(effStatus);
       case "ALL":
       default:
         return true;
@@ -145,11 +170,11 @@ export default function AdminServiceRequestsPage() {
 
   // Calculate KPI metrics
   const totalRequests = requests.length;
-  const pendingRequests = requests.filter(r => r.currentStatus === "Pending Verification").length;
-  const pickupScheduledRequests = requests.filter(r => r.currentStatus === "Pickup Scheduled").length;
-  const underServiceRequests = requests.filter(r => ["Product Collected", "Under Inspection", "Awaiting Cost Estimation", "Awaiting Customer Approval", "Cost Approved", "Under Repair"].includes(r.currentStatus)).length;
-  const completedRequests = requests.filter(r => ["Service Completed", "Ready For Delivery", "Delivered"].includes(r.currentStatus)).length;
-  const closedRequests = requests.filter(r => ["Closed", "Service Cancelled", "Request Rejected"].includes(r.currentStatus)).length;
+  const pendingRequests = requests.filter(r => getEffectiveCurrentStatus(r) === "Pending Verification").length;
+  const pickupScheduledRequests = requests.filter(r => getEffectiveCurrentStatus(r) === "Pickup Scheduled").length;
+  const underServiceRequests = requests.filter(r => ["Product Collected", "Under Inspection", "Awaiting Cost Estimation", "Awaiting Customer Approval", "Cost Approved", "Under Repair"].includes(getEffectiveCurrentStatus(r))).length;
+  const completedRequests = requests.filter(r => ["Service Completed", "Ready For Delivery", "Delivered"].includes(getEffectiveCurrentStatus(r))).length;
+  const closedRequests = requests.filter(r => ["Closed", "Service Cancelled", "Request Rejected"].includes(getEffectiveCurrentStatus(r))).length;
 
   // Render Status Badge
   const getStatusBadge = (status: string, cancellationReason?: string | null) => {
@@ -245,7 +270,7 @@ export default function AdminServiceRequestsPage() {
             { label: "Pickup Scheduled", val: pickupScheduledRequests, color: "text-purple-500 bg-purple-500/10" },
             { label: "Under Service", val: underServiceRequests, color: "text-indigo-500 bg-indigo-500/10" },
             { label: "Completed Services", val: completedRequests, color: "text-green-500 bg-green-500/10" },
-            { label: "Closed Requests", val: closedRequests, color: "text-neutral-400 bg-neutral-800/40" },
+            { label: "Closed Requests", val: closedRequests, color: "text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800/40" },
           ].map((card, idx) => (
             <div
               key={idx}
@@ -344,13 +369,13 @@ export default function AdminServiceRequestsPage() {
                         <td className="px-3 py-4">
                           <span className={cn(
                             "px-2 py-0.5 font-bold rounded text-[9px] inline-block whitespace-nowrap",
-                            req.warrantyStatus === "Under Warranty" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
-                          )}>{req.warrantyStatus.toUpperCase()}</span>
+                            getEffectiveWarrantyStatus(req) === "Under Warranty" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
+                          )}>{getEffectiveWarrantyStatus(req).toUpperCase()}</span>
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap hidden lg:table-cell">
                           {new Date(req.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                         </td>
-                        <td className="px-3 py-4">{getStatusBadge(req.currentStatus, req.cancellationReason)}</td>
+                        <td className="px-3 py-4">{getStatusBadge(getEffectiveCurrentStatus(req), req.cancellationReason)}</td>
                         <td className="px-3 py-4 text-right">
                           <button
                             onClick={() => setSelectedRequest(req)}
@@ -415,12 +440,12 @@ export default function AdminServiceRequestsPage() {
                       <span className="block text-[8px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Warranty</span>
                       <span className={cn(
                         "px-2 py-0.5 font-bold rounded text-[9px] inline-block whitespace-nowrap",
-                        req.warrantyStatus === "Under Warranty" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
-                      )}>{req.warrantyStatus.toUpperCase()}</span>
+                        getEffectiveWarrantyStatus(req) === "Under Warranty" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
+                      )}>{getEffectiveWarrantyStatus(req).toUpperCase()}</span>
                     </div>
                     <div>
                       <span className="block text-[8px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Status</span>
-                      {getStatusBadge(req.currentStatus, req.cancellationReason)}
+                      {getStatusBadge(getEffectiveCurrentStatus(req), req.cancellationReason)}
                     </div>
                   </div>
 
@@ -504,7 +529,7 @@ export default function AdminServiceRequestsPage() {
             <div className="p-6 overflow-y-auto overflow-x-hidden flex-1 space-y-8 w-full break-words [word-break:break-word] [overflow-wrap:break-word]">
               
               {/* STATUS ACTION FORM SECTION (For Single Items) */}
-              {(!selectedRequest.distributorItems || selectedRequest.distributorItems.length === 0) && (
+              {(!selectedRequest.distributorItems || selectedRequest.distributorItems.length <= 1) && (
                 <AdminStatusActionPanel
                   request={selectedRequest}
                   isDark={isDark}
@@ -559,7 +584,7 @@ export default function AdminServiceRequestsPage() {
               </div>
 
               {/* PRODUCT(S) DETAILS */}
-              {selectedRequest.distributorItems && selectedRequest.distributorItems.length > 0 ? (
+              {selectedRequest.distributorItems && selectedRequest.distributorItems.length > 1 ? (
                 <div className="space-y-4">
                   <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 border-b pb-1">Products in this Batch</h4>
                   <div className="space-y-4">
@@ -668,8 +693,8 @@ export default function AdminServiceRequestsPage() {
                         <p className="mt-0.5">
                           <span className={cn(
                             "px-2 py-0.5 rounded font-black text-[9px] inline-block whitespace-nowrap",
-                            selectedRequest.warrantyStatus === "Under Warranty" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
-                          )}>{selectedRequest.warrantyStatus.toUpperCase()}</span>
+                            getEffectiveWarrantyStatus(selectedRequest) === "Under Warranty" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
+                          )}>{getEffectiveWarrantyStatus(selectedRequest).toUpperCase()}</span>
                         </p>
                       </div>
                       <div>

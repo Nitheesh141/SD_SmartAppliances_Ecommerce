@@ -16,6 +16,7 @@ import {
   updateDistributorStatus,
   deleteDistributor
 } from "../controllers/auth.controller";
+import { markDistributorsAsRead } from "../controllers/order.controller";
 import { authenticateToken } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -35,6 +36,7 @@ router.post("/verify-otp", loginWithOtp);
 
 // Admin-only distributor management
 router.get("/admin/distributors", authenticateToken, getDistributors);
+router.post("/admin/distributors/mark-read", authenticateToken, markDistributorsAsRead);
 router.put("/admin/distributors/:id/status", authenticateToken, updateDistributorStatus);
 router.delete("/admin/distributors/:id", authenticateToken, deleteDistributor);
 

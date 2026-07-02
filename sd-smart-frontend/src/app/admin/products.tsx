@@ -187,7 +187,7 @@ export default function AdminProductsPage() {
         if (!isEditingRef.current && !isInputFocused) {
           fetchProducts(true);
         }
-      }, 5000);
+      }, 20000);
 
       return () => clearInterval(interval);
     }
