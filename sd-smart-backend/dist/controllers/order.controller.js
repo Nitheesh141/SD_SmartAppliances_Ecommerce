@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cancelOrder = exports.getOrderInvoice = exports.updateOrderStatus = exports.getAllOrders = exports.getOrderById = exports.getOrders = exports.createOrder = void 0;
+exports.markServiceRequestsAsRead = exports.markDistributorsAsRead = exports.markOrdersAsRead = exports.getUnreadCounts = exports.cancelOrder = exports.getOrderInvoice = exports.updateOrderStatus = exports.getAllOrders = exports.getOrderById = exports.getOrders = exports.createOrder = void 0;
 const db_1 = require("../utils/db");
 const offer_controller_1 = require("./offer.controller");
 // Create a new order (Checkout)
@@ -83,6 +83,9 @@ const createOrder = async (req, res) => {
         const userName = dbUser ? `${dbUser.firstName} ${dbUser.lastName}` : user.email;
         // 4. Perform Transaction
         const order = await db_1.prisma.$transaction(async (tx) => {
+            const isCustomer = user.role?.toUpperCase() === "CUSTOMER";
+            const initialStatus = isCustomer ? "APPROVED" : "PENDING_APPROVAL";
+            const initialRemarks = isCustomer ? "Order placed and automatically approved." : "Order submitted and pending admin approval.";
             // a. Create Order
             const newOrder = await tx.order.create({
                 data: {
@@ -91,7 +94,7 @@ const createOrder = async (req, res) => {
                     addressId,
                     poNumber: poNumber || null,
                     paymentMethod,
-                    status: "PENDING_APPROVAL",
+                    status: initialStatus,
                     subtotal,
                     cgst,
                     sgst,
@@ -99,10 +102,12 @@ const createOrder = async (req, res) => {
                     deliveryCharges,
                     discount,
                     grandTotal,
+                    approvedAt: isCustomer ? new Date() : null,
+                    approvedBy: isCustomer ? "System" : null,
                     statusHistory: {
                         create: {
-                            status: "PENDING_APPROVAL",
-                            remarks: "Order submitted and pending admin approval.",
+                            status: initialStatus,
+                            remarks: initialRemarks,
                             updatedBy: userName
                         }
                     },
@@ -298,6 +303,7 @@ const getAllOrders = async (req, res) => {
                         lastName: true,
                         email: true,
                         phoneNumber: true,
+                        role: true,
                     }
                 },
                 address: true,
@@ -369,6 +375,13 @@ const updateOrderStatus = async (req, res) => {
         });
         if (!order) {
             res.status(404).json({ success: false, message: "Order not found" });
+            return;
+        }
+        if (order.status === "DELIVERED" && status && status !== "DELIVERED") {
+            res.status(400).json({
+                success: false,
+                message: "This order has already been delivered and can no longer be moved to a previous status."
+            });
             return;
         }
         const oldStatus = order.status;
@@ -648,3 +661,107 @@ const cancelOrder = async (req, res) => {
     }
 };
 exports.cancelOrder = cancelOrder;
+// Admin: Get unread counts for orders, distributor signups, and service requests
+const getUnreadCounts = async (req, res) => {
+    try {
+        const user = req.user;
+        const roleUpper = user?.role?.toUpperCase();
+        if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+            res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+            return;
+        }
+        const ordersCount = await db_1.prisma.order.count({
+            where: { viewedByAdmin: false }
+        });
+        const distributorsCount = await db_1.prisma.user.count({
+            where: {
+                role: "DISTRIBUTOR",
+                approvalStatus: "PENDING",
+                viewedByAdmin: false
+            }
+        });
+        const serviceRequestsCount = await db_1.prisma.serviceRequest.count({
+            where: { viewedByAdmin: false }
+        });
+        res.json({
+            success: true,
+            counts: {
+                orders: ordersCount,
+                distributors: distributorsCount,
+                serviceRequests: serviceRequestsCount
+            }
+        });
+    }
+    catch (error) {
+        console.error("Get unread counts error:", error);
+        res.status(500).json({ success: false, message: "Failed to get unread counts" });
+    }
+};
+exports.getUnreadCounts = getUnreadCounts;
+// Admin: Mark all unread orders as read
+const markOrdersAsRead = async (req, res) => {
+    try {
+        const user = req.user;
+        const roleUpper = user?.role?.toUpperCase();
+        if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+            res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+            return;
+        }
+        await db_1.prisma.order.updateMany({
+            where: { viewedByAdmin: false },
+            data: { viewedByAdmin: true }
+        });
+        res.json({ success: true, message: "All orders marked as read" });
+    }
+    catch (error) {
+        console.error("Mark orders as read error:", error);
+        res.status(500).json({ success: false, message: "Failed to mark orders as read" });
+    }
+};
+exports.markOrdersAsRead = markOrdersAsRead;
+// Admin: Mark all unread distributor signup requests as read
+const markDistributorsAsRead = async (req, res) => {
+    try {
+        const user = req.user;
+        const roleUpper = user?.role?.toUpperCase();
+        if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+            res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+            return;
+        }
+        await db_1.prisma.user.updateMany({
+            where: {
+                role: "DISTRIBUTOR",
+                approvalStatus: "PENDING",
+                viewedByAdmin: false
+            },
+            data: { viewedByAdmin: true }
+        });
+        res.json({ success: true, message: "All distributor requests marked as read" });
+    }
+    catch (error) {
+        console.error("Mark distributors as read error:", error);
+        res.status(500).json({ success: false, message: "Failed to mark distributors as read" });
+    }
+};
+exports.markDistributorsAsRead = markDistributorsAsRead;
+// Admin: Mark all unread service requests as read
+const markServiceRequestsAsRead = async (req, res) => {
+    try {
+        const user = req.user;
+        const roleUpper = user?.role?.toUpperCase();
+        if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+            res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+            return;
+        }
+        await db_1.prisma.serviceRequest.updateMany({
+            where: { viewedByAdmin: false },
+            data: { viewedByAdmin: true }
+        });
+        res.json({ success: true, message: "All service requests marked as read" });
+    }
+    catch (error) {
+        console.error("Mark service requests as read error:", error);
+        res.status(500).json({ success: false, message: "Failed to mark service requests as read" });
+    }
+};
+exports.markServiceRequestsAsRead = markServiceRequestsAsRead;

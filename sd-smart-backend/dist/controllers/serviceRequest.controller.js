@@ -101,7 +101,7 @@ const createServiceRequest = async (req, res) => {
             res.status(400).json({ success: false, message: "Required fields are missing" });
             return;
         }
-        // 1. Fetch Product
+        // 1. Fetch main Product
         const product = await db_1.prisma.product.findUnique({
             where: { id: productId }
         });
@@ -109,8 +109,69 @@ const createServiceRequest = async (req, res) => {
             res.status(404).json({ success: false, message: "Product not found" });
             return;
         }
-        // 2. Validate Warranty
+        // 1.5 Validate Order Approval Status
+        const orderNumbersToValidate = [];
+        if (orderId)
+            orderNumbersToValidate.push(orderId);
+        if (req.body.distributorItems && Array.isArray(req.body.distributorItems)) {
+            req.body.distributorItems.forEach((item) => {
+                if (item.orderId)
+                    orderNumbersToValidate.push(item.orderId);
+            });
+        }
+        if (orderNumbersToValidate.length > 0) {
+            const uniqueOrderNumbers = [...new Set(orderNumbersToValidate)];
+            const orders = await db_1.prisma.order.findMany({
+                where: { orderNumber: { in: uniqueOrderNumbers } },
+                select: { orderNumber: true, status: true }
+            });
+            const unapprovedStates = ["PENDING_APPROVAL", "REJECTED", "CANCELLED"];
+            const invalidOrders = orders.filter(o => unapprovedStates.includes(o.status));
+            if (invalidOrders.length > 0) {
+                res.status(400).json({
+                    success: false,
+                    message: `Cannot create service request. Order(s) ${invalidOrders.map(o => o.orderNumber).join(", ")} are not in an approved state.`
+                });
+                return;
+            }
+            if (orders.length !== uniqueOrderNumbers.length) {
+                res.status(400).json({ success: false, message: "One or more provided Order IDs are invalid." });
+                return;
+            }
+        }
+        else {
+            res.status(400).json({ success: false, message: "Order ID is required for the service request." });
+            return;
+        }
+        // 2. Validate Warranty for main product
         const { expiryDate, status: warrantyStatus } = calculateWarrantyStatus(purchaseDate, product.warranty ?? "1 Year");
+        // Process distributorItems if they exist
+        let processedDistributorItems = null;
+        if (req.body.distributorItems && Array.isArray(req.body.distributorItems)) {
+            const productIds = req.body.distributorItems.map((item) => item.productId);
+            const distributorProducts = await db_1.prisma.product.findMany({
+                where: { id: { in: productIds } }
+            });
+            const productMap = new Map(distributorProducts.map(p => [p.id, p]));
+            processedDistributorItems = req.body.distributorItems.map((item) => {
+                const p = productMap.get(item.productId);
+                const wResult = calculateWarrantyStatus(item.purchaseDate || purchaseDate, p?.warranty ?? "1 Year");
+                return {
+                    ...item,
+                    warrantyStatus: wResult.status,
+                    warrantyExpiryDate: wResult.expiryDate,
+                    currentStatus: "Pending Verification",
+                    serviceCharge: 0,
+                    sparePartsCost: 0,
+                    totalServiceCost: 0,
+                    inspectionRemarks: "",
+                    approvalStatus: null, // "Pending Approval", "Approved", "Rejected"
+                    repairStatus: "Pending", // "Pending", "In Progress", "Completed"
+                    finalResolution: ""
+                };
+            });
+        }
+        const isBatch = processedDistributorItems && processedDistributorItems.length > 1;
         // 3. Generate Ticket ID
         const ticketId = await generateTicketId();
         // 4. Create Service Request with Transaction to ensure all relations are saved
@@ -128,8 +189,9 @@ const createServiceRequest = async (req, res) => {
                     contactNumber,
                     pickupAddress,
                     warrantyExpiryDate: expiryDate,
-                    warrantyStatus,
-                    currentStatus: "Pending Verification",
+                    warrantyStatus: isBatch ? "Batch Request" : warrantyStatus,
+                    currentStatus: isBatch ? "Batch Process" : "Pending Verification",
+                    distributorItems: isBatch ? processedDistributorItems : undefined,
                 }
             });
             // Add attachments
@@ -304,6 +366,9 @@ const getPurchasedProducts = async (req, res) => {
         const orders = await db_1.prisma.order.findMany({
             where: {
                 userId: user.id,
+                status: {
+                    notIn: ["PENDING_APPROVAL", "REJECTED", "CANCELLED"]
+                }
             },
             include: {
                 items: {
@@ -362,7 +427,7 @@ const updateServiceRequestStatus = async (req, res) => {
             return;
         }
         const id = req.params.id;
-        const { status, remarks, serviceCharge, sparePartsCost, inspectionRemarks } = req.body;
+        const { status, remarks, serviceCharge, sparePartsCost, inspectionRemarks, itemIndex } = req.body;
         if (!status) {
             res.status(400).json({ success: false, message: "Status is required" });
             return;
@@ -378,18 +443,43 @@ const updateServiceRequestStatus = async (req, res) => {
         // Update Request status & log history
         const dbUser = await db_1.prisma.user.findUnique({ where: { id: user.id } });
         const updaterName = dbUser ? `${dbUser.firstName} ${dbUser.lastName} (Admin)` : "Admin";
-        const dataToUpdate = {
-            currentStatus: status,
-        };
-        if (serviceCharge !== undefined && serviceCharge !== null) {
-            const charge = parseFloat(serviceCharge);
-            const partsCost = sparePartsCost !== undefined && sparePartsCost !== null ? parseFloat(sparePartsCost) || 0 : 0;
-            dataToUpdate.serviceCharge = charge;
-            dataToUpdate.sparePartsCost = sparePartsCost !== undefined && sparePartsCost !== null ? partsCost : null;
-            dataToUpdate.totalServiceCost = charge + partsCost;
+        let dataToUpdate = {};
+        let historyRemarks = remarks || `Status updated to ${status}.`;
+        if (itemIndex !== undefined && request.distributorItems && Array.isArray(request.distributorItems)) {
+            const items = [...request.distributorItems];
+            if (itemIndex >= 0 && itemIndex < items.length) {
+                const item = items[itemIndex];
+                item.currentStatus = status;
+                if (serviceCharge !== undefined && serviceCharge !== null) {
+                    const charge = parseFloat(serviceCharge);
+                    const partsCost = sparePartsCost !== undefined && sparePartsCost !== null ? parseFloat(sparePartsCost) || 0 : 0;
+                    item.serviceCharge = charge;
+                    item.sparePartsCost = sparePartsCost !== undefined && sparePartsCost !== null ? partsCost : null;
+                    item.totalServiceCost = charge + partsCost;
+                }
+                if (inspectionRemarks !== undefined) {
+                    item.inspectionRemarks = inspectionRemarks;
+                }
+                dataToUpdate.distributorItems = items;
+                historyRemarks = `[${item.productName || "Product"}] ` + historyRemarks;
+            }
+            else {
+                res.status(400).json({ success: false, message: "Invalid item index" });
+                return;
+            }
         }
-        if (inspectionRemarks !== undefined) {
-            dataToUpdate.inspectionRemarks = inspectionRemarks;
+        else {
+            dataToUpdate.currentStatus = status;
+            if (serviceCharge !== undefined && serviceCharge !== null) {
+                const charge = parseFloat(serviceCharge);
+                const partsCost = sparePartsCost !== undefined && sparePartsCost !== null ? parseFloat(sparePartsCost) || 0 : 0;
+                dataToUpdate.serviceCharge = charge;
+                dataToUpdate.sparePartsCost = sparePartsCost !== undefined && sparePartsCost !== null ? partsCost : null;
+                dataToUpdate.totalServiceCost = charge + partsCost;
+            }
+            if (inspectionRemarks !== undefined) {
+                dataToUpdate.inspectionRemarks = inspectionRemarks;
+            }
         }
         const updatedRequest = await db_1.prisma.$transaction(async (tx) => {
             const updated = await tx.serviceRequest.update({
@@ -400,7 +490,7 @@ const updateServiceRequestStatus = async (req, res) => {
                 data: {
                     serviceRequestId: id,
                     status,
-                    remarks: remarks || `Status updated to ${status}.`,
+                    remarks: historyRemarks,
                     updatedBy: updaterName
                 }
             });
@@ -429,9 +519,13 @@ const respondToEstimate = async (req, res) => {
             return;
         }
         const id = req.params.id;
-        const { action } = req.body;
+        const { action, cancellationReason, itemIndex } = req.body;
         if (!action || (action !== "APPROVE" && action !== "REJECT")) {
             res.status(400).json({ success: false, message: "Action must be APPROVE or REJECT" });
+            return;
+        }
+        if (action === "REJECT" && (!cancellationReason || !cancellationReason.trim())) {
+            res.status(400).json({ success: false, message: "Cancellation reason is required" });
             return;
         }
         const request = await db_1.prisma.serviceRequest.findUnique({
@@ -446,28 +540,55 @@ const respondToEstimate = async (req, res) => {
             res.status(403).json({ success: false, message: "Forbidden" });
             return;
         }
-        if (request.currentStatus !== "Awaiting Customer Approval") {
-            res.status(400).json({ success: false, message: "Service request is not awaiting customer approval" });
-            return;
-        }
-        const nextStatus = action === "APPROVE" ? "Cost Approved" : "Service Cancelled";
+        const nextStatus = action === "APPROVE" ? "Cost Approved" : "Cancellation Requested";
         const statusRemarks = action === "APPROVE"
             ? "Customer approved the estimated service cost."
-            : "Customer rejected the estimated service cost.";
+            : `Customer rejected the estimated service cost. Reason: ${cancellationReason}`;
         const dbUser = await db_1.prisma.user.findUnique({ where: { id: user.id } });
         const updaterName = dbUser ? `${dbUser.firstName} ${dbUser.lastName}` : "Customer";
+        let dataToUpdate = {};
+        let finalRemarks = statusRemarks;
+        if (itemIndex !== undefined && request.distributorItems && Array.isArray(request.distributorItems)) {
+            const items = [...request.distributorItems];
+            if (itemIndex >= 0 && itemIndex < items.length) {
+                const item = items[itemIndex];
+                if (item.currentStatus !== "Awaiting Customer Approval" && item.currentStatus !== "Awaiting Cost Estimation") {
+                    res.status(400).json({ success: false, message: "Item is not awaiting approval" });
+                    return;
+                }
+                item.currentStatus = nextStatus;
+                if (action === "REJECT") {
+                    item.cancellationReason = cancellationReason;
+                }
+                item.approvalStatus = action === "APPROVE" ? "Approved" : "Rejected";
+                dataToUpdate.distributorItems = items;
+                finalRemarks = `[${item.productName || "Product"}] ` + finalRemarks;
+            }
+            else {
+                res.status(400).json({ success: false, message: "Invalid item index" });
+                return;
+            }
+        }
+        else {
+            if (request.currentStatus !== "Awaiting Customer Approval") {
+                res.status(400).json({ success: false, message: "Service request is not awaiting customer approval" });
+                return;
+            }
+            dataToUpdate.currentStatus = nextStatus;
+            if (action === "REJECT") {
+                dataToUpdate.cancellationReason = cancellationReason;
+            }
+        }
         const updatedRequest = await db_1.prisma.$transaction(async (tx) => {
             const updated = await tx.serviceRequest.update({
                 where: { id },
-                data: {
-                    currentStatus: nextStatus,
-                }
+                data: dataToUpdate
             });
             await tx.serviceRequestHistory.create({
                 data: {
                     serviceRequestId: id,
                     status: nextStatus,
-                    remarks: statusRemarks,
+                    remarks: finalRemarks,
                     updatedBy: updaterName
                 }
             });
