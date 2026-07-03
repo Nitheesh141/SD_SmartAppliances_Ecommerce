@@ -9,6 +9,8 @@ router.use(auth_middleware_1.authenticateToken);
 router.post("/", order_controller_1.createOrder);
 router.get("/", order_controller_1.getOrders);
 router.get("/all", order_controller_1.getAllOrders);
+router.get("/unread-counts", order_controller_1.getUnreadCounts);
+router.post("/mark-read", order_controller_1.markOrdersAsRead);
 router.get("/:id", order_controller_1.getOrderById);
 router.patch("/:id/status", order_controller_1.updateOrderStatus);
 router.post("/:id/cancel", order_controller_1.cancelOrder);

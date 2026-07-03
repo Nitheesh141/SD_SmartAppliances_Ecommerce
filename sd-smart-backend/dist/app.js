@@ -19,6 +19,14 @@ const path_1 = __importDefault(require("path"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
+// Disable caching for API responses
+app.use((req, res, next) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.setHeader("Surrogate-Control", "no-store");
+    next();
+});
 app.use("/api/auth", auth_routes_1.default);
 app.use("/api/products", product_routes_1.default);
 app.use("/api/upload", upload_routes_1.default);
