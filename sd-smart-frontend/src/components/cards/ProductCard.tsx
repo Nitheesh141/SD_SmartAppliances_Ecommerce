@@ -161,15 +161,15 @@ export default function ProductCard({ product, className }: ProductCardProps) {
 
         {/* <RatingStars rating={product.rating} reviewCount={product.reviewCount} className="mb-3" /> */}
 
-        <div className="flex items-baseline gap-2 mb-2">
+        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mb-2">
           <ProductPrice
             price={product.price}
             originalPrice={product.originalPrice}
-            priceClass="text-xl font-extrabold text-slate-900 dark:text-white"
-            originalPriceClass="text-sm line-through text-slate-400 dark:text-neutral-500"
+            priceClass="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white"
+            originalPriceClass="text-xs sm:text-sm line-through text-slate-400 dark:text-neutral-500"
           />
           {product.discountPercent > 0 && (
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-500">
+            <span className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-500 shrink-0">
               {product.discountPercent}% OFF
             </span>
           )}

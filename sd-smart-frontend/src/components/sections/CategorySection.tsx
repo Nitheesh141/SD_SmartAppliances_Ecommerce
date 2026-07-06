@@ -21,7 +21,7 @@ export default function CategorySection({ categories }: CategorySectionProps) {
         />
       </ScrollReveal>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8">
         {categories.map((category, idx) => (
           <ScrollReveal key={category.id} delay={idx * 100} direction="up">
             <CategoryCard category={category} />
@@ -30,10 +30,10 @@ export default function CategorySection({ categories }: CategorySectionProps) {
       </div>
 
       <ScrollReveal direction="up" delay={200}>
-        <div className="flex justify-center mt-12">
+        <div className="flex justify-center mt-6 sm:mt-12">
           <Link
             href="/shop"
-            className="px-8 py-4 bg-[#D71920] hover:bg-[#b8141a] text-white text-base font-extrabold rounded-xl transition-all shadow-lg shadow-[#D71920]/20 hover:shadow-[#D71920]/30 cursor-pointer"
+            className="px-5 py-2.5 sm:px-8 sm:py-4 bg-[#D71920] hover:bg-[#b8141a] text-white text-xs sm:text-base font-bold sm:font-extrabold rounded-xl transition-all shadow-md hover:shadow-lg shadow-[#D71920]/20 hover:shadow-[#D71920]/30 cursor-pointer"
           >
             Explore All Appliances
           </Link>

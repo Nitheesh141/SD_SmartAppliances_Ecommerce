@@ -213,6 +213,18 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.classList.add("overflow-hidden");
+    } else {
+      document.body.classList.remove("overflow-hidden");
+    }
+    return () => {
+      document.body.classList.remove("overflow-hidden");
+    };
+  }, [mobileOpen]);
+
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     if (value.trim().length >= 2) {
@@ -244,15 +256,15 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
 
   return (
     <header className={cn(
-      "sticky top-0 z-50 transition-all duration-500 will-change-transform py-2 border-b",
+      "sticky top-0 z-50 transition-all duration-500 will-change-transform py-1 md:py-2 border-b",
       isScrolled
         ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-neutral-200/80 shadow-[0_15px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.7)]"
         : "bg-red-50 dark:bg-[#1A090A] border-neutral-200/40 shadow-[0_6px_25px_rgba(0,0,0,0.1)] dark:shadow-[0_6px_25px_rgba(0,0,0,0.45)]",
       isLoaded ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
     )}>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
-        <div className="flex items-center h-16 gap-3 sm:gap-4 xl:gap-8">
-
+        {/* Desktop View (Visible on xl breakpoint and up) */}
+        <div className="hidden xl:flex items-center h-16 gap-3 sm:gap-4 xl:gap-8">
           {/* Logo */}
           <Link href="/" className="flex items-center flex-shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -264,7 +276,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
           </Link>
 
           {/* Nav — desktop */}
-          <nav className="hidden xl:flex items-center gap-1 xl:gap-1.5 2xl:gap-2.5 ml-3 xl:ml-6 2xl:ml-8">
+          <nav className="flex items-center gap-1 xl:gap-1.5 2xl:gap-2.5 ml-3 xl:ml-6 2xl:ml-8">
             {navLinks.map((link) =>
               link.hasDropdown ? (
                 <div key={link.label} className="relative group">
@@ -289,7 +301,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                       <Link
                         key={l.href}
                         href={l.href}
-                        className="block px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        className="block px-4 py-2 text-sm text-neutral-700 dark:text-neutral-350 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                       >
                         {l.label}
                       </Link>
@@ -316,10 +328,9 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
             )}
           </nav>
 
-          {/* Search & Actions Group */}
+          {/* Search & Actions Group (Desktop) */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 ml-auto flex-shrink-0">
-
-            {/* Search Input inline - permanently open and bigger */}
+            {/* Search Input inline */}
             <div className="hidden md:block relative w-36 lg:w-44 xl:w-52 2xl:w-72 transition-all duration-300">
               <input
                 type="text"
@@ -338,7 +349,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                     <button
                       key={product.id}
                       onClick={() => handleSuggestionClick(product.name)}
-                      className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-red-50/50 dark:hover:bg-red-950/20 text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 flex items-center justify-between border-b border-neutral-50 dark:border-neutral-800/40 last:border-0 cursor-pointer"
+                      className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-red-50/50 dark:hover:bg-red-950/20 text-neutral-700 dark:text-neutral-350 hover:text-[#D71920] dark:hover:text-red-400 flex items-center justify-between border-b border-neutral-50 dark:border-neutral-800/40 last:border-0 cursor-pointer"
                     >
                       <span className="truncate">{product.name}</span>
                       <span className="text-[10px] text-neutral-400 font-bold bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">{product.categoryLabel}</span>
@@ -364,7 +375,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                   <button
                     id="profile-menu-button"
                     onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                    className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                    className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 text-neutral-650 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                     aria-label="Account Menu"
                   >
                     <User size={20} className="text-neutral-700 dark:text-neutral-300" />
@@ -382,26 +393,26 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                     >
                       <div className="px-5 py-3 border-b border-neutral-100 dark:border-neutral-800/60 mb-1">
                         <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100 truncate">{userProfile?.name || "User"}</p>
-                        <p className="text-xs text-neutral-400 dark:text-neutral-500 truncate">{userProfile?.email}</p>
+                        <p className="text-xs text-neutral-455 dark:text-neutral-500 truncate">{userProfile?.email}</p>
                       </div>
                       <Link
                         href="/account?tab=profile"
                         onClick={() => setProfileDropdownOpen(false)}
-                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-350 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                       >
                         Profile
                       </Link>
                       <Link
                         href="/wishlist"
                         onClick={() => setProfileDropdownOpen(false)}
-                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-350 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                       >
                         Wishlist
                       </Link>
                       <Link
                         href="/account?tab=orders"
                         onClick={() => setProfileDropdownOpen(false)}
-                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-350 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                       >
                         My Orders
                       </Link>
@@ -450,30 +461,72 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                 </Link>
               </>
             )}
+          </div>
+        </div>
 
-            {/* Search Toggle (Mobile/Tablet only) */}
+        {/* Mobile Header View (Visible below xl breakpoint) */}
+        <div className="flex xl:hidden items-center justify-between h-12 w-full gap-2">
+          {/* Hamburger Menu Toggle (Far Left) */}
+          <button
+            onClick={() => {
+              setMobileOpen(!mobileOpen);
+              if (searchOpen) setSearchOpen(false);
+            }}
+            className="p-1.5 text-neutral-650 dark:text-neutral-355 hover:text-[#D71920] rounded-lg transition-colors cursor-pointer shrink-0"
+            aria-label="Menu"
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+
+          {/* Centered Brand Logo */}
+          <div className="flex-grow flex items-center justify-center">
+            <Link href="/" onClick={() => setMobileOpen(false)}>
+              <img
+                src="/sd-smart-ecommerce/SD-logo.png"
+                alt="SD Smart Appliances"
+                className="h-10 w-auto object-contain scale-x-[1.12] origin-center mix-blend-multiply"
+              />
+            </Link>
+          </div>
+
+          {/* Search Icon & Cart Icon (Far Right) */}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Search Icon button */}
             <button
               onClick={() => {
-                setSearchOpen(!searchOpen);
-                if (mobileOpen) setMobileOpen(false);
+                if (pathname.includes("/shop")) {
+                  const clickSearchInput = document.querySelector(".cursor-pointer input") as HTMLInputElement;
+                  if (clickSearchInput) {
+                    clickSearchInput.click();
+                  } else {
+                    setSearchOpen(!searchOpen);
+                    if (mobileOpen) setMobileOpen(false);
+                  }
+                } else {
+                  setSearchOpen(!searchOpen);
+                  if (mobileOpen) setMobileOpen(false);
+                }
               }}
-              className="md:hidden p-2 text-neutral-600 dark:text-neutral-300 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 text-neutral-655 dark:text-neutral-300 hover:text-[#D71920] rounded-lg transition-colors cursor-pointer"
               aria-label="Toggle Search"
             >
-              {searchOpen ? <X size={20} className="text-[#D71920]" /> : <Search size={20} />}
+              {searchOpen ? <X size={18} className="text-[#D71920]" /> : <Search size={18} />}
             </button>
 
-            {/* Mobile menu toggle */}
-            <button
-              className="xl:hidden p-2 text-neutral-600 dark:text-neutral-300 hover:text-[#D71920] rounded-lg transition-colors cursor-pointer"
-              onClick={() => {
-                setMobileOpen(!mobileOpen);
-                if (searchOpen) setSearchOpen(false);
-              }}
-              aria-label="Menu"
+            {/* Cart Icon button with Badge */}
+            <Link
+              href="/cart"
+              onClick={() => setMobileOpen(false)}
+              className="relative p-1.5 text-neutral-655 dark:text-neutral-300 hover:text-[#D71920] rounded-lg transition-colors"
+              aria-label="Cart"
             >
-              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+              <ShoppingCart size={18} className="text-neutral-700 dark:text-neutral-350" />
+              {cartCount > 0 && (
+                <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-[#D71920] text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
+            </Link>
           </div>
         </div>
 
@@ -523,7 +576,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="xl:hidden border-t border-neutral-200/10 dark:border-neutral-800/60 py-4 flex flex-col gap-1 bg-red-50 dark:bg-[#1A090A] px-2 animate-in slide-in-from-top-2 duration-200">
+          <div className="xl:hidden fixed inset-x-0 top-[56px] bottom-0 z-50 py-6 px-5 flex flex-col gap-2 bg-white dark:bg-slate-950 overflow-y-auto border-t border-neutral-100 dark:border-neutral-900/60 shadow-xl animate-in slide-in-from-top duration-300">
             {navLinks.map((link) => (
               <Link
                 key={link.label}
@@ -539,15 +592,68 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                 <Link
                   key={l.href}
                   href={l.href}
-                  className="px-3 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 text-left"
+                  className="px-3 py-2 text-sm text-neutral-600 dark:text-neutral-455 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 text-left"
                   onClick={() => setMobileOpen(false)}
                 >
                   — {l.label}
                 </Link>
               ))}
             </div>
-            {/* Mobile Auth Section */}
-            {!isAuthenticated && (
+
+            {/* Mobile Profile & Account (if authenticated) */}
+            {isAuthenticated ? (
+              <div className="mt-4 pt-4 border-t border-neutral-200/10 dark:border-neutral-800/60 flex flex-col gap-1">
+                <div className="px-3 py-2.5 mb-2 bg-red-100/35 dark:bg-red-950/10 rounded-xl text-left">
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">Hello, {userProfile?.name || "User"}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{userProfile?.email}</p>
+                </div>
+                <Link
+                  href="/account?tab=profile"
+                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  My Profile
+                </Link>
+                <Link
+                  href="/wishlist"
+                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Wishlist
+                </Link>
+                <Link
+                  href="/account?tab=orders"
+                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  My Orders
+                </Link>
+                {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
+                  <Link
+                    href="/admin/dashboard"
+                    className="px-3 py-2.5 text-sm font-semibold text-[#D71920] dark:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    Admin Panel
+                  </Link>
+                )}
+                <button
+                  onClick={async () => {
+                    setMobileOpen(false);
+                    try {
+                      await logout();
+                      router.push("/");
+                    } catch (err) {
+                      console.error("Logout failed:", err);
+                    }
+                  }}
+                  className="w-full text-left px-3 py-2.5 text-sm font-semibold text-[#D71920] dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              /* Mobile Auth Section (if not authenticated) */
               <div className="mt-4 pt-4 border-t border-neutral-200/10 dark:border-neutral-800/60 flex flex-col gap-2">
                 <Link
                   href="/auth/login"

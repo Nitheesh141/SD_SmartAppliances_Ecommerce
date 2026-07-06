@@ -13,7 +13,7 @@ export default function CategoryCard({ category }: CategoryCardProps) {
   return (
     <Link
       href={category.href}
-      className="group relative h-64 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:shadow-slate-100/50 transition-all duration-300 flex flex-col justify-end p-6 border border-slate-100 dark:border-slate-800"
+      className="group relative h-36 sm:h-48 md:h-56 lg:h-64 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:shadow-slate-100/50 transition-all duration-300 flex flex-col justify-end p-3 sm:p-4 md:p-5 lg:p-6 border border-slate-100 dark:border-slate-800"
     >
       {/* Background Image */}
       <div className="absolute inset-0 bg-slate-100 overflow-hidden dark:bg-slate-900">
@@ -29,10 +29,10 @@ export default function CategoryCard({ category }: CategoryCardProps) {
 
       {/* Content overlay */}
       <div className="relative z-10 text-white text-left">
-        <h3 className="text-lg font-bold font-heading group-hover:text-red-300 transition-colors duration-200">
+        <h3 className="text-xs sm:text-base md:text-lg font-bold font-heading group-hover:text-red-300 transition-colors duration-200 line-clamp-2">
           {category.name}
         </h3>
-        <p className="mt-1 text-xs text-slate-350 line-clamp-2 leading-normal font-sans">
+        <p className="mt-1 text-[10px] sm:text-xs text-slate-350 line-clamp-2 leading-normal font-sans hidden sm:block">
           {category.description}
         </p>
       </div>

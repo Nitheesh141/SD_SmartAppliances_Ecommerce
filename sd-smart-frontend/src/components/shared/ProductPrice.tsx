@@ -39,7 +39,7 @@ export default function ProductPrice({
   };
 
   return (
-    <div className={cn("flex items-baseline gap-2", className)} {...props}>
+    <div className={cn("flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5", className)} {...props}>
       <span className={cn(priceSizes[size], "text-slate-900 dark:text-slate-100", priceClass)}>
         {formatRupees(price)}
       </span>

@@ -10,7 +10,6 @@ import TrustBadgesSection from "../../components/sections/TrustBadgesSection";
 import CategorySection from "../../components/sections/CategorySection";
 import BestSellerSection from "../../components/sections/BestSellerSection";
 import WhyChooseUsSection from "../../components/sections/WhyChooseUsSection";
-import FeaturedProductSection from "../../components/sections/FeaturedProductSection";
 import TimelineSection from "../../components/sections/TimelineSection";
 import CommercialSection from "../../components/sections/CommercialSection";
 import TestimonialSection from "../../components/sections/TestimonialSection";
@@ -114,13 +113,7 @@ export default function LandingPage() {
         {/* 5. Why Choose SD SMART */}
         <WhyChooseUsSection features={features} />
 
-        {/* 6. Featured: Pressure Cooker */}
-        <FeaturedProductSection product={featuredItems[0] || featuredProducts[0]} />
 
-        {/* 7. Featured: Wet Grinder (gray bg, image right) */}
-        <div className="bg-[#F5F5F5] dark:bg-slate-900/40">
-          <FeaturedProductSection product={featuredItems[1] || featuredProducts[1]} />
-        </div>
 
         {/* 8. Company Timeline */}
         <TimelineSection items={timelineItems} />
