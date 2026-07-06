@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import { cn } from "@/lib/utils";
+import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 interface OfferType {
   id: string;
@@ -1150,20 +1151,21 @@ export default function AdminMarketingPage() {
                   <div className="flex flex-col">
                     <label className={modalLabelClass}>Duration Dates</label>
                     <div className="flex gap-2 items-center">
-                      <input
-                        type="date"
+                      <CustomDatePicker
                         required
                         value={formStartDate}
-                        onChange={(e) => setFormStartDate(e.target.value)}
-                        className={cn(modalInputClass, "w-1/2 text-xs px-2.5")}
+                        onChange={(val) => setFormStartDate(val)}
+                        placeholder="Start date"
+                        className="w-1/2"
                       />
                       <span className={cn("text-xs font-semibold", isDark ? "text-neutral-500" : "text-slate-400")}>to</span>
-                      <input
-                        type="date"
+                      <CustomDatePicker
                         required
                         value={formEndDate}
-                        onChange={(e) => setFormEndDate(e.target.value)}
-                        className={cn(modalInputClass, "w-1/2 text-xs px-2.5")}
+                        onChange={(val) => setFormEndDate(val)}
+                        placeholder="End date"
+                        className="w-1/2"
+                        min={formStartDate}
                       />
                     </div>
                   </div>

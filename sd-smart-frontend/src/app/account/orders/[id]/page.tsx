@@ -36,7 +36,8 @@ export default function OrderDetailsPage() {
   });
 
   useEffect(() => {
-    const fetchOrder = async () => {
+    const fetchOrder = async (isBackground = false) => {
+      if (!isBackground) setLoading(true);
       try {
         const res = await checkoutService.getOrder(orderId);
         if (res.success && res.data?.order) {
@@ -45,7 +46,7 @@ export default function OrderDetailsPage() {
       } catch (err) {
         console.error("Failed to fetch order:", err);
       } finally {
-        setLoading(false);
+        if (!isBackground) setLoading(false);
       }
     };
     
@@ -65,10 +66,24 @@ export default function OrderDetailsPage() {
     };
     
     if (orderId) {
-      fetchOrder();
+      fetchOrder(false);
       fetchSettings();
+
+      const interval = setInterval(() => {
+        const activeEl = document.activeElement;
+        const isInputFocused = activeEl && (
+          ["INPUT", "TEXTAREA", "SELECT"].includes(activeEl.tagName.toUpperCase()) ||
+          activeEl.getAttribute("contenteditable") === "true"
+        );
+        if (!isInputFocused) {
+          fetchOrder(true);
+        }
+      }, 20000);
+
+      return () => clearInterval(interval);
     }
   }, [orderId]);
+
 
   const handlePrint = () => {
     window.print();

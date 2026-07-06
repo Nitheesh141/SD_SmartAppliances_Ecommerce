@@ -62,9 +62,13 @@ function AccountPageContent() {
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (tab && ["orders", "profile", "addresses", "pan", "password", "forgot-password", "distributor"].includes(tab)) {
-      setActiveTab(tab);
+      if (tab === "distributor" && user?.role?.toUpperCase() === "DISTRIBUTOR") {
+        setActiveTab("profile");
+      } else {
+        setActiveTab(tab);
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, user]);
 
   // Local state for personal profile edits
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -723,15 +727,17 @@ function AccountPageContent() {
                   >
                     Forgot Password
                   </button>
-                  <button
-                    onClick={() => setActiveTab("distributor")}
-                    className={`pl-14 pr-6 py-2 text-sm text-left cursor-pointer transition-colors ${activeTab === "distributor"
-                      ? "text-[#D71920] font-bold"
-                      : "text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400"
-                      }`}
-                  >
-                    {user?.role === "distributor" ? "Distributor Profile" : "Become a Distributor"}
-                  </button>
+                  {user?.role?.toUpperCase() !== "DISTRIBUTOR" && (
+                    <button
+                      onClick={() => setActiveTab("distributor")}
+                      className={`pl-14 pr-6 py-2 text-sm text-left cursor-pointer transition-colors ${activeTab === "distributor"
+                        ? "text-[#D71920] font-bold"
+                        : "text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400"
+                        }`}
+                    >
+                      Become a Distributor
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -816,6 +822,12 @@ function AccountPageContent() {
                   >
                     My Wishlist
                   </button>
+                  <button
+                    onClick={() => router.push("/service-request")}
+                    className="pl-14 pr-6 py-2 text-sm text-left cursor-pointer transition-colors text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400"
+                  >
+                    Service Requests
+                  </button>
                 </div>
               </div>
 
@@ -838,6 +850,7 @@ function AccountPageContent() {
               <div className="flex gap-4 text-xs text-neutral-500">
                 <button onClick={() => router.push("/track-order")} className="hover:text-[#D71920] hover:underline cursor-pointer">Track Order</button>
                 <button onClick={() => router.push("/support")} className="hover:text-[#D71920] hover:underline cursor-pointer">Help Center</button>
+                <button onClick={() => router.push("/service-request")} className="hover:text-[#D71920] hover:underline cursor-pointer">Service Requests</button>
               </div>
             </div>
 

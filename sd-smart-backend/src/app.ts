@@ -9,12 +9,23 @@ import addressRoutes from "./routes/address.routes";
 import orderRoutes from "./routes/order.routes";
 import offerRoutes from "./routes/offer.routes";
 import settingRoutes from "./routes/setting.routes";
+import serviceRequestRoutes from "./routes/serviceRequest.routes";
 import path from "path";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Disable caching for API responses
+app.use((req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("Surrogate-Control", "no-store");
+  next();
+});
+
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
@@ -25,6 +36,7 @@ app.use("/api/addresses", addressRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/offers", offerRoutes);
 app.use("/api/settings", settingRoutes);
+app.use("/api/service-requests", serviceRequestRoutes);
 
 // Serve static files from the uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));

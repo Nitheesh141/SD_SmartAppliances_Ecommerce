@@ -101,6 +101,10 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     // 4. Perform Transaction
     const order = await prisma.$transaction(async (tx) => {
+      const isCustomer = user.role?.toUpperCase() === "CUSTOMER";
+      const initialStatus = isCustomer ? "APPROVED" : "PENDING_APPROVAL";
+      const initialRemarks = isCustomer ? "Order placed and automatically approved." : "Order submitted and pending admin approval.";
+
       // a. Create Order
       const newOrder = await tx.order.create({
         data: {
@@ -109,7 +113,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
           addressId,
           poNumber: poNumber || null,
           paymentMethod,
-          status: "PENDING_APPROVAL",
+          status: initialStatus,
           subtotal,
           cgst,
           sgst,
@@ -117,10 +121,12 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
           deliveryCharges,
           discount,
           grandTotal,
+          approvedAt: isCustomer ? new Date() : null,
+          approvedBy: isCustomer ? "System" : null,
           statusHistory: {
             create: {
-              status: "PENDING_APPROVAL",
-              remarks: "Order submitted and pending admin approval.",
+              status: initialStatus,
+              remarks: initialRemarks,
               updatedBy: userName
             }
           },
@@ -181,6 +187,26 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       const activeCartItemIds = activeCartItems.map(item => item.id);
       await tx.cartItem.deleteMany({
         where: { id: { in: activeCartItemIds } }
+      });
+
+      // d. Auto-generate Invoice
+      const invoiceCount = await tx.invoice.count();
+      const nextInvoiceNum = `INV-2026-${String(invoiceCount + 1).padStart(6, '0')}`;
+      const taxAmount = (newOrder.cgst || 0) + (newOrder.sgst || 0) + (newOrder.igst || 0);
+
+      await tx.invoice.create({
+        data: {
+          invoiceNumber: nextInvoiceNum,
+          orderId: newOrder.id,
+          distributorId: user.id,
+          subtotal: newOrder.subtotal,
+          discountAmount: newOrder.discount,
+          taxAmount,
+          shippingAmount: newOrder.deliveryCharges,
+          grandTotal: newOrder.grandTotal,
+          generatedBy: userName,
+          pdfUrl: `/api/orders/${newOrder.id}/invoice/pdf`
+        }
       });
 
       return newOrder;
@@ -260,6 +286,29 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
+    if (!order.invoice) {
+      const invoiceCount = await prisma.invoice.count();
+      const nextInvoiceNum = `INV-2026-${String(invoiceCount + 1).padStart(6, '0')}`;
+      const taxAmount = (order.cgst || 0) + (order.sgst || 0) + (order.igst || 0);
+      
+      const newInvoice = await prisma.invoice.create({
+        data: {
+          invoiceNumber: nextInvoiceNum,
+          orderId: order.id,
+          distributorId: order.userId,
+          subtotal: order.subtotal,
+          discountAmount: order.discount,
+          taxAmount,
+          shippingAmount: order.deliveryCharges,
+          grandTotal: order.grandTotal,
+          generatedBy: "System",
+          pdfUrl: `/api/orders/${order.id}/invoice/pdf`
+        }
+      });
+      // @ts-ignore
+      order.invoice = newInvoice;
+    }
+
     res.json({ success: true, order });
   } catch (error: any) {
     console.error("Get order by id error:", error);
@@ -287,6 +336,7 @@ export const getAllOrders = async (req: Request, res: Response): Promise<void> =
             lastName: true,
             email: true,
             phoneNumber: true,
+            role: true,
           }
         },
         address: true,
@@ -365,6 +415,14 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
 
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    if (order.status === "DELIVERED" && status && status !== "DELIVERED") {
+      res.status(400).json({
+        success: false,
+        message: "This order has already been delivered and can no longer be moved to a previous status."
+      });
       return;
     }
 
@@ -554,8 +612,27 @@ export const getOrderInvoice = async (req: Request, res: Response): Promise<void
     }
 
     if (!order.invoice) {
-      res.status(404).json({ success: false, message: "Invoice not generated yet" });
-      return;
+      const invoiceCount = await prisma.invoice.count();
+      const nextInvoiceNum = `INV-2026-${String(invoiceCount + 1).padStart(6, '0')}`;
+      const taxAmount = (order.cgst || 0) + (order.sgst || 0) + (order.igst || 0);
+      const userName = order.user ? `${order.user.firstName} ${order.user.lastName}` : "System";
+
+      const newInvoice = await prisma.invoice.create({
+        data: {
+          invoiceNumber: nextInvoiceNum,
+          orderId: order.id,
+          distributorId: order.userId,
+          subtotal: order.subtotal,
+          discountAmount: order.discount,
+          taxAmount,
+          shippingAmount: order.deliveryCharges,
+          grandTotal: order.grandTotal,
+          generatedBy: userName,
+          pdfUrl: `/api/orders/${order.id}/invoice/pdf`
+        }
+      });
+      // @ts-ignore
+      order.invoice = newInvoice;
     }
 
     res.json({ success: true, invoice: order.invoice, order });
@@ -656,3 +733,114 @@ export const cancelOrder = async (req: Request, res: Response): Promise<void> =>
     res.status(500).json({ success: false, message: error.message || "Failed to cancel order" });
   }
 };
+
+// Admin: Get unread counts for orders, distributor signups, and service requests
+export const getUnreadCounts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    const ordersCount = await prisma.order.count({
+      where: { viewedByAdmin: false }
+    });
+
+    const distributorsCount = await prisma.user.count({
+      where: {
+        role: "DISTRIBUTOR",
+        approvalStatus: "PENDING",
+        viewedByAdmin: false
+      }
+    });
+
+    const serviceRequestsCount = await prisma.serviceRequest.count({
+      where: { viewedByAdmin: false }
+    });
+
+    res.json({
+      success: true,
+      counts: {
+        orders: ordersCount,
+        distributors: distributorsCount,
+        serviceRequests: serviceRequestsCount
+      }
+    });
+  } catch (error: any) {
+    console.error("Get unread counts error:", error);
+    res.status(500).json({ success: false, message: "Failed to get unread counts" });
+  }
+};
+
+// Admin: Mark all unread orders as read
+export const markOrdersAsRead = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    await prisma.order.updateMany({
+      where: { viewedByAdmin: false },
+      data: { viewedByAdmin: true }
+    });
+
+    res.json({ success: true, message: "All orders marked as read" });
+  } catch (error: any) {
+    console.error("Mark orders as read error:", error);
+    res.status(500).json({ success: false, message: "Failed to mark orders as read" });
+  }
+};
+
+// Admin: Mark all unread distributor signup requests as read
+export const markDistributorsAsRead = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    await prisma.user.updateMany({
+      where: {
+        role: "DISTRIBUTOR",
+        approvalStatus: "PENDING",
+        viewedByAdmin: false
+      },
+      data: { viewedByAdmin: true }
+    });
+
+    res.json({ success: true, message: "All distributor requests marked as read" });
+  } catch (error: any) {
+    console.error("Mark distributors as read error:", error);
+    res.status(500).json({ success: false, message: "Failed to mark distributors as read" });
+  }
+};
+
+// Admin: Mark all unread service requests as read
+export const markServiceRequestsAsRead = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    await prisma.serviceRequest.updateMany({
+      where: { viewedByAdmin: false },
+      data: { viewedByAdmin: true }
+    });
+
+    res.json({ success: true, message: "All service requests marked as read" });
+  } catch (error: any) {
+    console.error("Mark service requests as read error:", error);
+    res.status(500).json({ success: false, message: "Failed to mark service requests as read" });
+  }
+};
+

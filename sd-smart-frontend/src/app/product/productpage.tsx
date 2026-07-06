@@ -28,6 +28,7 @@ import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/cards/ProductCard";
 import RatingStars from "@/components/shared/RatingStars";
 import ProductPrice from "@/components/shared/ProductPrice";
+import EnquiryModal from "@/components/shared/EnquiryModal";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
 import { bestSellingProducts, featuredProducts } from "../LandingPage/data/products";
 import { useProduct } from "@/hooks/useProducts";
@@ -42,11 +43,35 @@ interface SpecItem {
   value: string;
 }
 
+const getDisplayWarranty = (warrantyText?: string) => {
+  if (warrantyText === undefined) return "1 Year Warranty";
+  const text = (warrantyText || "").trim().toLowerCase();
+  if (
+    !text || 
+    text === "0" || 
+    text === "no" ||
+    text.includes("0 day") || 
+    text.includes("0 month") || 
+    text.includes("0 year") || 
+    text.includes("0 yr") || 
+    text.includes("0 mo") || 
+    text.includes("0 d") || 
+    text.includes("no warranty") || 
+    text.includes("none") ||
+    text.startsWith("0")
+  ) {
+    return "No Warranty";
+  }
+  return warrantyText.toLowerCase().includes("warranty") ? warrantyText : `${warrantyText} Warranty`;
+};
+
 export default function ProductDetailPage() {
   const router = useRouter();
   const pathname = usePathname() || "";
   const { isAuthenticated, user } = useAuth();
   const { addToCart } = useCart();
+  const isDistributor = isAuthenticated && user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
+  const [isEnquiryOpen, setIsEnquiryOpen] = useState(false);
   const { wishlistItems, addToWishlist, removeFromWishlist } = useWishlist();
 
   // Extract productId from pathname: /product/[id]
@@ -700,8 +725,8 @@ export default function ProductDetailPage() {
     }
 
     // Add Warranty
-    if (product.warranty) {
-      specs.push({ label: "Warranty", value: product.warranty });
+    if (product.warranty !== undefined) {
+      specs.push({ label: "Warranty", value: getDisplayWarranty(product.warranty) });
     }
 
     return specs;
@@ -984,30 +1009,41 @@ export default function ProductDetailPage() {
               )}
 
               {/* Pricing Panel */}
-              <div className="mb-4 mt-2">
-                <div className="flex items-baseline gap-3">
-                  {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
-                    <span className="text-xl sm:text-[24px] font-bold text-[#388e3c] dark:text-green-500 tracking-tight flex items-center">
-                      <ArrowDown size={20} className="stroke-[3] mr-0.5" />
-                      {calculated.discountPercent}% OFF
-                    </span>
-                  )}
-                  {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
-                    <span className="text-lg sm:text-[20px] font-normal text-[#878787] dark:text-neutral-500 line-through ml-1">
-                      ₹{calculated.originalPrice.toLocaleString("en-IN")}
-                    </span>
-                  )}
-                  <span className="text-3xl sm:text-[36px] font-extrabold text-[#212121] dark:text-white tracking-tight ml-2">
-                    ₹{calculated.price ? calculated.price.toLocaleString("en-IN") : "0"}
-                  </span>
+              {isDistributor ? (
+                <div className="mb-6 mt-2">
+                  <button
+                    onClick={() => setIsEnquiryOpen(true)}
+                    className="w-full sm:w-auto px-8 py-4 bg-[#D71920] hover:bg-[#b8141a] text-white text-base font-bold rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative z-20"
+                  >
+                    Enquiry for Price
+                  </button>
                 </div>
-                {calculated.appliedOffer && (
-                  <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-500 mt-1.5 flex items-center gap-1.5 uppercase tracking-wide">
-                    <Check size={12} className="stroke-[3]" />
-                    <span>Promo Applied: {calculated.appliedOffer.name}</span>
+              ) : (
+                <div className="mb-4 mt-2">
+                  <div className="flex items-baseline gap-3">
+                    {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
+                      <span className="text-xl sm:text-[24px] font-bold text-[#388e3c] dark:text-green-500 tracking-tight flex items-center">
+                        <ArrowDown size={20} className="stroke-[3] mr-0.5" />
+                        {calculated.discountPercent}% OFF
+                      </span>
+                    )}
+                    {calculated.originalPrice && calculated.price && calculated.originalPrice > calculated.price && (
+                      <span className="text-lg sm:text-[20px] font-normal text-[#878787] dark:text-neutral-500 line-through ml-1">
+                        ₹{calculated.originalPrice.toLocaleString("en-IN")}
+                      </span>
+                    )}
+                    <span className="text-3xl sm:text-[36px] font-extrabold text-[#212121] dark:text-white tracking-tight ml-2">
+                      ₹{calculated.price ? calculated.price.toLocaleString("en-IN") : "0"}
+                    </span>
                   </div>
-                )}
-              </div>
+                  {calculated.appliedOffer && (
+                    <div className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-500 mt-1.5 flex items-center gap-1.5 uppercase tracking-wide">
+                      <Check size={12} className="stroke-[3]" />
+                      <span>Promo Applied: {calculated.appliedOffer.name}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Flipkart Offers List */}
               <div className="space-y-3">
@@ -1202,7 +1238,7 @@ export default function ProductDetailPage() {
                   <ShieldCheck size={28} className="text-[#D71920] shrink-0" />
                   <div className="text-left">
                     <p className="text-[10px] font-extrabold text-slate-400 uppercase">Warranty</p>
-                    <p className="text-xs font-bold text-slate-850 dark:text-neutral-200">{product.warranty || "1 Year Warranty"}</p>
+                    <p className="text-xs font-bold text-slate-850 dark:text-neutral-200">{getDisplayWarranty(product.warranty)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 dark:bg-neutral-900/20 border border-slate-100/50 dark:border-slate-850">
@@ -1361,6 +1397,10 @@ export default function ProductDetailPage() {
         </section>
 
       </main>
+
+      {isEnquiryOpen && (
+        <EnquiryModal isOpen={isEnquiryOpen} onClose={() => setIsEnquiryOpen(false)} />
+      )}
 
       <Footer footerColumns={footerColumns} socialLinks={socialLinks} />
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
@@ -164,14 +164,38 @@ export default function AdminProductsPage() {
         toast.error("Access Denied. Admins only.");
         router.push("/auth/login");
       } else {
-        fetchProducts();
+        fetchProducts(false);
       }
     }
   }, [isAuthenticated, user, authLoading, router]);
 
+  // Track whether the inventory modal is open to pause polling
+  const isEditingRef = useRef(false);
+  useEffect(() => {
+    isEditingRef.current = !!selectedProduct;
+  }, [selectedProduct]);
+
+  // Polling interval
+  useEffect(() => {
+    if (isAuthenticated) {
+      const interval = setInterval(() => {
+        const activeEl = document.activeElement;
+        const isInputFocused = activeEl && (
+          ["INPUT", "TEXTAREA", "SELECT"].includes(activeEl.tagName.toUpperCase()) ||
+          activeEl.getAttribute("contenteditable") === "true"
+        );
+        if (!isEditingRef.current && !isInputFocused) {
+          fetchProducts(true);
+        }
+      }, 20000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
+
   // Fetch products
-  const fetchProducts = async () => {
-    setLoading(true);
+  const fetchProducts = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const response = await fetch("http://localhost:5000/api/products");
       if (!response.ok) throw new Error("Failed to load products");
@@ -179,9 +203,9 @@ export default function AdminProductsPage() {
       setProducts(data.products || []);
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "Failed to fetch products");
+      if (!isBackground) toast.error(error.message || "Failed to fetch products");
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
@@ -260,7 +284,7 @@ export default function AdminProductsPage() {
           
           <div className="flex items-center gap-3">
             <button
-              onClick={fetchProducts}
+              onClick={() => fetchProducts(false)}
               className={cn(
                 "p-2.5 border rounded-lg transition-all cursor-pointer",
                 isDark 
@@ -390,7 +414,7 @@ export default function AdminProductsPage() {
                                 </span>
                               )}
                               <span className={cn("text-xs", isDark ? "text-neutral-500" : "text-slate-400")}>
-                                {product.warranty} Warranty
+                                {product.warranty && !["0", "none", "0 days", "no warranty", ""].includes(product.warranty.toLowerCase().trim()) ? `${product.warranty} Warranty` : "No Warranty"}
                               </span>
                             </div>
                           </div>

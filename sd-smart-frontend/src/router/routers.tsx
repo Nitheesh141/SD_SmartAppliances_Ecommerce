@@ -53,6 +53,11 @@ const AdminSettingsPage = dynamic(() => import("../app/admin/settings_page"), {
   ssr: true,
 });
 
+const AdminServiceRequestsPage = dynamic(() => import("../app/admin/service_requests_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 const ForgotPasswordPage = dynamic(() => import("../app/auth/forgot-password_page"), {
   loading: PageLoader,
   ssr: true,
@@ -165,6 +170,7 @@ export const routes: Record<string, React.ComponentType<any>> = {
   "/admin/dashboard": AdminDashboardPage,
   "/admin/products": AdminProductsPage,
   "/admin/orders": AdminOrdersPage,
+  "/admin/service-requests": AdminServiceRequestsPage,
   "/admin/marketing": AdminMarketingPage,
   "/admin/settings": AdminSettingsPage,
   "/admin/manage-product": AdminManageProductPage,

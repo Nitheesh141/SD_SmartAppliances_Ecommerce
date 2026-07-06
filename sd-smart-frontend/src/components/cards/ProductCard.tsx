@@ -13,6 +13,7 @@ import type { Product } from "../../app/LandingPage/types";
 import RatingStars from "../shared/RatingStars";
 import ProductPrice from "../shared/ProductPrice";
 import BadgePill from "../shared/BadgePill";
+import EnquiryModal from "../shared/EnquiryModal";
 
 interface ProductCardProps {
   product: Product;
@@ -37,8 +38,10 @@ const getSpecTags = (category: string) => {
 
 export default function ProductCard({ product, className }: ProductCardProps) {
   const specTags = getSpecTags(product.categoryLabel);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { addToCart } = useCart();
+  const isDistributor = isAuthenticated && user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
+  const [isEnquiryOpen, setIsEnquiryOpen] = useState(false);
   const { wishlistItems, addToWishlist, removeFromWishlist } = useWishlist();
   const router = useRouter();
 
@@ -161,7 +164,21 @@ export default function ProductCard({ product, className }: ProductCardProps) {
 
         {/* <RatingStars rating={product.rating} reviewCount={product.reviewCount} className="mb-3" /> */}
 
-        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mb-2">
+        {isDistributor ? (
+          <div className="mb-2">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsEnquiryOpen(true);
+              }}
+              className="relative z-20 w-full text-center py-2 px-3 border-2 border-[#D71920] hover:bg-red-50 dark:hover:bg-slate-800 text-[#D71920] hover:text-[#b8141a] text-sm font-bold rounded-xl transition-all duration-200"
+            >
+              Enquiry for Price
+            </button>
+          </div>
+        ) : (
+           <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mb-2">
           <ProductPrice
             price={product.price}
             originalPrice={product.originalPrice}
@@ -174,6 +191,7 @@ export default function ProductCard({ product, className }: ProductCardProps) {
             </span>
           )}
         </div>
+        )}
 
         {/* Warranty + capacity */}
         <div className="flex items-center gap-1 text-xs text-neutral-500 mb-4">
@@ -209,6 +227,9 @@ export default function ProductCard({ product, className }: ProductCardProps) {
           </button>
         )}
       </div>
+      {isEnquiryOpen && (
+        <EnquiryModal isOpen={isEnquiryOpen} onClose={() => setIsEnquiryOpen(false)} />
+      )}
     </div>
   );
 }

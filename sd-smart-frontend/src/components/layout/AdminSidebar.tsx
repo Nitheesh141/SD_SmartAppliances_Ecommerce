@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { 
   LayoutDashboard, PlusCircle, LogOut, Sun, Moon, 
-  Home, Shield, Menu, X, ArrowLeftRight, Package, Percent, Settings
+  Home, Shield, Menu, X, ArrowLeftRight, Package, Percent, Settings, Headphones
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -24,6 +24,66 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [marketingOpen, setMarketingOpen] = useState(currentPath.startsWith("/admin/marketing"));
+  const [counts, setCounts] = useState({ orders: 0, distributors: 0, serviceRequests: 0 });
+
+  // Fetch counts periodically
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const token = localStorage.getItem("authToken");
+        if (!token) return;
+        const res = await fetch("http://localhost:5000/api/orders/unread-counts", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.counts) {
+            setCounts(data.counts);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch unread counts:", err);
+      }
+    };
+
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 20000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Mark as read when navigating to admin sections
+  useEffect(() => {
+    const markAsRead = async () => {
+      const token = localStorage.getItem("authToken");
+      if (!token) return;
+      
+      try {
+        if (currentPath === "/admin/orders") {
+          await fetch("http://localhost:5000/api/orders/mark-read", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setCounts(prev => ({ ...prev, orders: 0 }));
+        } else if (currentPath === "/admin/distributors") {
+          await fetch("http://localhost:5000/api/auth/admin/distributors/mark-read", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setCounts(prev => ({ ...prev, distributors: 0 }));
+        } else if (currentPath === "/admin/service-requests") {
+          await fetch("http://localhost:5000/api/service-requests/mark-read", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setCounts(prev => ({ ...prev, serviceRequests: 0 }));
+        }
+      } catch (err) {
+        console.error("Failed to mark notification as read:", err);
+      }
+    };
+
+    markAsRead();
+  }, [currentPath]);
 
   const menuItems = [
     {
@@ -45,6 +105,11 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       label: "Distributors",
       icon: Shield,
       href: "/admin/distributors",
+    },
+    {
+      label: "Service Requests",
+      icon: Headphones,
+      href: "/admin/service-requests",
     },
     {
       label: "Marketing",
@@ -72,6 +137,13 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
   };
 
   const isDark = theme === "dark";
+
+  const getBadgeCount = (label: string) => {
+    if (label === "Orders") return counts.orders;
+    if (label === "Distributors") return counts.distributors;
+    if (label === "Service Requests") return counts.serviceRequests;
+    return 0;
+  };
 
   return (
     <>
@@ -229,13 +301,16 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
               );
             }
 
+            const count = getBadgeCount(item.label);
+            const displayCount = count > 99 ? "99+" : count;
+
             return (
               <Link
                 key={item.label}
                 href={item.href as any}
                 onClick={() => setIsOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group cursor-pointer",
+                  "flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group cursor-pointer",
                   isActive
                     ? "bg-[#D71920] text-white shadow-lg shadow-[#D71920]/20"
                     : isDark
@@ -243,11 +318,23 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
                       : "text-neutral-600 hover:text-[#D71920] hover:bg-red-50/50 border border-transparent"
                 )}
               >
-                <item.icon size={18} className={cn(
-                  "transition-transform group-hover:scale-110",
-                  isActive ? "text-white" : "text-neutral-500 group-hover:text-[#D71920]"
-                )} />
-                <span>{item.label}</span>
+                <div className="flex items-center gap-3">
+                  <item.icon size={18} className={cn(
+                    "transition-transform group-hover:scale-110",
+                    isActive ? "text-white" : "text-neutral-500 group-hover:text-[#D71920]"
+                  )} />
+                  <span>{item.label}</span>
+                </div>
+                {count > 0 && (
+                  <span className={cn(
+                    "flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[9px] font-black uppercase tracking-wider",
+                    isActive 
+                      ? "bg-white text-[#D71920]" 
+                      : "bg-red-600 text-white"
+                  )}>
+                    {displayCount}
+                  </span>
+                )}
               </Link>
             );
           })}
