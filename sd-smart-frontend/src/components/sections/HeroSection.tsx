@@ -67,7 +67,7 @@ export default function HeroSection({ banners }: HeroSectionProps) {
 
   return (
     <div
-      className="relative h-[calc(100vh-64px)] min-h-[600px] md:min-h-[700px] w-full overflow-hidden bg-slate-950 font-sans"
+      className="relative h-[calc(100vh-64px)] min-h-[480px] sm:min-h-[600px] md:min-h-[700px] w-full overflow-hidden bg-slate-950 font-sans"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -132,7 +132,7 @@ export default function HeroSection({ banners }: HeroSectionProps) {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
-                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#E30613]/10 border border-[#E30613]/30 text-[#E30613] mb-6 select-none"
+                className="inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold bg-[#E30613]/10 border border-[#E30613]/30 text-[#E30613] mb-4 sm:mb-6 select-none"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[#E30613] animate-pulse" />
                 {banner.badge}
@@ -140,7 +140,7 @@ export default function HeroSection({ banners }: HeroSectionProps) {
 
               {/* Heading: Slide Specific Animations */}
               {currentSlide === 0 && (
-                <h1 className="text-4xl sm:text-6xl md:text-[68px] font-black tracking-tight leading-[1.08] mb-6 text-white">
+                <h1 className="text-3xl sm:text-5xl md:text-6xl md:text-[68px] font-black tracking-tight leading-[1.08] mb-4 sm:mb-6 text-white">
                   {banner.heading.split(". ").map((line, idx) => (
                     <motion.span
                       key={idx}
@@ -156,7 +156,7 @@ export default function HeroSection({ banners }: HeroSectionProps) {
               )}
 
               {currentSlide === 1 && (
-                <h1 className="text-4xl sm:text-6xl md:text-[68px] font-black tracking-tight leading-[1.08] mb-6 text-white overflow-hidden">
+                <h1 className="text-3xl sm:text-5xl md:text-6xl md:text-[68px] font-black tracking-tight leading-[1.08] mb-4 sm:mb-6 text-white overflow-hidden">
                   {banner.heading.split(". ").map((line, idx) => (
                     <span key={idx} className="block overflow-hidden py-1">
                       <motion.span
@@ -177,7 +177,7 @@ export default function HeroSection({ banners }: HeroSectionProps) {
                   initial={{ opacity: 0, x: -100 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ type: "spring", stiffness: 45, damping: 12, delay: 0.2 }}
-                  className="text-4xl sm:text-6xl md:text-[68px] font-black tracking-tight leading-[1.08] mb-6 text-white block"
+                  className="text-3xl sm:text-5xl md:text-6xl md:text-[68px] font-black tracking-tight leading-[1.08] mb-4 sm:mb-6 text-white block"
                 >
                   {banner.heading}
                 </motion.h1>
@@ -192,13 +192,13 @@ export default function HeroSection({ banners }: HeroSectionProps) {
                   delay: currentSlide === 2 ? 0.5 : 0.45,
                   ease: "easeOut"
                 }}
-                className="text-sm sm:text-base md:text-lg text-white/85 leading-relaxed mb-8 max-w-[480px] md:max-w-[520px]"
+                className="text-xs sm:text-base md:text-lg text-white/85 leading-relaxed mb-6 sm:mb-8 max-w-[480px] md:max-w-[520px]"
               >
                 {banner.subheading}
               </motion.p>
 
               {/* Action Buttons with Sequential Animate & Slide-up */}
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                 <motion.div
                   initial={currentSlide === 1 ? { opacity: 0 } : { opacity: 0, y: 30 }}
                   animate={currentSlide === 1 ? { opacity: 1 } : { opacity: 1, y: 0 }}
@@ -210,7 +210,7 @@ export default function HeroSection({ banners }: HeroSectionProps) {
                 >
                   <Link
                     href={banner.primaryCTA.href}
-                    className="inline-flex items-center gap-2 bg-[#E30613] hover:bg-[#C40510] text-white px-7 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 shadow-lg shadow-red-600/10 cursor-pointer select-none"
+                    className="inline-flex items-center gap-2 bg-[#E30613] hover:bg-[#C40510] text-white px-5 py-2.5 sm:px-7 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 shadow-lg shadow-red-600/10 cursor-pointer select-none"
                     style={{ transitionProperty: "all" }}
                   >
                     {banner.primaryCTA.label}
@@ -229,7 +229,7 @@ export default function HeroSection({ banners }: HeroSectionProps) {
                 >
                   <Link
                     href={banner.secondaryCTA.href}
-                    className="inline-flex items-center gap-2 bg-[#4A4A4A]/40 hover:bg-[#4A4A4A]/70 text-white border border-white/20 hover:border-white/40 px-7 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 cursor-pointer select-none"
+                    className="inline-flex items-center gap-2 bg-[#4A4A4A]/40 hover:bg-[#4A4A4A]/70 text-white border border-white/20 hover:border-white/40 px-5 py-2.5 sm:px-7 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 cursor-pointer select-none"
                   >
                     {banner.secondaryCTA.label}
                   </Link>
