@@ -3,7 +3,6 @@ import { NavLink, FooterColumn, SocialLink, CommercialSection } from "../types";
 export const navLinks: NavLink[] = [
   { label: "Home", href: "/", hasDropdown: false },
   { label: "Categories", href: "/#categories", hasDropdown: false },
-  { label: "Bestsellers", href: "/#best-sellers", hasDropdown: false },
   { label: "Why Us", href: "/#why-choose-us", hasDropdown: false },
   { label: "Our Story", href: "/#timeline", hasDropdown: false },
   { label: "Appliances", href: "/shop", hasDropdown: false },

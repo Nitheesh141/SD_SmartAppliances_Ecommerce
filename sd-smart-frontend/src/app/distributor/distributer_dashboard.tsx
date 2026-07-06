@@ -25,49 +25,6 @@ interface OrderType {
   } | null;
 }
 
-const mockupOrdersList: OrderType[] = [
-  {
-    id: "ord-1",
-    orderNumber: "ORD-1782537323722-563",
-    createdAt: "2026-06-27T10:00:00.000Z",
-    grandTotal: 56830.57,
-    status: "DELIVERED",
-    paymentStatus: "PAID"
-  },
-  {
-    id: "ord-2",
-    orderNumber: "ORD-1782487823114-298",
-    createdAt: "2026-06-25T11:30:00.000Z",
-    grandTotal: 32400.00,
-    status: "PROCESSING",
-    paymentStatus: "PAID"
-  },
-  {
-    id: "ord-3",
-    orderNumber: "ORD-1782391198765-220",
-    createdAt: "2026-06-23T15:45:00.000Z",
-    grandTotal: 18750.00,
-    status: "SHIPPED",
-    paymentStatus: "PAID"
-  },
-  {
-    id: "ord-4",
-    orderNumber: "ORD-1782304456123-118",
-    createdAt: "2026-06-21T09:15:00.000Z",
-    grandTotal: 14600.00,
-    status: "PENDING",
-    paymentStatus: "UNPAID"
-  },
-  {
-    id: "ord-5",
-    orderNumber: "ORD-178220998766-072",
-    createdAt: "2026-06-20T16:20:00.000Z",
-    grandTotal: 24900.00,
-    status: "DELIVERED",
-    paymentStatus: "PAID"
-  }
-];
-
 export default function DistributerDashboardPage() {
   const router = useRouter();
   const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
@@ -79,7 +36,7 @@ export default function DistributerDashboardPage() {
   const [prevNotificationsLength, setPrevNotificationsLength] = useState(0);
 
   // Dynamic Notifications List matching verification status & order status
-  const ordersForNotifications = orders.length > 0 ? orders : mockupOrdersList;
+  const ordersForNotifications = orders;
   const notificationsList = [
     {
       id: "verify-status",
@@ -216,23 +173,18 @@ export default function DistributerDashboardPage() {
   const isRejected = approvalStatus === "REJECTED";
   const isPending = approvalStatus === "PENDING";
 
-  // Calculate stats from real orders if available, otherwise display mockup values
-  const hasRealOrders = orders.length > 0;
-  const totalOrdersCount = hasRealOrders ? orders.length : 35;
+  // Calculate stats from real orders
+  const totalOrdersCount = orders.length;
   
-  const pendingOrdersCount = hasRealOrders 
-    ? orders.filter(o => ["PENDING_APPROVAL", "APPROVED", "PROCESSING", "PACKED", "SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(o.status)).length 
-    : 8;
+  const pendingOrdersCount = orders.filter(o => 
+    ["PENDING_APPROVAL", "APPROVED", "PROCESSING", "PACKED", "SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY", "PENDING"].includes(o.status)
+  ).length;
 
-  const completedOrdersCount = hasRealOrders 
-    ? orders.filter(o => o.status === "DELIVERED").length 
-    : 27;
+  const completedOrdersCount = orders.filter(o => o.status === "DELIVERED").length;
 
-  const invoicesCount = hasRealOrders 
-    ? orders.filter(o => o.invoice || o.status === "DELIVERED" || o.status === "APPROVED").length 
-    : 12;
+  const invoicesCount = orders.filter(o => o.invoice || o.status === "DELIVERED" || o.status === "APPROVED").length;
 
-  const recentOrders = hasRealOrders ? orders.slice(0, 5) : mockupOrdersList;
+  const recentOrders = orders.slice(0, 5);
 
   // Sidebar component definition for reusability
   const SidebarContent = () => (

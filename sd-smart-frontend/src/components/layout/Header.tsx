@@ -106,7 +106,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
       return;
     }
 
-    const sections = ["categories", "best-sellers", "why-choose-us", "timeline"];
+    const sections = ["categories", "why-choose-us", "timeline"];
     let observer: IntersectionObserver | null = null;
 
     const setupObserver = () => {
