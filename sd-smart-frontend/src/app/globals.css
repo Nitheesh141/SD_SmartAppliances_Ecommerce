@@ -88,3 +88,21 @@ body {
 html {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Fix input cursor visibility issues on hover across the entire application */
+input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+textarea {
+  cursor: text !important;
+}
+
+select {
+  cursor: default !important;
+}
+
+button,
+a,
+[role="button"],
+input[type="button"],
+input[type="submit"] {
+  cursor: pointer !important;
+}

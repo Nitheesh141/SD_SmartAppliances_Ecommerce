@@ -50,20 +50,7 @@ export default function AuthBackground({ children, focusPos = null, isSuccess = 
   }, [isSuccess]);
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-      {/* Premium Realistic Kitchen Background Video */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="fixed inset-0 w-full h-full object-cover pointer-events-none filter blur-[8px] scale-[1.08] transition-all duration-700 select-none z-0"
-        src="https://player.vimeo.com/external/661631215.hd.mp4?s=aae0f79bd28f0b6dd91e7f236f72d6f548bcb47f&profile_id=175"
-      />
-
-      {/* Mild Tone Color Overlay */}
-      <div className="fixed inset-0 w-full h-full bg-slate-50/45 dark:bg-slate-950/75 pointer-events-none transition-colors duration-500 z-0" />
-
+    <div className="relative min-h-screen w-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-white via-[#F8F9FA] to-[#FFF5F5] dark:from-[#0F172A] dark:to-[#111827] transition-colors duration-500">
       {/* Focus Glow Spotlight Overlay */}
       {focusPos && (
         <div
