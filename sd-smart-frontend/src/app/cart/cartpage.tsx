@@ -15,6 +15,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 export default function CartPage() {
   const { cartItems, cartTotal, cartCount, updateQuantity, removeFromCart, isLoading } = useCart();
   const { user } = useAuth();
+  const isDistributor = user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
   const [excludedItems, setExcludedItems] = useState<Set<string>>(new Set());
   const [calculationResult, setCalculationResult] = useState<any>(null);
   const [calculating, setCalculating] = useState(false);
@@ -154,23 +155,26 @@ export default function CartPage() {
                   const matchedCalcItem = calculationResult?.items?.find((ci: any) => ci.productId === product.id);
                   const isDiscounted = matchedCalcItem && matchedCalcItem.unitPrice < matchedCalcItem.originalPrice;
                   return (
-                    <div key={item.id} className="flex gap-4 p-4 border border-neutral-100 rounded-2xl bg-white hover:border-neutral-200 transition-colors shadow-sm">
+                    <div key={item.id} className="flex gap-4 p-4 border border-neutral-200 rounded-2xl bg-white hover:border-neutral-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all duration-300 shadow-sm relative group">
+                      {/* Clickable Area for Redirect */}
+                      <Link href={`/product/${product.id || '#'}`} className="absolute inset-0 z-0 cursor-pointer" />
+
                       {/* Product Image */}
-                      <div className="w-24 h-24 sm:w-32 sm:h-32 bg-neutral-50 rounded-xl flex items-center justify-center p-2 flex-shrink-0">
+                      <Link href={`/product/${product.id || '#'}`} className="w-24 h-24 sm:w-32 sm:h-32 bg-neutral-50 rounded-xl flex items-center justify-center p-2 flex-shrink-0 relative z-10 hover:opacity-90 transition-opacity">
                         <img 
                           src={product.image || product.images?.[0] || "/sd-smart-ecommerce/SD-logo.png"} 
                           alt={product.name || "Product"} 
                           className="w-full h-full object-contain mix-blend-multiply" 
                         />
-                      </div>
+                      </Link>
                       
                       {/* Product Details */}
-                      <div className="flex-1 flex flex-col justify-between py-1">
+                      <div className="flex-1 flex flex-col justify-between py-1 relative z-10 pointer-events-none">
                         <div>
                           <p className="text-[10px] font-bold text-[#D71920] uppercase tracking-widest mb-1">
                             {product.categoryLabel || product.category || "Appliance"}
                           </p>
-                          <Link href={`/shop/${product.id || '#'}`} className="hover:text-[#D71920] transition-colors">
+                          <Link href={`/product/${product.id || '#'}`} className="hover:text-[#D71920] transition-colors pointer-events-auto">
                             <h3 className="text-sm sm:text-base font-bold text-[#1C1C1C] leading-snug line-clamp-2">
                               {product.name || "Unknown Product"}
                             </h3>
@@ -217,7 +221,7 @@ export default function CartPage() {
                           })()}
                         </div>
 
-                        <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-4 gap-3">
+                        <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-4 gap-3 pointer-events-auto">
                           <div className="flex flex-col">
                             <span className="text-xs text-neutral-500 font-medium mb-0.5">Price</span>
                             <div className="flex items-center gap-1.5">
@@ -276,27 +280,8 @@ export default function CartPage() {
                               </button>
                             </div>
 
-                            {/* Subtotal & Remove */}
-                            <div className="flex items-center gap-3 ml-2 sm:ml-4 border-l border-neutral-100 pl-3 sm:pl-4">
-                              <div className="flex flex-col hidden sm:flex">
-                                <span className="text-[10px] text-neutral-400 font-medium uppercase">Subtotal</span>
-                                <div className="flex flex-col items-end">
-                                  {isOutOfStock ? (
-                                    <span className="font-bold text-neutral-400">—</span>
-                                  ) : (
-                                    <>
-                                      <span className="font-bold text-[#1C1C1C]">
-                                        ₹{(matchedCalcItem ? matchedCalcItem.totalPrice : ((product.price || 0) * item.quantity)).toLocaleString('en-IN')}
-                                      </span>
-                                      {isDiscounted && (
-                                        <span className="text-[10px] text-neutral-400 line-through">
-                                          ₹{(matchedCalcItem.originalPrice * matchedCalcItem.quantity).toLocaleString('en-IN')}
-                                        </span>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              </div>
+                            {/* Actions / Remove */}
+                            <div className="flex items-center gap-3 ml-2 sm:ml-4">
                               <div className="flex items-center gap-2">
                                 <button 
                                   onClick={() => !isOutOfStock && toggleExclude(item.id)}
@@ -334,10 +319,12 @@ export default function CartPage() {
             {/* RIGHT SECTION (30%) */}
             <div className="lg:w-[30%]">
               <div className="sticky top-28 bg-white rounded-2xl p-6 border border-neutral-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                <h2 className="text-lg font-bold text-[#1C1C1C] mb-4">Order Summary</h2>
+                <h2 className="text-lg font-bold text-[#1C1C1C] mb-4">
+                  {isDistributor ? "Order Request Summary" : "Order Summary"}
+                </h2>
 
                 {/* Smart Delivery Banner */}
-                {(() => {
+                {!isDistributor && (() => {
                   const deliveryInfo = calculationResult?.deliveryInfo;
                   const effectiveDC = calculationResult ? calculationResult.summary.deliveryCharges : (calculatedCartTotal >= 10000 ? 0 : 200);
                   const isFree = effectiveDC === 0;
@@ -406,59 +393,65 @@ export default function CartPage() {
                     <span>Total Quantity</span>
                     <span className="font-bold text-[#1C1C1C]">{calculatedCartCount} units</span>
                   </div>
-                  <div className="flex justify-between items-center text-neutral-600 font-medium pt-2">
-                    <span>Subtotal</span>
-                    <span className="font-bold text-[#1C1C1C]">
-                      ₹{(calculationResult ? calculationResult.summary.originalSubtotal : calculatedCartTotal).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  {calculationResult && calculationResult.summary.totalDiscounts > 0 && (
-                    <div className="flex justify-between items-center text-[#22c55e] font-medium">
-                      <span>Total Savings</span>
-                      <span className="font-bold">-₹{calculationResult.summary.totalDiscounts.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-                  {(() => {
-                    const effectiveDC = calculationResult ? calculationResult.summary.deliveryCharges : (calculatedCartTotal >= 10000 ? 0 : 200);
-                    const isFree = effectiveDC === 0;
-                    return (
-                      <div className={`flex justify-between items-center font-medium ${ isFree ? 'text-green-600' : 'text-neutral-600' }`}>
-                        <div className="flex items-center gap-1.5">
-                          <Truck size={13} className={isFree ? "text-green-500" : "text-neutral-400"} />
-                          <span>Delivery Charges</span>
-                        </div>
-                        <span className="font-bold">
-                          {isFree
-                            ? <span className="flex items-center gap-1">FREE <CheckCircle2 size={12} className="text-green-500" /></span>
-                            : `₹${effectiveDC.toLocaleString('en-IN')}`}
+                  {!isDistributor && (
+                    <>
+                      <div className="flex justify-between items-center text-neutral-600 font-medium pt-2">
+                        <span>Subtotal</span>
+                        <span className="font-bold text-[#1C1C1C]">
+                          ₹{(calculationResult ? calculationResult.summary.originalSubtotal : calculatedCartTotal).toLocaleString('en-IN')}
                         </span>
                       </div>
-                    );
-                  })()}
-                  {calculationResult && (calculationResult.summary.cgst + calculationResult.summary.sgst) > 0 && (
-                    <div className="flex justify-between items-center text-neutral-500 text-xs">
-                      <span>GST (18%)</span>
-                      <span className="font-semibold text-neutral-700">₹{(calculationResult.summary.cgst + calculationResult.summary.sgst).toLocaleString('en-IN')}</span>
-                    </div>
+                      {calculationResult && calculationResult.summary.totalDiscounts > 0 && (
+                        <div className="flex justify-between items-center text-[#22c55e] font-medium">
+                          <span>Total Savings</span>
+                          <span className="font-bold">-₹{calculationResult.summary.totalDiscounts.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                      {(() => {
+                        const effectiveDC = calculationResult ? calculationResult.summary.deliveryCharges : (calculatedCartTotal >= 10000 ? 0 : 200);
+                        const isFree = effectiveDC === 0;
+                        return (
+                          <div className={`flex justify-between items-center font-medium ${ isFree ? 'text-green-600' : 'text-neutral-600' }`}>
+                            <div className="flex items-center gap-1.5">
+                              <Truck size={13} className={isFree ? "text-green-500" : "text-neutral-400"} />
+                              <span>Delivery Charges</span>
+                            </div>
+                            <span className="font-bold">
+                              {isFree
+                                ? <span className="flex items-center gap-1">FREE <CheckCircle2 size={12} className="text-green-500" /></span>
+                                : `₹${effectiveDC.toLocaleString('en-IN')}`}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                      {calculationResult && (calculationResult.summary.cgst + calculationResult.summary.sgst) > 0 && (
+                        <div className="flex justify-between items-center text-neutral-500 text-xs">
+                          <span>GST (18%)</span>
+                          <span className="font-semibold text-neutral-700">₹{(calculationResult.summary.cgst + calculationResult.summary.sgst).toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
-                <div className="border-t border-neutral-100 border-dashed pt-4 mb-6">
-                  <div className="flex justify-between items-end">
-                    <span className="font-bold text-[#1C1C1C] text-base">Grand Total</span>
-                    <span className="text-2xl font-black text-[#D71920] tracking-tight">
-                      ₹{(calculationResult ? calculationResult.summary.grandTotal : calculatedCartTotal).toLocaleString('en-IN')}
-                    </span>
+                {!isDistributor && (
+                  <div className="border-t border-neutral-100 border-dashed pt-4 mb-6">
+                    <div className="flex justify-between items-end">
+                      <span className="font-bold text-[#1C1C1C] text-base">Grand Total</span>
+                      <span className="text-2xl font-black text-[#D71920] tracking-tight">
+                        ₹{(calculationResult ? calculationResult.summary.grandTotal : calculatedCartTotal).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-neutral-400 mt-1 text-right">Inclusive of all taxes</p>
                   </div>
-                  <p className="text-[10px] text-neutral-400 mt-1 text-right">Inclusive of all taxes</p>
-                </div>
+                )}
 
-                {calculationResult?.appliedOffers && calculationResult.appliedOffers.length > 0 && (
+                {!isDistributor && calculationResult?.appliedOffers && calculationResult.appliedOffers.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-neutral-100 border-dashed space-y-2">
                     <p className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400">Applied Campaigns & Offers</p>
                     <div className="flex flex-col gap-1.5">
                       {calculationResult.appliedOffers.map((offer: any) => (
-                        <div key={offer.offerId} className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-50/60 p-2 rounded-xl border border-emerald-100/50">
+                        <div key={offer.offerId} className="flex items-center justify-between gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-50/60 p-2 rounded-xl border border-emerald-100/50">
                           <Check size={12} className="text-emerald-600 shrink-0" />
                           <span>{offer.name} {offer.code ? `(${offer.code})` : ''}</span>
                         </div>

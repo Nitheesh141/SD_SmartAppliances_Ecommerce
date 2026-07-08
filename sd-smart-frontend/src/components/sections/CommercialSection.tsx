@@ -87,15 +87,17 @@ export default function CommercialSection({ data }: CommercialSectionProps) {
               >
                 {data.primaryCTA.label}
               </CTAButton>
-              <CTAButton
-                variant="outline"
-                size="md"
-                className="text-white border-white/25 hover:bg-white/10 hover:border-white/40 dark:hover:bg-white/10 rounded-xl px-6 py-3 transition-all duration-300"
-                asLink
-                href={data.secondaryCTA.href}
-              >
-                {data.secondaryCTA.label}
-              </CTAButton>
+              {data.secondaryCTA?.label && (
+                <CTAButton
+                  variant="outline"
+                  size="md"
+                  className="text-white border-white/25 hover:bg-white/10 hover:border-white/40 dark:hover:bg-white/10 rounded-xl px-6 py-3 transition-all duration-300"
+                  asLink
+                  href={data.secondaryCTA.href}
+                >
+                  {data.secondaryCTA.label}
+                </CTAButton>
+              )}
             </div>
           </div>
 

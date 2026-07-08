@@ -5,6 +5,7 @@ import SectionHeader from "../shared/SectionHeader";
 import CategoryCard from "../cards/CategoryCard";
 import ScrollReveal from "../animations/ScrollReveal";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface CategorySectionProps {
   categories: Category[];
@@ -17,13 +18,21 @@ export default function CategorySection({ categories }: CategorySectionProps) {
         <SectionHeader
           badge="CATEGORIES"
           title="Shop by Product Category"
-          subtitle="Explore our premium range of pressure cookers, non-stick cookware, mixer grinders, LPG stoves, and high-performance wet grinders built for home and commercial kitchens."
+          subtitle="Explore our premium range of pressure cookers, non-stick cookware, LPG stoves, and high-performance wet grinders built for home and commercial kitchens."
         />
       </ScrollReveal>
       
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-6 md:gap-8">
         {categories.map((category, idx) => (
-          <ScrollReveal key={category.id} delay={idx * 100} direction="up">
+          <ScrollReveal
+            key={category.id}
+            delay={idx * 100}
+            direction="up"
+            className={cn(
+              "col-span-1 lg:col-span-2",
+              idx === 3 && "lg:col-start-2"
+            )}
+          >
             <CategoryCard category={category} />
           </ScrollReveal>
         ))}

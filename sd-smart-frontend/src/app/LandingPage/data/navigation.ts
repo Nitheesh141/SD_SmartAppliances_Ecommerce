@@ -4,7 +4,6 @@ export const navLinks: NavLink[] = [
   { label: "Home", href: "/", hasDropdown: false },
   { label: "Categories", href: "/#categories", hasDropdown: false },
   { label: "Why Us", href: "/#why-choose-us", hasDropdown: false },
-  { label: "Our Story", href: "/#timeline", hasDropdown: false },
   { label: "Appliances", href: "/shop", hasDropdown: false },
 ];
 
@@ -15,7 +14,6 @@ export const footerColumns: FooterColumn[] = [
       { label: "Pressure Cookers", href: "/shop?category=pressure-cookers" },
       { label: "Wet Grinders", href: "/shop?category=wet-grinders" },
       { label: "LPG Stoves", href: "/shop?category=gas-stoves" },
-      { label: "Mixer Grinders", href: "/shop?category=mixer-grinders" },
       { label: "Stainless Steel Wet Grinders", href: "/shop?category=wet-grinders" }
     ]
   },
@@ -51,7 +49,7 @@ export const socialLinks: SocialLink[] = [
 export const commercialSectionData: CommercialSection = {
   eyebrow: "HEAVY-DUTY LINE",
   heading: "Commercial Kitchen Solutions",
-  description: "We manufacture massive capacity commercial wet grinders, heavy-duty mixer grinders, bulk pressure cookers, and high-efficiency LPG stoves tailored for restaurants, high-volume caterers, and institutional kitchens. Engineered for continuous operation under demanding conditions.",
+  description: "We manufacture massive capacity commercial wet grinders, bulk pressure cookers, and high-efficiency LPG stoves tailored for restaurants, high-volume caterers, and institutional kitchens. Engineered for continuous operation under demanding conditions.",
   bullets: [
     "Rugged Build: High-grade steel housings",
     "High Capacity: Up to 20-litre wet grinders",
@@ -59,6 +57,5 @@ export const commercialSectionData: CommercialSection = {
   ],
   badgeLabel: "COMMERCIAL",
   image: "https://images.unsplash.com/photo-1581092921461-eab62e97a780?q=80&w=1200&auto=format&fit=crop",
-  primaryCTA: { label: "Get Commercial Catalog", href: "/sd-smart-ecommerce/2026-SD Smart Catalogue.pdf" },
-  secondaryCTA: { label: "Consult an Engineer", href: "/contact" }
+  primaryCTA: { label: "Get Commercial Catalog", href: "/sd-smart-ecommerce/2026-SD Smart Catalogue.pdf" }
 };

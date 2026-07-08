@@ -42,6 +42,7 @@ model User {
   addresses       Address[]
   orders          Order[]
   serviceRequests ServiceRequest[]
+  warrantyRegistrations WarrantyRegistration[]
 }
 
 model OtpVerification {
@@ -340,4 +341,48 @@ model ServiceRequestHistory {
   remarks          String?
   updatedBy        String // User's name or role (e.g. Admin or customer/distributor)
   updatedAt        DateTime       @default(now())
+}
+
+model WarrantyRegistration {
+  id                 String               @id @default(uuid())
+  registrationId     String               @unique // e.g. WR-2026-000001
+  userId             String?
+  user               User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName       String
+  customerEmail      String
+  customerPhone      String
+  customerAltPhone   String?
+  addressLine1       String
+  addressLine2       String?
+  city               String
+  state              String
+  pincode            String
+  productCategory    String
+  productName        String
+  modelNumber        String
+  serialNumber       String               @unique
+  skuCode            String?
+  productCapacity    String?
+  purchaseDate       DateTime
+  invoiceNumber      String
+  dealerName         String
+  placeOfPurchase    String
+  warrantyStartDate  DateTime
+  warrantyExpiryDate DateTime
+  warrantyDuration   Int                  @default(5) // in years
+  status             String               @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, VERIFIED, REJECTED, EXPIRED
+  rejectionReason    String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  attachments        WarrantyAttachment[]
+}
+
+model WarrantyAttachment {
+  id                     String               @id @default(uuid())
+  warrantyRegistrationId String
+  warrantyRegistration   WarrantyRegistration @relation(fields: [warrantyRegistrationId], references: [id], onDelete: Cascade)
+  fileUrl                String
+  fileType               String // PURCHASE_INVOICE, WARRANTY_CARD, PRODUCT_IMAGE
+  fileName               String
+  createdAt              DateTime             @default(now())
 }

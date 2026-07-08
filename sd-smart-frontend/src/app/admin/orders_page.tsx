@@ -14,13 +14,11 @@ import { cn } from "@/lib/utils";
 
 const logisticsOptions = [
   { value: "", label: "Select logistics stage..." },
+  { value: "PENDING_APPROVAL", label: "Pending Approval" },
+  { value: "APPROVED", label: "Approved" },
   { value: "PROCESSING", label: "Processing" },
-  { value: "PACKED", label: "Packed" },
   { value: "SHIPPED", label: "Shipped" },
-  { value: "IN_TRANSIT", label: "In Transit" },
-  { value: "OUT_FOR_DELIVERY", label: "Out For Delivery" },
   { value: "DELIVERED", label: "Delivered" },
-  { value: "CANCELLED", label: "Cancel Order" },
 ];
 
 const paymentStatusOptions = [

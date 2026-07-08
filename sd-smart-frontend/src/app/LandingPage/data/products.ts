@@ -50,23 +50,6 @@ export const bestSellingProducts: Product[] = [
     badge: "Sale",
     href: "#gas-stoves",
     inStock: true
-  },
-  {
-    id: "prod-bestseller-4",
-    name: "SD Quad-Blade Mixer Grinder (1000W)",
-    category: "mixer-grinders",
-    categoryLabel: "Mixer Grinders",
-    image: "https://images.unsplash.com/photo-1578643463396-0997cb5328c1?q=80&w=400&auto=format&fit=crop",
-    rating: 4.6,
-    reviewCount: 512,
-    price: 4599,
-    originalPrice: 5999,
-    discountPercent: 23,
-    warranty: "2 Years",
-    capacity: "1.5 Litres",
-    badge: "New",
-    href: "#mixer-grinders",
-    inStock: true
   }
 ];
 

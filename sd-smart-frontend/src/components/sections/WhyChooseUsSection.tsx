@@ -20,19 +20,12 @@ export default function WhyChooseUsSection({ features }: WhyChooseUsSectionProps
               WHY SD SMART
             </span>
             <h2 className="text-xl sm:text-3xl md:text-4xl font-heading font-bold text-slate-900 leading-tight tracking-tight dark:text-slate-100">
-              Engineering the Future of Cooking
+              Engineering the Future of Smart Appliances
             </h2>
             <p className="mt-2 sm:mt-4 text-xs md:text-sm text-slate-500 font-sans leading-relaxed dark:text-slate-400">
-              At SD Smart Appliances, we blend durable mechanical engineering with contemporary smart home integrations. Our appliances are designed to perform reliably under high-stress conditions while consuming less power and reducing kitchen noise.
+              At SD Smart Appliances, we combine durability, performance, and innovation to create appliances built for Indian households and commercial kitchens. Every product is designed with quality materials, rigorous testing, and long-term reliability to deliver a seamless cooking experience.
             </p>
-            <div className="mt-4 sm:mt-8">
-              <a
-                href="#timeline"
-                className="text-xs font-bold text-[#D71920] hover:text-[#b8141a] inline-flex items-center gap-1.5 transition-colors duration-200 dark:text-red-400 dark:hover:text-red-300"
-              >
-                Discover Our History Story →
-              </a>
-            </div>
+
           </div>
         </ScrollReveal>
 

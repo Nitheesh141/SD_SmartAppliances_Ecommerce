@@ -20,7 +20,6 @@ const categoriesList = [
   { id: "all", label: "All Appliances" },
   { id: "pressure-cookers", label: "Pressure Cookers" },
   { id: "non-stick", label: "Non-Stick Cookware" },
-  { id: "mixer-grinders", label: "Mixer Grinders" },
   { id: "gas-stoves", label: "LPG Stoves" },
   { id: "wet-grinders", label: "Wet Grinders" },
   { id: "commercial", label: "Commercial Wet Grinders" },
@@ -108,7 +107,6 @@ export default function ShopPage() {
       let matchedCat = "all";
       if (q.includes("cooker")) matchedCat = "pressure-cookers";
       else if (q.includes("non-stick") || q.includes("cookware") || q.includes("tawa") || q.includes("pan") || q.includes("kadai")) matchedCat = "non-stick";
-      else if (q.includes("mixer") || q.includes("mixie")) matchedCat = "mixer-grinders";
       else if (q.includes("stove") || q.includes("gas") || q.includes("lpg")) matchedCat = "gas-stoves";
       else if (q.includes("wet grinder") || q.includes("wet-grinder")) matchedCat = "wet-grinders";
       else if (q.includes("commercial")) matchedCat = "commercial";

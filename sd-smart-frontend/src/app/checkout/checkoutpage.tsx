@@ -32,7 +32,6 @@ export default function CheckoutPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("");
-  const [poNumber, setPoNumber] = useState<string>("");
 
   const [step, setStep] = useState<"checkout" | "success">("checkout");
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
@@ -229,7 +228,6 @@ export default function CheckoutPage() {
       const response = await checkoutService.createOrder({
         addressId: selectedAddressId,
         paymentMethod,
-        poNumber: poNumber.trim() || undefined,
         couponCode: couponCode || undefined
       });
 
@@ -279,10 +277,10 @@ export default function CheckoutPage() {
     );
   }
 
+  const isDistributor = user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
+
   // Guard: Block unapproved distributors from checkout
-  const isUnapprovedDistributor = user && 
-    (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor") && 
-    user.approvalStatus?.toUpperCase() !== "APPROVED";
+  const isUnapprovedDistributor = isDistributor && user.approvalStatus?.toUpperCase() !== "APPROVED";
 
   if (isUnapprovedDistributor) {
     return (
@@ -592,207 +590,194 @@ export default function CheckoutPage() {
               </div>
             </section>
 
-            <hr className="border-neutral-100" />
-
-            {/* B2B: PURCHASE ORDER */}
-            <section>
-              <h2 className="text-xl font-bold text-[#1C1C1C] mb-2 flex items-center gap-2">
-                Purchase Order Reference
-              </h2>
-              <p className="text-sm text-neutral-500 mb-4">Optional: Provide your internal PO Number for this order.</p>
-
-              <div>
-                <input
-                  type="text"
-                  placeholder="e.g. PO-2026-0841"
-                  value={poNumber}
-                  onChange={(e) => setPoNumber(e.target.value)}
-                  className="w-full max-w-md px-4 py-3 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium placeholder:font-normal placeholder:text-neutral-400"
-                />
-              </div>
-            </section>
 
           </div>
 
           {/* RIGHT SECTION (35%) */}
           <div className="lg:w-[35%]">
             <div className="sticky top-28 bg-white rounded-2xl p-6 border border-neutral-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-              <h2 className="text-lg font-bold text-[#1C1C1C] mb-6">Order Summary</h2>
+              <h2 className="text-lg font-bold text-[#1C1C1C] mb-6">
+                {isDistributor ? "Order Placement Request" : "Order Summary"}
+              </h2>
 
-              {/* Coupon Code Input Panel */}
-              <div className="mt-6 mb-6 p-4 bg-slate-55 rounded-2xl border border-neutral-200 space-y-3">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-neutral-500 block">Promo Code & Coupons</span>
-                
-                {couponSuccess ? (
-                  <div className="flex items-center justify-between bg-green-50/60 border border-green-150 rounded-xl p-3 text-xs text-green-800">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-                      <div>
-                        <span className="font-extrabold uppercase">{couponCode}</span>
-                        <p className="text-[10px] text-green-700">{couponSuccess}</p>
+              {!isDistributor && (
+                <>
+                  {/* Coupon Code Input Panel */}
+                  <div className="mt-6 mb-6 p-4 bg-slate-55 rounded-2xl border border-neutral-200 space-y-3">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-neutral-500 block">Promo Code & Coupons</span>
+                    
+                    {couponSuccess ? (
+                      <div className="flex items-center justify-between bg-green-50/60 border border-green-150 rounded-xl p-3 text-xs text-green-800">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+                          <div>
+                            <span className="font-extrabold uppercase">{couponCode}</span>
+                            <p className="text-[10px] text-green-700">{couponSuccess}</p>
+                          </div>
+                        </div>
+                        <button onClick={handleRemoveCoupon} className="text-xs font-bold text-red-650 hover:underline cursor-pointer">
+                          Remove
+                        </button>
                       </div>
-                    </div>
-                    <button onClick={handleRemoveCoupon} className="text-xs font-bold text-red-650 hover:underline cursor-pointer">
-                      Remove
-                    </button>
+                    ) : (
+                      <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter Coupon Code"
+                          value={promoCodeInput}
+                          onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                          className="flex-grow px-3.5 py-2 text-xs border border-neutral-200 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-[#D71920]"
+                        />
+                        <button
+                          type="submit"
+                          disabled={calculating || !promoCodeInput.trim()}
+                          className="px-4 py-2 bg-[#D71920] hover:bg-[#b8141a] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          Apply
+                        </button>
+                      </form>
+                    )}
+                    {couponError && <p className="text-[10px] font-bold text-[#D71920]">{couponError}</p>}
                   </div>
-                ) : (
-                  <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Enter Coupon Code"
-                      value={promoCodeInput}
-                      onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
-                      className="flex-grow px-3.5 py-2 text-xs border border-neutral-200 rounded-xl bg-white focus:outline-none focus:ring-1 focus:ring-[#D71920]"
-                    />
-                    <button
-                      type="submit"
-                      disabled={calculating || !promoCodeInput.trim()}
-                      className="px-4 py-2 bg-[#D71920] hover:bg-[#b8141a] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      Apply
-                    </button>
-                  </form>
-                )}
-                {couponError && <p className="text-[10px] font-bold text-[#D71920]">{couponError}</p>}
-              </div>
 
-              {/* ── SMART DELIVERY BANNER ── */}
-              {!calculating && (
-                <div className={`mb-5 rounded-2xl border overflow-hidden ${
-                  isFreeDelivery
-                    ? "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50"
-                    : "border-orange-100 bg-gradient-to-br from-orange-50/60 to-amber-50/40"
-                }`}>
-                  <div className="px-4 pt-3.5 pb-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Truck size={16} className={isFreeDelivery ? "text-green-600" : "text-orange-500"} />
-                        <span className={`text-xs font-extrabold uppercase tracking-wider ${
-                          isFreeDelivery ? "text-green-700" : "text-orange-600"
-                        }`}>
-                          {isFreeDelivery ? "Free Delivery Unlocked! 🎉" : "Free Delivery"}
-                        </span>
+                  {/* ── SMART DELIVERY BANNER ── */}
+                  {!calculating && (
+                    <div className={`mb-5 rounded-2xl border overflow-hidden ${
+                      isFreeDelivery
+                        ? "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50"
+                        : "border-orange-100 bg-gradient-to-br from-orange-50/60 to-amber-50/40"
+                    }`}>
+                      <div className="px-4 pt-3.5 pb-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Truck size={16} className={isFreeDelivery ? "text-green-600" : "text-orange-500"} />
+                            <span className={`text-xs font-extrabold uppercase tracking-wider ${
+                              isFreeDelivery ? "text-green-700" : "text-orange-600"
+                            }`}>
+                              {isFreeDelivery ? "Free Delivery Unlocked! 🎉" : "Free Delivery"}
+                            </span>
+                          </div>
+                          {!isFreeDelivery && (
+                            <span className="text-[10px] font-bold text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full">
+                              Add ₹{amountNeeded.toLocaleString('en-IN')} more
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Progress bar */}
+                        {!isFreeDelivery && (
+                          <>
+                            <div className="w-full h-1.5 bg-orange-100 rounded-full overflow-hidden mb-1.5">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-400 transition-all duration-700"
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                            <p className="text-[11px] text-orange-600 font-medium">
+                              Spend ₹{amountNeeded.toLocaleString('en-IN')} more to get
+                              {" "}<strong className="font-extrabold">FREE delivery</strong>
+                              {" "}(on orders above ₹{FREE_THRESHOLD.toLocaleString('en-IN')})
+                            </p>
+                          </>
+                        )}
+                        {isFreeDelivery && deliveryInfo?.freeDeliveryReason && (
+                          <p className="text-[11px] text-green-600 font-medium">{deliveryInfo.freeDeliveryReason}</p>
+                        )}
                       </div>
-                      {!isFreeDelivery && (
-                        <span className="text-[10px] font-bold text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full">
-                          Add ₹{amountNeeded.toLocaleString('en-IN')} more
-                        </span>
+
+                      {/* Per-item free shipping tags */}
+                      {freeShippingProductIds.length > 0 && (
+                        <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+                          {inStockCartItems
+                            .filter(item => freeShippingProductIds.includes(item.productId))
+                            .map(item => (
+                              <span key={item.productId} className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-full">
+                                <Tag size={9} />
+                                {item.product?.name?.split(' ').slice(0, 3).join(' ')} — Free Shipping
+                              </span>
+                            ))}
+                        </div>
                       )}
                     </div>
+                  )}
 
-                    {/* Progress bar */}
-                    {!isFreeDelivery && (
-                      <>
-                        <div className="w-full h-1.5 bg-orange-100 rounded-full overflow-hidden mb-1.5">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-400 transition-all duration-700"
-                            style={{ width: `${progressPct}%` }}
-                          />
-                        </div>
-                        <p className="text-[11px] text-orange-600 font-medium">
-                          Spend ₹{amountNeeded.toLocaleString('en-IN')} more to get
-                          {" "}<strong className="font-extrabold">FREE delivery</strong>
-                          {" "}(on orders above ₹{FREE_THRESHOLD.toLocaleString('en-IN')})
-                        </p>
-                      </>
-                    )}
-                    {isFreeDelivery && deliveryInfo?.freeDeliveryReason && (
-                      <p className="text-[11px] text-green-600 font-medium">{deliveryInfo.freeDeliveryReason}</p>
-                    )}
+                  <div className="space-y-3.5 mb-6 text-sm">
+                    <div className="flex justify-between items-center text-neutral-600 font-medium">
+                      <span>Total Products</span>
+                      <span className="font-bold text-[#1C1C1C] bg-neutral-100 px-2 py-0.5 rounded-md">{inStockCartItems.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-neutral-600 font-medium">
+                      <span>Total Quantity</span>
+                      <span className="font-bold text-[#1C1C1C]">{cartCount} units</span>
+                    </div>
+                    <div className="flex justify-between items-center text-neutral-600 font-medium pt-2">
+                      <span>Subtotal</span>
+                      <span className="font-bold text-[#1C1C1C]">
+                        ₹{(calculationResult ? calculationResult.summary.originalSubtotal : subtotal).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-neutral-500">
+                      <span>CGST (9%)</span>
+                      <span>
+                        ₹{(calculationResult ? calculationResult.summary.cgst : cgst).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-neutral-500">
+                      <span>SGST (9%)</span>
+                      <span>
+                        ₹{(calculationResult ? calculationResult.summary.sgst : sgst).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-1.5 text-neutral-500">
+                        <Truck size={13} className={isFreeDelivery ? "text-green-500" : "text-neutral-400"} />
+                        <span>Delivery Charges</span>
+                      </div>
+                      <span>
+                        {isFreeDelivery
+                          ? <span className="text-green-600 font-bold flex items-center gap-1">FREE <CheckCircle2 size={12} className="text-green-500" /></span>
+                          : `₹${effectiveDeliveryCharges}`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-[#22c55e] font-medium">
+                      <span>Total Discounts</span>
+                      <span className="font-bold">
+                        -₹{(calculationResult ? calculationResult.summary.totalDiscounts : 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Per-item free shipping tags */}
-                  {freeShippingProductIds.length > 0 && (
-                    <div className="px-4 pb-3 flex flex-wrap gap-1.5">
-                      {inStockCartItems
-                        .filter(item => freeShippingProductIds.includes(item.productId))
-                        .map(item => (
-                          <span key={item.productId} className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-full">
-                            <Tag size={9} />
-                            {item.product?.name?.split(' ').slice(0, 3).join(' ')} — Free Shipping
-                          </span>
+                  <div className="border-t border-neutral-100 border-dashed pt-4 mb-6">
+                    <div className="flex justify-between items-end">
+                      <span className="font-bold text-[#1C1C1C] text-base">Grand Total</span>
+                      <span className="text-2xl font-black text-[#D71920] tracking-tight">
+                        ₹{(calculationResult ? calculationResult.summary.grandTotal : grandTotal).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-neutral-450 mt-1 text-right">Inclusive of all taxes</p>
+                  </div>
+
+                  {calculationResult?.appliedOffers && calculationResult.appliedOffers.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-neutral-100 border-dashed space-y-2">
+                      <p className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-405">Applied Campaigns & Offers</p>
+                      <div className="flex flex-col gap-1.5">
+                        {calculationResult.appliedOffers.map((offer: any) => (
+                          <div key={offer.offerId} className="flex items-center justify-between gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100/50">
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
+                              <span>{offer.name} {offer.code ? `(${offer.code})` : ''}</span>
+                            </div>
+                            {offer.discountAmount && offer.discountAmount > 0 ? (
+                              <span className="text-emerald-700 shrink-0 font-extrabold">-₹{offer.discountAmount.toLocaleString('en-IN')}</span>
+                            ) : offer.freeShipping ? (
+                              <span className="text-emerald-700 shrink-0 font-extrabold">Free Shipping</span>
+                            ) : null}
+                          </div>
                         ))}
+                      </div>
                     </div>
                   )}
-                </div>
-              )}
-
-              <div className="space-y-3.5 mb-6 text-sm">
-                <div className="flex justify-between items-center text-neutral-600 font-medium">
-                  <span>Total Products</span>
-                  <span className="font-bold text-[#1C1C1C] bg-neutral-100 px-2 py-0.5 rounded-md">{inStockCartItems.length}</span>
-                </div>
-                <div className="flex justify-between items-center text-neutral-600 font-medium">
-                  <span>Total Quantity</span>
-                  <span className="font-bold text-[#1C1C1C]">{cartCount} units</span>
-                </div>
-                <div className="flex justify-between items-center text-neutral-600 font-medium pt-2">
-                  <span>Subtotal</span>
-                  <span className="font-bold text-[#1C1C1C]">
-                    ₹{(calculationResult ? calculationResult.summary.originalSubtotal : subtotal).toLocaleString('en-IN')}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-neutral-500">
-                  <span>CGST (9%)</span>
-                  <span>
-                    ₹{(calculationResult ? calculationResult.summary.cgst : cgst).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-neutral-500">
-                  <span>SGST (9%)</span>
-                  <span>
-                    ₹{(calculationResult ? calculationResult.summary.sgst : sgst).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-1.5 text-neutral-500">
-                    <Truck size={13} className={isFreeDelivery ? "text-green-500" : "text-neutral-400"} />
-                    <span>Delivery Charges</span>
-                  </div>
-                  <span>
-                    {isFreeDelivery
-                      ? <span className="text-green-600 font-bold flex items-center gap-1">FREE <CheckCircle2 size={12} className="text-green-500" /></span>
-                      : `₹${effectiveDeliveryCharges}`}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-[#22c55e] font-medium">
-                  <span>Total Discounts</span>
-                  <span className="font-bold">
-                    -₹{(calculationResult ? calculationResult.summary.totalDiscounts : 0).toLocaleString('en-IN')}
-                  </span>
-                </div>
-              </div>
-
-              <div className="border-t border-neutral-100 border-dashed pt-4 mb-6">
-                <div className="flex justify-between items-end">
-                  <span className="font-bold text-[#1C1C1C] text-base">Grand Total</span>
-                  <span className="text-2xl font-black text-[#D71920] tracking-tight">
-                    ₹{(calculationResult ? calculationResult.summary.grandTotal : grandTotal).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-                <p className="text-[10px] text-neutral-400 mt-1 text-right">Inclusive of all taxes</p>
-              </div>
-
-              {calculationResult?.appliedOffers && calculationResult.appliedOffers.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-neutral-100 border-dashed space-y-2">
-                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400">Applied Campaigns & Offers</p>
-                  <div className="flex flex-col gap-1.5">
-                    {calculationResult.appliedOffers.map((offer: any) => (
-                      <div key={offer.offerId} className="flex items-center justify-between gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100/50">
-                        <div className="flex items-center gap-1.5">
-                          <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
-                          <span>{offer.name} {offer.code ? `(${offer.code})` : ''}</span>
-                        </div>
-                        {offer.discountAmount && offer.discountAmount > 0 ? (
-                          <span className="text-emerald-700 shrink-0 font-extrabold">-₹{offer.discountAmount.toLocaleString('en-IN')}</span>
-                        ) : offer.freeShipping ? (
-                          <span className="text-emerald-700 shrink-0 font-extrabold">Free Shipping</span>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                </>
               )}
 
               <button
@@ -801,7 +786,7 @@ export default function CheckoutPage() {
                 className="w-full relative group overflow-hidden bg-[#1C1C1C] disabled:bg-neutral-300 hover:bg-black text-white py-4 rounded-xl font-bold text-sm transition-all duration-300 shadow-lg shadow-black/10 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
               >
                 <span className="relative z-10 flex items-center gap-2">
-                  {isSubmitting ? <><Loader2 size={16} className="animate-spin" /> Processing...</> : "Proceed To Place Order"}
+                  {isSubmitting ? <><Loader2 size={16} className="animate-spin" /> Processing...</> : (isDistributor ? "Submit Order Request" : "Proceed To Place Order")}
                 </span>
                 {!isSubmitting && !(!selectedAddressId || !paymentMethod) && (
                   <>
