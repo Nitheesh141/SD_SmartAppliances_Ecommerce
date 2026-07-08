@@ -6,11 +6,33 @@ import Footer from "@/components/layout/Footer";
 // import { announcements } from "../LandingPage/data/announcements";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
 import { Phone, Mail, MapPin, Send } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({ name: "", email: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
+  const [contactInfo, setContactInfo] = useState({
+    phone: "+91 80000 00000",
+    email: "support@sdsmart.in"
+  });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/settings");
+        const data = await res.json();
+        if (data.success && data.settings) {
+          setContactInfo({
+            phone: data.settings.seller_phone || "+91 80000 00000",
+            email: data.settings.seller_email || "support@sdsmart.in"
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to fetch settings in contact page:", err);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +63,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-[#1C1C1C]">Call Us</h4>
-                  <p className="text-sm text-neutral-500 mt-0.5">+91 80000 00000</p>
+                  <p className="text-sm text-neutral-500 mt-0.5">{contactInfo.phone}</p>
                 </div>
               </div>
 
@@ -51,7 +73,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-[#1C1C1C]">Email Us</h4>
-                  <p className="text-sm text-neutral-500 mt-0.5">support@sdsmart.in</p>
+                  <p className="text-sm text-neutral-500 mt-0.5">{contactInfo.email}</p>
                 </div>
               </div>
 

@@ -65,6 +65,27 @@ const getDisplayWarranty = (warrantyText?: string) => {
   return warrantyText.toLowerCase().includes("warranty") ? warrantyText : `${warrantyText} Warranty`;
 };
 
+const getColorHexFallback = (colorName: string) => {
+  const colorMap: Record<string, string> = {
+    black: "#111111",
+    white: "#FFFFFF",
+    blue: "#4169E1",
+    red: "#D62828",
+    silver: "#C0C0C0",
+    gold: "#F6E7C8",
+    green: "#2E7D32",
+    grey: "#757575",
+    gray: "#757575",
+    brown: "#8D6E63",
+    pink: "#EC407A",
+    yellow: "#FDD835",
+    orange: "#FB8C00",
+    purple: "#8E24AA",
+    lavender: "#E6E6FA"
+  };
+  return colorMap[colorName.toLowerCase().trim()] || "#CCCCCC";
+};
+
 export default function ProductDetailPage() {
   const router = useRouter();
   const pathname = usePathname() || "";
@@ -1086,6 +1107,81 @@ export default function ProductDetailPage() {
                 <div className="space-y-5 mb-6">
                   {Object.entries(variantAttributes).map(([key, values]) => {
                     const currentVal = product.variantDetails?.[key] ? String(product.variantDetails[key]) : "";
+                    const isColorKey = key.toLowerCase() === "color" || key.toLowerCase() === "colour";
+
+                    if (["colorhex", "colorname"].includes(key.toLowerCase())) {
+                      return null;
+                    }
+
+                    if (isColorKey) {
+
+                      return (
+                        <div key={key} className="flex flex-col gap-3">
+                          <div className="text-[13px] font-bold tracking-wide uppercase text-slate-500 dark:text-neutral-400">
+                            Available Colours
+                          </div>
+                          <div className="flex flex-wrap gap-3">
+                            {values.map((val) => {
+                              const isSelected = val === currentVal;
+                              const matchingVariant = variants.find(v => {
+                                if (String(v.variantDetails?.[key]) !== val) return false;
+                                for (const otherKey of Object.keys(variantAttributes)) {
+                                  if (!["colorhex", "colorname", key].includes(otherKey.toLowerCase())) {
+                                    if (String(v.variantDetails?.[otherKey]) !== String(product.variantDetails?.[otherKey])) {
+                                      return false;
+                                    }
+                                  }
+                                }
+                                return true;
+                              });
+
+                              const hex = matchingVariant?.variantDetails?.colorHex || 
+                                          matchingVariant?.variantDetails?.ColorHex || 
+                                          getColorHexFallback(val);
+
+                              const isDisabled = !matchingVariant || (!matchingVariant.inStock || matchingVariant.availableStock === 0);
+
+                              return (
+                                <div key={val} className="relative group">
+                                  {/* Tooltip */}
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[10px] font-bold text-white bg-neutral-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-30 shadow-md">
+                                    {val}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    disabled={isDisabled}
+                                    onClick={() => !isSelected && handleVariantSelect(key, val)}
+                                    className={cn(
+                                      "w-10 h-10 rounded-full border-2 transition-all duration-300 shadow-sm relative cursor-pointer flex items-center justify-center",
+                                      isSelected
+                                        ? "border-[#D71920] scale-105 ring-2 ring-[#D71920]/25 shadow-md"
+                                        : "border-white dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-600 hover:scale-110",
+                                      isDisabled && "opacity-40 cursor-not-allowed border-dashed"
+                                    )}
+                                    style={{ backgroundColor: hex }}
+                                  >
+                                    {isSelected && (
+                                      <Check size={14} className={hex.toLowerCase() === "#ffffff" ? "text-black" : "text-white"} />
+                                    )}
+                                    {isDisabled && (
+                                      <div className="absolute w-full h-[1.5px] bg-red-500 rotate-45" />
+                                    )}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="text-[12px] flex items-center gap-1.5">
+                            <span className="font-semibold text-neutral-450 dark:text-neutral-450">Selected:</span>
+                            <span className="font-bold text-[#1C1C1C] dark:text-neutral-200 uppercase tracking-wider text-xs">
+                              {currentVal}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div key={key} className="flex flex-col gap-2">
                         <div className="text-[14px] font-bold text-[#212121] dark:text-neutral-200">
@@ -1153,28 +1249,33 @@ export default function ProductDetailPage() {
                     );
                   })}
                 </div>
-              ) : product.variantDetails && typeof product.variantDetails === "object" && Object.keys(product.variantDetails).length > 0 && (
-                <div className="space-y-5 mb-6">
-                  {Object.entries(product.variantDetails).map(([key, val]) => (
-                    <div key={key} className="flex flex-col gap-2">
-                      <div className="text-[14px] font-bold text-[#212121] dark:text-neutral-200">
-                        Select {key}
+              ) : product.variantDetails && typeof product.variantDetails === "object" && Object.keys(product.variantDetails).length > 0 && (() => {
+                const details = product.variantDetails;
+                const keys = Object.keys(details).filter(k => !["colorhex", "colorname", "color", "colour"].includes(k.toLowerCase()));
+                if (keys.length === 0) return null;
+                return (
+                  <div className="space-y-5 mb-6">
+                    {keys.map((key) => (
+                      <div key={key} className="flex flex-col gap-2">
+                        <div className="text-[14px] font-bold text-[#212121] dark:text-neutral-200">
+                          Select {key}
+                        </div>
+                        <div className="flex gap-2.5">
+                          <button className="px-5 py-2.5 text-[14px] font-bold text-white bg-[#cc0000] rounded shadow-sm">
+                            {String(details[key])}
+                          </button>
+                        </div>
+                        <div className="text-[12px]">
+                          <span className="font-bold text-[#212121] dark:text-neutral-300">Selected:</span>
+                          <span className="text-[#878787] dark:text-neutral-500 ml-1">
+                            {String(details[key])}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex gap-2.5">
-                        <button className="px-5 py-2.5 text-[14px] font-bold text-white bg-[#cc0000] rounded shadow-sm">
-                          {String(val)}
-                        </button>
-                      </div>
-                      <div className="text-[12px]">
-                        <span className="font-bold text-[#212121] dark:text-neutral-300">Selected:</span>
-                        <span className="text-[#878787] dark:text-neutral-500 ml-1">
-                          {String(val)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                );
+              })()}
 
 
 

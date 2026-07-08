@@ -27,10 +27,7 @@ const attributePresets: Record<string, Array<{ name: string; values: string[] }>
     { name: "Top Type", values: ["Glass Top", "Steel"] },
     { name: "Ignition Type", values: ["Manual", "Auto Ignition"] }
   ],
-  "mixer-grinders": [
-    { name: "Wattage", values: ["500W", "750W", "1000W"] },
-    { name: "Jar Count", values: ["3 Jars", "4 Jars"] }
-  ],
+
   "wet-grinders": [
     { name: "Capacity", values: ["2L", "3L"] },
     { name: "Type", values: ["Tilting", "Table Top", "Short Body", "Height Body"] }
@@ -49,7 +46,7 @@ const attributePresets: Record<string, Array<{ name: string; values: string[] }>
 const categoryModels: Record<string, string[]> = {
   "pressure-cookers": ["Deluxe", "Lexus", "Max", "Suxus"],
   "gas-stoves": ["Jumbo", "Lexus"],
-  "mixer-grinders": ["Quad-Blade", "Smart"],
+
   "wet-grinders": ["Smart Lakshmi", "Java", "Bullet", "Short Body", "Height Body"],
   "commercial": ["Standard Commercial", "Tilting Commercial"],
   "non-stick": ["Yummy"]
@@ -58,7 +55,7 @@ const categoryModels: Record<string, string[]> = {
 const categoryOptions = [
   { value: "pressure-cookers", label: "Pressure Cookers" },
   { value: "non-stick", label: "Non-Stick Cookware" },
-  { value: "mixer-grinders", label: "Mixer Grinders" },
+
   { value: "gas-stoves", label: "LPG Stoves" },
   { value: "wet-grinders", label: "Wet Grinders" },
   { value: "commercial", label: "Commercial Wet Grinders" }
@@ -119,6 +116,35 @@ export default function AdminManagePage() {
   const [isBestSeller, setIsBestSeller] = useState(false);
   const [isFeatured, setIsFeatured] = useState(false);
   const [variantGroup, setVariantGroup] = useState("");
+  const [colorName, setColorName] = useState("");
+  const [colorHex, setColorHex] = useState("#ffffff");
+  const [groupVariants, setGroupVariants] = useState<any[]>([]);
+
+  const fetchGroupVariants = async (vg: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/products?variantGroup=${vg}`);
+      if (response.ok) {
+        const data = await response.json();
+        setGroupVariants(data.products || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch group variants:", err);
+    }
+  };
+
+  const handleAddNewColorVariant = () => {
+    setProductId(null);
+    setName(name + " - New Variant");
+    setImage("");
+    setImages([]);
+    setPrice("");
+    setOriginalPrice("");
+    setColorName("");
+    setColorHex("#ffffff");
+    setGeneratedSku("");
+    router.push("/admin/manage-product");
+    toast.info("Variant fields reset. You can now define a new color variant.");
+  };
 
   // Featured-specific Fields
   const [eyebrow, setEyebrow] = useState("");
@@ -150,7 +176,7 @@ export default function AdminManagePage() {
     if (!cat) return "XX";
     if (cat === "pressure-cookers") return "PC";
     if (cat === "gas-stoves") return "GS";
-    if (cat === "mixer-grinders") return "MG";
+
     if (cat === "wet-grinders") return "WG";
     if (cat === "non-stick") return "NS";
     if (cat === "commercial") return "CM";
@@ -196,13 +222,20 @@ export default function AdminManagePage() {
       }
     });
 
+    if (colorName) {
+      const sanitizedColor = sanitizeValueForSku(colorName);
+      if (sanitizedColor) {
+        sku += `-${sanitizedColor}`;
+      }
+    }
+
     setGeneratedSku(sku);
     setproduct_id(sku); // Sync with product_id (used as SKU in backend)
     
     // Auto-generate Variant Group: <Category Code>-<Model Name>
     const modelNameSafe = modelNumber ? modelNumber.trim().toUpperCase().replace(/\s+/g, "-").replace(/[^A-Z0-9-]/g, "") : "UNKNOWN";
     setVariantGroup(`${catCode}-${modelNameSafe}`);
-  }, [category, modelNumber, attributes]);
+  }, [category, modelNumber, attributes, colorName]);
 
   // Fetch all existing models in the database for the selected category & deleted models
   useEffect(() => {
@@ -465,6 +498,11 @@ export default function AdminManagePage() {
       setImagePosition(product.imagePosition || "left");
       
       const vDetails = product.variantDetails || {};
+      const loadedColorName = vDetails.colorName || vDetails.Color || "";
+      const loadedColorHex = vDetails.colorHex || vDetails.ColorHex || "#ffffff";
+      setColorName(loadedColorName);
+      setColorHex(loadedColorHex);
+
       const loadedAttributes: Array<{ name: string; value: string }> = [];
       const legacyKeys = {
         capacity: "Capacity",
@@ -475,6 +513,10 @@ export default function AdminManagePage() {
       };
       Object.entries(vDetails).forEach(([key, val]) => {
         if (val) {
+          const lowerKey = key.toLowerCase();
+          if (lowerKey === "color" || lowerKey === "colorhex" || lowerKey === "colour" || lowerKey === "colourhex") {
+            return;
+          }
           const name = legacyKeys[key as keyof typeof legacyKeys] || key;
           loadedAttributes.push({ name, value: String(val) });
         }
@@ -482,6 +524,9 @@ export default function AdminManagePage() {
       setAttributes(loadedAttributes);
       if (product.sku) setGeneratedSku(product.sku);
       setVariantGroup(product.variantGroup || "");
+      if (product.variantGroup) {
+        fetchGroupVariants(product.variantGroup);
+      }
 
       let parsedSpecs: SpecItem[] = [];
       if (product.specs) {
@@ -520,9 +565,7 @@ export default function AdminManagePage() {
       case "gas-stoves":
         setCategoryLabel("LPG Stoves");
         break;
-      case "mixer-grinders":
-        setCategoryLabel("Mixer Grinders");
-        break;
+
       case "non-stick":
         setCategoryLabel("Non-Stick Cookware");
         break;
@@ -584,12 +627,20 @@ export default function AdminManagePage() {
       href: `#product-${Date.now()}`,
       sku: generatedSku || product_id,
       variantGroup: variantGroup || null,
-      variantDetails: attributes.reduce((acc, curr) => {
-        if (curr.name.trim()) {
-          acc[curr.name.trim()] = curr.value.trim();
-        }
-        return acc;
-      }, {} as Record<string, string>),
+      variantDetails: {
+        ...attributes.reduce((acc, curr) => {
+          if (curr.name.trim()) {
+            acc[curr.name.trim()] = curr.value.trim();
+          }
+          return acc;
+        }, {} as Record<string, string>),
+        ...(colorName ? {
+          colorName: colorName.trim(),
+          Color: colorName.trim(),
+          colorHex: colorHex,
+          ColorHex: colorHex
+        } : {})
+      },
     };
 
     if (isFeatured) {
@@ -714,7 +765,7 @@ export default function AdminManagePage() {
           </div>
 
           <button
-            onClick={() => router.push("/admin/dashboard")}
+            onClick={() => router.push("/admin/products")}
             className={cn(
               "px-3.5 py-2 border rounded-lg text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer",
               isDark
@@ -723,7 +774,7 @@ export default function AdminManagePage() {
             )}
           >
             <ArrowLeft size={14} />
-            <span>Back to Dashboard</span>
+            <span>Back to Products</span>
           </button>
         </header>
 
@@ -1013,6 +1064,167 @@ export default function AdminManagePage() {
                       </p>
                     </div>
 
+                    {/* Visual Color Variant Picker */}
+                    <div className={cn(
+                      "md:col-span-2 p-5 border rounded-2xl space-y-4",
+                      isDark ? "bg-neutral-900/20 border-neutral-800" : "bg-slate-50/50 border-slate-200"
+                    )}>
+                      <div className="flex items-center justify-between border-b pb-2 border-neutral-800/40">
+                        <label className={cn(
+                          "block text-xs font-bold uppercase tracking-wider",
+                          isDark ? "text-neutral-300" : "text-slate-700"
+                        )}>
+                          Product Color Variant Info
+                        </label>
+                        {productId && (
+                          <button
+                            type="button"
+                            onClick={handleAddNewColorVariant}
+                            className="px-2 py-0.5 border border-[#D71920] rounded-lg text-[10px] font-bold text-[#D71920] hover:bg-[#D71920]/10 transition-all cursor-pointer"
+                          >
+                            + Add New Color Variant
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {/* Left column: Swatch selector & picker */}
+                        <div className="space-y-4">
+                          <label className={cn(
+                            "block text-[11px] font-bold uppercase tracking-wider",
+                            isDark ? "text-neutral-500" : "text-slate-550"
+                          )}>
+                            Choose Color Swatch
+                          </label>
+                          <div className="flex flex-wrap gap-2.5">
+                            {[
+                              { name: "Black", hex: "#111111" },
+                              { name: "White", hex: "#FFFFFF" },
+                              { name: "Blue", hex: "#4169E1" },
+                              { name: "Red", hex: "#D62828" },
+                              { name: "Silver", hex: "#C0C0C0" },
+                              { name: "Gold", hex: "#F6E7C8" },
+                              { name: "Green", hex: "#2E7D32" },
+                              { name: "Grey", hex: "#757575" },
+                              { name: "Brown", hex: "#8D6E63" },
+                              { name: "Pink", hex: "#EC407A" }
+                            ].map((preset) => (
+                              <button
+                                key={preset.name}
+                                type="button"
+                                onClick={() => {
+                                  setColorName(preset.name);
+                                  setColorHex(preset.hex);
+                                }}
+                                className={cn(
+                                  "w-9 h-9 rounded-full border-2 transition-all duration-300 shadow-sm relative group cursor-pointer hover:scale-110",
+                                  colorHex.toLowerCase() === preset.hex.toLowerCase()
+                                    ? "border-[#D71920] scale-105"
+                                    : (isDark ? "border-neutral-700 hover:border-neutral-500" : "border-white hover:border-slate-300")
+                                )}
+                                style={{ backgroundColor: preset.hex }}
+                                title={preset.name}
+                              >
+                                {colorHex.toLowerCase() === preset.hex.toLowerCase() && (
+                                  <span className="absolute inset-0 flex items-center justify-center text-white bg-black/20 rounded-full">
+                                    <Check size={14} className={preset.hex === "#FFFFFF" ? "text-black" : "text-white"} />
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Custom Color Picker input */}
+                          <div className="flex items-center gap-3 pt-2">
+                            <input
+                              type="color"
+                              value={colorHex}
+                              onChange={(e) => setColorHex(e.target.value)}
+                              className="w-10 h-10 p-0.5 border-0 rounded-lg cursor-pointer bg-transparent"
+                            />
+                            <div className="text-xs">
+                              <span className={isDark ? "text-neutral-400" : "text-slate-650"}>Custom Hex: </span>
+                              <input
+                                type="text"
+                                value={colorHex}
+                                onChange={(e) => setColorHex(e.target.value)}
+                                className={cn(
+                                  "w-24 px-2 py-1 text-center font-mono border rounded-lg text-xs uppercase focus:outline-none focus:ring-1 focus:ring-[#D71920]",
+                                  isDark ? "bg-neutral-950 border-neutral-800 text-white" : "bg-white border-slate-350 text-slate-900"
+                                )}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right column: Color Display Name */}
+                        <div className="space-y-4">
+                          <div>
+                            <label className={cn(
+                              "block text-[11px] font-bold uppercase tracking-wider mb-1.5",
+                              isDark ? "text-neutral-500" : "text-slate-550"
+                            )}>
+                              Color Display Name
+                            </label>
+                            <input
+                              type="text"
+                              value={colorName}
+                              onChange={(e) => setColorName(e.target.value)}
+                              placeholder="e.g. Royal Blue, Rose Gold"
+                              className={cn(
+                                "w-full px-4 py-2.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
+                                isDark
+                                  ? "bg-neutral-950 border-neutral-800 text-white placeholder-neutral-700"
+                                  : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+                              )}
+                            />
+                          </div>
+
+                          <div className="text-[11px] text-slate-500 leading-relaxed">
+                            Specify the color name and hex code for this variant. If other products in the database share the same model name, they will be dynamically linked as swatches on the product details page.
+                          </div>
+                        </div>
+                      </div>
+
+                      {groupVariants.length > 1 && (
+                        <div className="border-t pt-4 border-neutral-850/60">
+                          <label className={cn(
+                            "block text-[11px] font-bold uppercase tracking-wider mb-2",
+                            isDark ? "text-neutral-500" : "text-slate-550"
+                          )}>
+                            Other Variants in this Group ({groupVariants.length})
+                          </label>
+                          <div className="flex flex-wrap gap-3">
+                            {groupVariants.map((v) => {
+                              const vColorName = v.variantDetails?.colorName || v.variantDetails?.Color || "Default";
+                              const vColorHex = v.variantDetails?.colorHex || v.variantDetails?.ColorHex || "#CCCCCC";
+                              const isActive = v.id === productId;
+                              return (
+                                <button
+                                  key={v.id}
+                                  type="button"
+                                  onClick={() => {
+                                    if (v.id !== productId) {
+                                      router.push(`/admin/manage-product?id=${v.id}`);
+                                    }
+                                  }}
+                                  className={cn(
+                                    "flex items-center gap-2 px-3 py-1.5 border rounded-xl text-xs transition-all cursor-pointer",
+                                    isActive
+                                      ? "border-[#D71920] bg-[#D71920]/10 text-[#D71920]"
+                                      : (isDark ? "bg-neutral-900 border-neutral-850 text-neutral-350 hover:bg-neutral-800" : "bg-white border-slate-200 text-slate-650 hover:bg-slate-50")
+                                  )}
+                                >
+                                  <span className="w-3.5 h-3.5 rounded-full border border-neutral-400" style={{ backgroundColor: vColorHex }} />
+                                  <span>{vColorName} ({v.sku || "No SKU"})</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Dynamic Variant Attributes System */}
                     <div className="md:col-span-2 space-y-4">
                       <div className="flex items-center justify-between border-b pb-2 border-neutral-800/60">
@@ -1268,7 +1480,19 @@ export default function AdminManagePage() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Image Upload Area */}
-                  <div className="md:col-span-2 space-y-3">
+                  <div
+                    className="md:col-span-2 space-y-3"
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const files = e.dataTransfer.files;
+                      if (files) handleFiles(files);
+                    }}
+                  >
                     <label className={cn(
                       "block text-xs font-bold uppercase tracking-wider mb-1.5",
                       isDark ? "text-neutral-400" : "text-slate-600"
@@ -1278,9 +1502,13 @@ export default function AdminManagePage() {
 
                     {/* Drag and drop upload zone */}
                     <div
-                      onDragOver={(e) => e.preventDefault()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
                       onDrop={(e) => {
                         e.preventDefault();
+                        e.stopPropagation();
                         const files = e.dataTransfer.files;
                         if (files) handleFiles(files);
                       }}
@@ -1298,7 +1526,10 @@ export default function AdminManagePage() {
                         multiple
                         accept="image/*"
                         onChange={(e) => {
-                          if (e.target.files) handleFiles(e.target.files);
+                          if (e.target.files) {
+                            handleFiles(e.target.files);
+                            e.target.value = "";
+                          }
                         }}
                         className="hidden"
                       />
@@ -1723,7 +1954,7 @@ export default function AdminManagePage() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => router.push("/admin/dashboard")}
+                    onClick={() => router.push("/admin/products")}
                     className={cn(
                       "px-6 py-2.5 border rounded-lg text-sm font-semibold transition-all cursor-pointer",
                       isDark

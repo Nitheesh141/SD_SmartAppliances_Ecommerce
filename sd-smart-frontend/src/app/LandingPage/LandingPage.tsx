@@ -8,7 +8,6 @@ import HeroSection from "../../components/sections/HeroSection";
 import TrustBadgesSection from "../../components/sections/TrustBadgesSection";
 import CategorySection from "../../components/sections/CategorySection";
 import WhyChooseUsSection from "../../components/sections/WhyChooseUsSection";
-import TimelineSection from "../../components/sections/TimelineSection";
 import CommercialSection from "../../components/sections/CommercialSection";
 import TestimonialSection from "../../components/sections/TestimonialSection";
 import NewsletterSection from "../../components/sections/NewsletterSection";
@@ -16,7 +15,6 @@ import NewsletterSection from "../../components/sections/NewsletterSection";
 import { banners } from "./data/banners";
 import { categories } from "./data/categories";
 import { features } from "./data/features";
-import { timelineItems } from "./data/timeline";
 import { testimonials } from "./data/testimonials";
 import { trustBadges } from "./data/trustBadges";
 import { announcements } from "./data/announcements";
@@ -46,9 +44,6 @@ export default function LandingPage() {
 
         {/* 5. Why Choose SD SMART */}
         <WhyChooseUsSection features={features} />
-
-        {/* 8. Company Timeline */}
-        <TimelineSection items={timelineItems} />
 
         {/* 9. Commercial Kitchen Solutions */}
         <CommercialSection data={commercialSectionData} />

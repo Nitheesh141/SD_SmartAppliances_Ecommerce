@@ -67,14 +67,6 @@ export interface FeaturedProduct {
   imagePosition: "left" | "right";
 }
 
-// ─── Timeline ────────────────────────────────────────────────────────────────
-export interface TimelineItem {
-  id: string;
-  year: string;
-  title: string;
-  description: string;
-  side: "left" | "right";
-}
 
 // ─── Commercial ──────────────────────────────────────────────────────────────
 export interface CommercialSection {
@@ -85,7 +77,7 @@ export interface CommercialSection {
   badgeLabel: string;
   image: string;
   primaryCTA: { label: string; href: string };
-  secondaryCTA: { label: string; href: string };
+  secondaryCTA?: { label: string; href: string };
 }
 
 // ─── Testimonial ─────────────────────────────────────────────────────────────

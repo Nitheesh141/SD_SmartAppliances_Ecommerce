@@ -23,7 +23,6 @@ const defaultNavLinks = [
   { label: "Categories", href: "/shop", hasDropdown: true },
   { label: "Bestsellers", href: "/shop" },
   { label: "Why Us", href: "/about" },
-  { label: "Our Story", href: "/about" },
   { label: "Appliances", href: "/shop" },
 ];
 
@@ -106,7 +105,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
       return;
     }
 
-    const sections = ["categories", "why-choose-us", "timeline"];
+    const sections = ["categories", "why-choose-us"];
     let observer: IntersectionObserver | null = null;
 
     const setupObserver = () => {

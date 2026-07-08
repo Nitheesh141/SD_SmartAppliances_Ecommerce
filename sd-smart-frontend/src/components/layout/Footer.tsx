@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { MapPin, Phone, Mail, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { FooterColumn, SocialLink } from "../../app/LandingPage/types";
 
@@ -142,6 +142,28 @@ const getSocialIconComponent = (platformOrIcon: string) => {
 export default function Footer({ footerColumns, socialLinks }: FooterProps) {
   const pathname = usePathname();
   const [email, setEmail] = useState("");
+  const [contactInfo, setContactInfo] = useState({
+    phone: "+91 80000 00000",
+    email: "support@sdsmart.in"
+  });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/settings");
+        const data = await res.json();
+        if (data.success && data.settings) {
+          setContactInfo({
+            phone: data.settings.seller_phone || "+91 80000 00000",
+            email: data.settings.seller_email || "support@sdsmart.in"
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to fetch settings for footer:", err);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   if (pathname !== "/") {
     return null;
@@ -187,11 +209,11 @@ export default function Footer({ footerColumns, socialLinks }: FooterProps) {
               </div>
               <div className="flex items-center gap-3 text-sm text-neutral-400">
                 <Phone size={14} className="text-[#D71920] flex-shrink-0" />
-                <span>+91 80000 00000</span>
+                <span>{contactInfo.phone}</span>
               </div>
               <div className="flex items-center gap-3 text-sm text-neutral-400">
                 <Mail size={14} className="text-[#D71920] flex-shrink-0" />
-                <span>support@sdsmart.in</span>
+                <span>{contactInfo.email}</span>
               </div>
             </div>
 

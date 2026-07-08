@@ -15,6 +15,7 @@ const order_routes_1 = __importDefault(require("./routes/order.routes"));
 const offer_routes_1 = __importDefault(require("./routes/offer.routes"));
 const setting_routes_1 = __importDefault(require("./routes/setting.routes"));
 const serviceRequest_routes_1 = __importDefault(require("./routes/serviceRequest.routes"));
+const warrantyRegistration_routes_1 = __importDefault(require("./routes/warrantyRegistration.routes"));
 const path_1 = __importDefault(require("path"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
@@ -37,6 +38,7 @@ app.use("/api/orders", order_routes_1.default);
 app.use("/api/offers", offer_routes_1.default);
 app.use("/api/settings", setting_routes_1.default);
 app.use("/api/service-requests", serviceRequest_routes_1.default);
+app.use("/api/warranty-registrations", warrantyRegistration_routes_1.default);
 // Serve static files from the uploads directory
 app.use("/uploads", express_1.default.static(path_1.default.join(__dirname, "../uploads")));
 app.get("/", (_, res) => {

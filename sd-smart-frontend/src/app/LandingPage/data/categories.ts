@@ -18,14 +18,6 @@ export const categories: Category[] = [
     isActive: true
   },
   {
-    id: "cat-3",
-    name: "Mixer Grinders",
-    description: "Powerful grinding and blending appliances built to simplify every kitchen task with precision.",
-    image: "/sd-smart-ecommerce/Categories-3.png",
-    href: "/shop?category=mixer-grinders",
-    isActive: true
-  },
-  {
     id: "cat-4",
     name: "LPG Stoves",
     description: "High-performance stainless steel and glass-top stoves engineered for efficiency, durability, and style.",

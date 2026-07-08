@@ -76,7 +76,6 @@ const categoryOptionsList = [
   { value: "", label: "-- Select Category --" },
   { value: "pressure-cookers", label: "Pressure Cookers" },
   { value: "non-stick", label: "Non-Stick Cookware" },
-  { value: "mixer-grinders", label: "Mixer Grinders" },
   { value: "gas-stoves", label: "LPG Stoves" },
   { value: "wet-grinders", label: "Wet Grinders" },
   { value: "commercial", label: "Commercial Wet Grinders" },
@@ -1356,7 +1355,6 @@ export default function AdminMarketingPage() {
                       {[
                         { value: "pressure-cookers", label: "Pressure Cookers" },
                         { value: "non-stick", label: "Non-Stick Cookware" },
-                        { value: "mixer-grinders", label: "Mixer Grinders" },
                         { value: "gas-stoves", label: "LPG Stoves" },
                         { value: "wet-grinders", label: "Wet Grinders" },
                         { value: "commercial", label: "Commercial Wet Grinders" }

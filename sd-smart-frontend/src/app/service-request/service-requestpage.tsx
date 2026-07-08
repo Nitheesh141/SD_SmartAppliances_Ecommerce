@@ -21,7 +21,6 @@ import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 const SERVICE_CATEGORIES = [
   "Repair",
   "Installation",
-  "Warranty Claim",
   "Product Not Working",
   "Spare Parts Request"
 ];

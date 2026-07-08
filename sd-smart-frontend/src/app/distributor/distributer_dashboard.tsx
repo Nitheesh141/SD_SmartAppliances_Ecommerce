@@ -793,7 +793,7 @@ export default function DistributerDashboardPage() {
                   </div>
                   <div className="text-left">
                     <h4 className="text-xs font-extrabold text-neutral-800 dark:text-neutral-200">New Product Launch</h4>
-                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1 leading-normal">Check out our new range of Mixer Grinders.</p>
+                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1 leading-normal">Check out our new range of Non-Stick Cookware.</p>
                     <span className="text-[9px] font-extrabold text-neutral-400 uppercase mt-1 block">26 Jun 2026</span>
                   </div>
                 </div>
