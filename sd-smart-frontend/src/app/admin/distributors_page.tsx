@@ -41,7 +41,12 @@ export default function AdminDistributorsPage() {
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<any | null>(null);
 
   // Theme state
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("admin-theme") as "light" | "dark") || "dark";
+    }
+    return "dark";
+  });
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("admin-theme") as "light" | "dark" || "dark";

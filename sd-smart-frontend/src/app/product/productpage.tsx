@@ -233,7 +233,7 @@ export default function ProductDetailPage() {
     // Baseline starting price before dynamic offers
     let currentPrice = Number(product.price || 0);
 
-    // Sort applicable offers by priority (lower number = runs first)
+    // Sort applicable offers by creation date (older runs first)
     const sortedDirectOffers = [...applicableOffers]
       .filter(offer => [
         "FLASH_SALE",
@@ -244,7 +244,7 @@ export default function ProductDetailPage() {
         "PERCENTAGE_DISCOUNT",
         "SEASONAL"
       ].includes(offer.offerType))
-      .sort((a, b) => (a.priority || 0) - (b.priority || 0));
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
     let appliedOffer = null;
     let hasAppliedNonStackable = false;
@@ -321,7 +321,12 @@ export default function ProductDetailPage() {
     };
   };
 
-  const calculated = getCalculatedPrice();
+  const calculated = {
+    price: product?.price ?? 0,
+    originalPrice: product?.originalPrice ?? 0,
+    discountPercent: product?.discountPercent ?? 0,
+    appliedOffer: product?.appliedOffer ?? null,
+  };
 
   const flashSaleOffer = applicableOffers.find((o) => o.offerType === "FLASH_SALE");
 

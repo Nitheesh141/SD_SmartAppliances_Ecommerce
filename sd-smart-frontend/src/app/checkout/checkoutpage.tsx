@@ -47,6 +47,18 @@ export default function CheckoutPage() {
   const [couponSuccess, setCouponSuccess] = useState<string>("");
   const [calculationResult, setCalculationResult] = useState<any>(null);
   const [calculating, setCalculating] = useState(false);
+  const [dbThreshold, setDbThreshold] = useState<number>(10000);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.settings && data.settings.freeShippingThreshold) {
+          setDbThreshold(Number(data.settings.freeShippingThreshold));
+        }
+      })
+      .catch(err => console.error("Failed to load settings in checkoutpage:", err));
+  }, []);
 
   const [newAddress, setNewAddress] = useState<CreateAddressRequest>({
     fullName: "",
@@ -165,20 +177,21 @@ export default function CheckoutPage() {
           setCalculationResult(data);
           
           if (couponCode) {
-            const couponOffer = data.appliedOffers?.find((o: any) => o.code?.toLowerCase() === couponCode.toLowerCase() || o.name?.toLowerCase().includes("coupon") || o.code);
+            const couponOffer = data.appliedOffers?.find((o: any) => o.code?.toLowerCase() === couponCode.toLowerCase());
             if (couponOffer) {
-              if (couponOffer.freeShipping && couponOffer.discountAmount > 0) {
-                setCouponSuccess(`Coupon code applied! Saved ₹${couponOffer.discountAmount.toLocaleString('en-IN')} on shipping`);
-              } else {
-                setCouponSuccess(`Coupon code applied! Saved ₹${couponOffer.discountAmount.toLocaleString('en-IN')}`);
-              }
+              setCouponSuccess("Promo code applied successfully.");
               setCouponError("");
             } else {
-              setCouponError("This coupon code is not applicable to the items in your cart.");
+              setCouponError("This promo code is not applicable to the items in your cart.");
               setCouponSuccess("");
               setCouponCode("");
             }
           }
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          setCouponError(errData.message || "Invalid promo code.");
+          setCouponSuccess("");
+          setCouponCode("");
         }
       } catch (err) {
         console.error("Failed to calculate checkout pricing:", err);
@@ -253,15 +266,15 @@ export default function CheckoutPage() {
   const subtotal = inStockCartItems.reduce((acc, item) => acc + ((item.product?.price || 0) * item.quantity), 0);
   const cgst = subtotal * 0.09;
   const sgst = subtotal * 0.09;
-  const deliveryCharges = subtotal >= 10000 ? 0 : 200;
+  const deliveryCharges = subtotal >= dbThreshold ? 0 : 200;
   const grandTotal = subtotal + cgst + sgst + deliveryCharges;
 
   // Smart delivery info from pricing engine
   const deliveryInfo = calculationResult?.deliveryInfo;
   const effectiveDeliveryCharges = calculationResult ? calculationResult.summary.deliveryCharges : deliveryCharges;
   const isFreeDelivery = effectiveDeliveryCharges === 0;
-  const amountNeeded = deliveryInfo?.amountNeededForFreeDelivery ?? 0;
-  const FREE_THRESHOLD = deliveryInfo?.freeDeliveryThreshold ?? 10000;
+  const amountNeeded = deliveryInfo ? deliveryInfo.amountNeededForFreeDelivery : Math.max(0, dbThreshold - subtotal);
+  const FREE_THRESHOLD = deliveryInfo?.freeDeliveryThreshold ?? dbThreshold;
   const progressPct = Math.min(100, ((FREE_THRESHOLD - amountNeeded) / FREE_THRESHOLD) * 100);
   const freeShippingProductIds: string[] = deliveryInfo?.freeShippingProductIds ?? [];
 
@@ -639,67 +652,64 @@ export default function CheckoutPage() {
                     )}
                     {couponError && <p className="text-[10px] font-bold text-[#D71920]">{couponError}</p>}
                   </div>
-
                   {/* ── SMART DELIVERY BANNER ── */}
-                  {!calculating && (
-                    <div className={`mb-5 rounded-2xl border overflow-hidden ${
-                      isFreeDelivery
-                        ? "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50"
-                        : "border-orange-100 bg-gradient-to-br from-orange-50/60 to-amber-50/40"
-                    }`}>
-                      <div className="px-4 pt-3.5 pb-2">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Truck size={16} className={isFreeDelivery ? "text-green-600" : "text-orange-500"} />
-                            <span className={`text-xs font-extrabold uppercase tracking-wider ${
-                              isFreeDelivery ? "text-green-700" : "text-orange-600"
-                            }`}>
-                              {isFreeDelivery ? "Free Delivery Unlocked! 🎉" : "Free Delivery"}
-                            </span>
-                          </div>
-                          {!isFreeDelivery && (
-                            <span className="text-[10px] font-bold text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full">
-                              Add ₹{amountNeeded.toLocaleString('en-IN')} more
-                            </span>
-                          )}
+                  <div className={`mb-5 rounded-2xl border overflow-hidden ${
+                    isFreeDelivery
+                      ? "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50"
+                      : "border-orange-100 bg-gradient-to-br from-orange-50/60 to-amber-50/40"
+                  }`}>
+                    <div className="px-4 pt-3.5 pb-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Truck size={16} className={isFreeDelivery ? "text-green-600" : "text-orange-500"} />
+                          <span className={`text-xs font-extrabold uppercase tracking-wider ${
+                            isFreeDelivery ? "text-green-700" : "text-orange-600"
+                          }`}>
+                            {isFreeDelivery ? "Free Delivery Unlocked! 🎉" : "Free Delivery"}
+                          </span>
                         </div>
-
-                        {/* Progress bar */}
                         {!isFreeDelivery && (
-                          <>
-                            <div className="w-full h-1.5 bg-orange-100 rounded-full overflow-hidden mb-1.5">
-                              <div
-                                className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-400 transition-all duration-700"
-                                style={{ width: `${progressPct}%` }}
-                              />
-                            </div>
-                            <p className="text-[11px] text-orange-600 font-medium">
-                              Spend ₹{amountNeeded.toLocaleString('en-IN')} more to get
-                              {" "}<strong className="font-extrabold">FREE delivery</strong>
-                              {" "}(on orders above ₹{FREE_THRESHOLD.toLocaleString('en-IN')})
-                            </p>
-                          </>
-                        )}
-                        {isFreeDelivery && deliveryInfo?.freeDeliveryReason && (
-                          <p className="text-[11px] text-green-600 font-medium">{deliveryInfo.freeDeliveryReason}</p>
+                          <span className="text-[10px] font-bold text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full">
+                            Add ₹{amountNeeded.toLocaleString('en-IN')} more
+                          </span>
                         )}
                       </div>
 
-                      {/* Per-item free shipping tags */}
-                      {freeShippingProductIds.length > 0 && (
-                        <div className="px-4 pb-3 flex flex-wrap gap-1.5">
-                          {inStockCartItems
-                            .filter(item => freeShippingProductIds.includes(item.productId))
-                            .map(item => (
-                              <span key={item.productId} className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-full">
-                                <Tag size={9} />
-                                {item.product?.name?.split(' ').slice(0, 3).join(' ')} — Free Shipping
-                              </span>
-                            ))}
-                        </div>
+                      {/* Progress bar */}
+                      {!isFreeDelivery && (
+                        <>
+                          <div className="w-full h-1.5 bg-orange-100 rounded-full overflow-hidden mb-1.5">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-400 transition-all duration-700"
+                              style={{ width: `${progressPct}%` }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-orange-600 font-medium">
+                            Spend ₹{amountNeeded.toLocaleString('en-IN')} more to get
+                            {" "}<strong className="font-extrabold">FREE delivery</strong>
+                            {" "}(on orders above ₹{FREE_THRESHOLD.toLocaleString('en-IN')})
+                          </p>
+                        </>
+                      )}
+                      {isFreeDelivery && deliveryInfo?.freeDeliveryReason && (
+                        <p className="text-[11px] text-green-600 font-medium">{deliveryInfo.freeDeliveryReason}</p>
                       )}
                     </div>
-                  )}
+
+                    {/* Per-item free shipping tags */}
+                    {freeShippingProductIds.length > 0 && (
+                      <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+                        {inStockCartItems
+                          .filter(item => freeShippingProductIds.includes(item.productId))
+                          .map(item => (
+                            <span key={item.productId} className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-full">
+                              <Tag size={9} />
+                              {item.product?.name?.split(' ').slice(0, 3).join(' ')} — Free Shipping
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                  </div>
 
                   <div className="space-y-3.5 mb-6 text-sm">
                     <div className="flex justify-between items-center text-neutral-600 font-medium">

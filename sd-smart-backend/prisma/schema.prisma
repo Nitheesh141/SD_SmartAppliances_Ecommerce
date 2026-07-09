@@ -264,7 +264,6 @@ model Offer {
   description        String?
   offerType          String // e.g. "PRODUCT_DISCOUNT", "COUPON", "BOGO", "FLASH_SALE", etc.
   bannerImage        String?
-  priority           Int      @default(0)
   status             String   @default("ACTIVE") // "ACTIVE", "INACTIVE", "SCHEDULED"
   startDate          DateTime
   endDate            DateTime

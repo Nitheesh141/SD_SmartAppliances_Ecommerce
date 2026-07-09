@@ -35,6 +35,7 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
 }
 
 .dark {
@@ -69,6 +70,7 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
 }
 
 * {
@@ -105,4 +107,34 @@ a,
 input[type="button"],
 input[type="submit"] {
   cursor: pointer !important;
+}
+
+/* Sidebar custom premium scrollbar */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scroll-color 0.3s ease;
+}
+
+.sidebar-scrollbar:hover {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* Chrome, Safari and Opera scrollbar styles */
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.3s ease;
+}
+
+.sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
 }

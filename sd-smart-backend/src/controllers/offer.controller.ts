@@ -49,7 +49,7 @@ export const getOffers = async (req: Request, res: Response): Promise<void> => {
 
     const offers = await prisma.offer.findMany({
       where: whereClause,
-      orderBy: { priority: "asc" },
+      orderBy: { createdAt: "asc" },
     });
 
     res.json({ success: true, offers });
@@ -95,7 +95,6 @@ export const createOffer = async (req: Request, res: Response): Promise<void> =>
       description,
       offerType,
       bannerImage,
-      priority,
       status,
       startDate,
       endDate,
@@ -128,7 +127,6 @@ export const createOffer = async (req: Request, res: Response): Promise<void> =>
         description,
         offerType,
         bannerImage,
-        priority: Number(priority || 0),
         status: status || "ACTIVE",
         startDate: new Date(startDate),
         endDate: new Date(endDate),
@@ -168,7 +166,6 @@ export const updateOffer = async (req: Request, res: Response): Promise<void> =>
       description,
       offerType,
       bannerImage,
-      priority,
       status,
       startDate,
       endDate,
@@ -196,7 +193,6 @@ export const updateOffer = async (req: Request, res: Response): Promise<void> =>
         description,
         offerType,
         bannerImage,
-        priority: priority !== undefined ? Number(priority) : undefined,
         status,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
@@ -275,6 +271,30 @@ export const runPricingEngine = async (
     throw new Error("Products not found in store database");
   }
 
+  // Validate promo code if provided
+  if (couponCode) {
+    const codeToMatch = String(couponCode).trim().toLowerCase();
+    const allOffers = await prisma.offer.findMany();
+    const matchedOffer = allOffers.find(o => {
+      const matchCode = o.code.trim().toLowerCase() === codeToMatch;
+      const configCode = String((o.configuration as any)?.couponCode || "").trim().toLowerCase() === codeToMatch;
+      return matchCode || configCode;
+    });
+
+    if (!matchedOffer) {
+      throw new Error("Invalid promo code.");
+    }
+
+    if (matchedOffer.status !== "ACTIVE") {
+      throw new Error("This promo code is no longer available.");
+    }
+
+    const currentDate = new Date();
+    if (new Date(matchedOffer.startDate) > currentDate || new Date(matchedOffer.endDate) < currentDate) {
+      throw new Error("Promo code has expired.");
+    }
+  }
+
   // B. Fetch active offers in order of priority (lower number = runs first)
   const now = new Date();
   const activeOffers = await prisma.offer.findMany({
@@ -283,7 +303,7 @@ export const runPricingEngine = async (
       startDate: { lte: now },
       endDate: { gte: now },
     },
-    orderBy: { priority: "asc" },
+    orderBy: { createdAt: "asc" },
   });
 
   // C. Initialize item states
@@ -923,7 +943,10 @@ export const runPricingEngine = async (
 
   // Delivery Charges Model
   // 1. Per-product free shipping: if any cart item has "Free Shipping" badge or spec
-  const FREE_DELIVERY_THRESHOLD = 10000;
+  const thresholdSetting = await prisma.systemSetting.findUnique({
+    where: { key: "freeShippingThreshold" }
+  });
+  const FREE_DELIVERY_THRESHOLD = thresholdSetting ? Number(thresholdSetting.value) : 10000;
   const STANDARD_DELIVERY_FEE = 200;
 
   const freeShippingProductIds: string[] = [];
@@ -1085,6 +1108,15 @@ export const calculateOrderPricing = async (
     res.json({ success: true, ...result });
   } catch (error: any) {
     console.error("Calculate pricing error:", error);
-    res.status(500).json({ success: false, message: error.message || "Failed to calculate pricing" });
+    const msg = error.message || "";
+    if (
+      msg.includes("Invalid promo code") ||
+      msg.includes("no longer available") ||
+      msg.includes("has expired")
+    ) {
+      res.status(400).json({ success: false, message: msg });
+      return;
+    }
+    res.status(500).json({ success: false, message: msg || "Failed to calculate pricing" });
   }
 };

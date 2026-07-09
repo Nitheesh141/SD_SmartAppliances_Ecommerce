@@ -56,7 +56,12 @@ export default function AdminProductsPage() {
   }, [products, searchQuery]);
 
   // Theme state
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("admin-theme") as "light" | "dark") || "dark";
+    }
+    return "dark";
+  });
 
   // Inventory Modal State
   const [selectedProduct, setSelectedProduct] = useState<ProductType | null>(null);

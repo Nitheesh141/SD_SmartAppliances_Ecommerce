@@ -84,7 +84,12 @@ export default function AdminManagePage() {
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
 
   // Theme state
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("admin-theme") as "light" | "dark") || "dark";
+    }
+    return "dark";
+  });
 
   // Load theme from localStorage on client side mount
   useEffect(() => {

@@ -13,6 +13,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
 import { warrantyService } from "@/services/warrantyService";
+import { productService } from "@/services/productService";
 import { cn } from "@/lib/utils";
 
 // Category drop-down options mapping
@@ -39,6 +40,9 @@ export default function WarrantyRegistrationPage() {
   const [registrationSuccess, setRegistrationSuccess] = useState<any | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
+  // Available Products fetched from backend
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+
   // Form Fields
   const [formData, setFormData] = useState({
     customerName: "",
@@ -63,10 +67,8 @@ export default function WarrantyRegistrationPage() {
   });
 
   const [attachments, setAttachments] = useState<UploadedFile[]>([]);
-  const [duplicateCheckLoading, setDuplicateCheckLoading] = useState(false);
-  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
-  // Pre-fill logged-in user data
+  // Pre-fill logged-in user data and fetch address/products
   useEffect(() => {
     if (isAuthenticated && user) {
       setFormData((prev) => ({
@@ -75,8 +77,52 @@ export default function WarrantyRegistrationPage() {
         customerEmail: user.email || "",
         customerPhone: user.phoneNumber || ""
       }));
+
+      // Fetch user default address from backend
+      const fetchUserAddress = async () => {
+        try {
+          const token = localStorage.getItem("authToken");
+          if (token) {
+            const res = await fetch("http://localhost:5000/api/addresses", {
+              headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.success && Array.isArray(data.addresses) && data.addresses.length > 0) {
+                const defaultAddr = data.addresses.find((a: any) => a.isDefault) || data.addresses[0];
+                setFormData((prev) => ({
+                  ...prev,
+                  addressLine1: defaultAddr.addressLine1 || "",
+                  addressLine2: defaultAddr.addressLine2 || "",
+                  city: defaultAddr.city || "",
+                  state: defaultAddr.state || "",
+                  pincode: defaultAddr.pincode || ""
+                }));
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load user address in warranty registration:", err);
+        }
+      };
+      fetchUserAddress();
     }
   }, [isAuthenticated, user]);
+
+  // Fetch product listings on mount
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await productService.getProducts();
+        if (res.success && res.data?.products) {
+          setAvailableProducts(res.data.products);
+        }
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   // Expiry Calculations
   const [warrantyStartDate, setWarrantyStartDate] = useState<string>("");
@@ -107,30 +153,6 @@ export default function WarrantyRegistrationPage() {
       setWarrantyExpiryDate("");
     }
   }, [formData.purchaseDate]);
-
-  // Check duplicate serial number
-  const handleSerialNumberBlur = async () => {
-    if (!formData.serialNumber.trim()) return;
-
-    setDuplicateCheckLoading(true);
-    setDuplicateWarning(null);
-
-    try {
-      const res = await warrantyService.checkDuplicate({
-        serialNumber: formData.serialNumber.trim(),
-        invoiceNumber: formData.invoiceNumber.trim() || undefined
-      });
-
-      if (res.success && res.data?.isDuplicate) {
-        setDuplicateWarning(res.data.message || "This serial number is already registered.");
-        toast.warning("Duplicate Entry Detected");
-      }
-    } catch (error) {
-      console.error("Duplicate checking failed", error);
-    } finally {
-      setDuplicateCheckLoading(false);
-    }
-  };
 
   // Upload file handler
   const handleFileUpload = async (
@@ -194,11 +216,6 @@ export default function WarrantyRegistrationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (duplicateWarning) {
-      toast.error("Please resolve duplicate entry errors before registering.");
-      return;
-    }
-
     // Verify uploads
     const hasInvoice = attachments.some((att) => att.fileType === "PURCHASE_INVOICE");
     const hasWarrantyCard = attachments.some((att) => att.fileType === "WARRANTY_CARD");
@@ -220,9 +237,15 @@ export default function WarrantyRegistrationPage() {
         (c) => c.id === formData.productCategory
       )?.label || "Appliance";
 
+      // Autogenerate unique serial number and default model details
+      const uniqueSerial = `SN-AUTO-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
       const submitData = {
         ...formData,
         productCategory: categoryLabel,
+        serialNumber: uniqueSerial,
+        modelNumber: formData.modelNumber || "AUTO",
+        skuCode: formData.skuCode || "",
         attachments
       };
 
@@ -246,6 +269,10 @@ export default function WarrantyRegistrationPage() {
   const getAttachmentName = (type: "PURCHASE_INVOICE" | "WARRANTY_CARD" | "PRODUCT_IMAGE") => {
     return attachments.find((att) => att.fileType === type)?.fileName || "";
   };
+
+  const filteredProducts = availableProducts.filter(
+    (p) => p.category === formData.productCategory
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 font-sans">
@@ -440,8 +467,17 @@ export default function WarrantyRegistrationPage() {
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Product Category *</label>
                   <select
                     value={formData.productCategory}
-                    onChange={(e) => setFormData({ ...formData, productCategory: e.target.value })}
-                    className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#D71920] dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        productCategory: e.target.value,
+                        productName: "",
+                        skuCode: "",
+                        modelNumber: "AUTO",
+                        productCapacity: ""
+                      });
+                    }}
+                    className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#D71920] dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 cursor-pointer font-medium"
                   >
                     {PRODUCT_CATEGORIES.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -452,72 +488,51 @@ export default function WarrantyRegistrationPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Product Name *</label>
-                  <input
-                    type="text"
+                  <select
                     required
                     value={formData.productName}
-                    onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
-                    className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#D71920] dark:bg-slate-950/40 dark:border-slate-800 dark:text-slate-100"
-                    placeholder="e.g. Ultra-Silent Wet Grinder Pro"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Model Number *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.modelNumber}
-                    onChange={(e) => setFormData({ ...formData, modelNumber: e.target.value })}
-                    className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#D71920] dark:bg-slate-950/40 dark:border-slate-800 dark:text-slate-100"
-                    placeholder="e.g. WG-PRO-2L"
-                  />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Serial Number *</label>
-                    {duplicateCheckLoading && <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin" />}
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={formData.serialNumber}
-                    onBlur={handleSerialNumberBlur}
-                    onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value.toUpperCase() })}
-                    className={cn(
-                      "w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#D71920] dark:bg-slate-950/40 dark:border-slate-800 dark:text-slate-100",
-                      duplicateWarning && "border-red-500 focus:border-red-500"
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      const matched = filteredProducts.find(p => p.name === name);
+                      
+                      // Auto-extract capacity from specs if present
+                      let extractedCapacity = "";
+                      if (matched?.specs && Array.isArray(matched.specs)) {
+                        const capSpec = matched.specs.find((s: any) => s.label?.toLowerCase() === "capacity");
+                        if (capSpec) extractedCapacity = capSpec.value;
+                      }
+                      if (!extractedCapacity && matched?.variantDetails) {
+                        try {
+                          const details = typeof matched.variantDetails === 'string' ? JSON.parse(matched.variantDetails) : matched.variantDetails;
+                          if (Array.isArray(details) && details.length > 0) {
+                            extractedCapacity = details[0].capacity || "";
+                          }
+                        } catch (err) {}
+                      }
+
+                      setFormData({
+                        ...formData,
+                        productName: name,
+                        skuCode: matched?.sku || "",
+                        modelNumber: matched?.modelNumber || "AUTO",
+                        productCapacity: extractedCapacity || formData.productCapacity
+                      });
+                    }}
+                    className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#D71920] dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 cursor-pointer font-medium"
+                  >
+                    <option value="">Select a Product</option>
+                    {filteredProducts.map((p) => (
+                      <option key={p.id} value={p.name}>
+                        {p.name}
+                      </option>
+                    ))}
+                    {filteredProducts.length === 0 && (
+                      <option value="Other Appliance">Other Appliance</option>
                     )}
-                    placeholder="Unique Serial Code"
-                  />
-                  {duplicateWarning && (
-                    <p className="text-red-500 text-3xs font-semibold mt-1 flex items-center gap-1">
-                      <AlertCircle size={10} /> {duplicateWarning}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">SKU Code (Optional)</label>
-                  <input
-                    type="text"
-                    value={formData.skuCode}
-                    onChange={(e) => setFormData({ ...formData, skuCode: e.target.value })}
-                    className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#D71920] dark:bg-slate-950/40 dark:border-slate-800 dark:text-slate-100"
-                    placeholder="Product SKU"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Capacity / Variant *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.productCapacity}
-                    onChange={(e) => setFormData({ ...formData, productCapacity: e.target.value })}
-                    className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#D71920] dark:bg-slate-950/40 dark:border-slate-800 dark:text-slate-100"
-                    placeholder="e.g., 3L, 5L, 3-Burner, etc."
-                  />
-                </div>
+                  </select>
               </div>
             </div>
+          </div>
 
             {/* Card 3: Purchase Info */}
             <div className="bg-white border border-[#E5E7EB] rounded-[24px] p-6 sm:p-8 shadow-sm dark:bg-slate-900/40 dark:border-slate-800">
@@ -739,7 +754,7 @@ export default function WarrantyRegistrationPage() {
 
               <button
                 type="submit"
-                disabled={submitting || uploading || duplicateCheckLoading || !termsAccepted}
+                disabled={submitting || uploading || !termsAccepted}
                 className="w-full py-4 bg-[#D71920] hover:bg-[#b8141a] text-white font-extrabold rounded-xl transition-all shadow-lg hover:shadow-xl shadow-[#D71920]/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer text-sm"
               >
                 {submitting ? (

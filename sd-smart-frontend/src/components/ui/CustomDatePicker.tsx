@@ -11,7 +11,9 @@ interface CustomDatePickerProps {
   min?: string; // YYYY-MM-DD
   max?: string; // YYYY-MM-DD
   className?: string;
+  buttonClassName?: string;
   required?: boolean;
+  align?: "left" | "right";
 }
 
 const MONTHS = [
@@ -28,7 +30,9 @@ export function CustomDatePicker({
   min,
   max,
   className,
-  required
+  buttonClassName,
+  required,
+  align = "left"
 }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -181,11 +185,14 @@ export function CustomDatePicker({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between pl-10 pr-4 py-2.5 bg-white border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all cursor-pointer text-left"
+        className={cn(
+          "w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm rounded-lg outline-none transition-all cursor-pointer text-left border focus:border-[#D71920] focus:ring-4 focus:ring-[#D71920]/15 shadow-sm",
+          buttonClassName || "bg-white border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white rounded-xl py-2.5 focus:ring-2 focus:ring-[#D71920]/20"
+        )}
       >
         <span className={cn(
           "truncate",
-          !value && "text-neutral-400 dark:text-neutral-500"
+          !value && "text-neutral-400 dark:text-neutral-550"
         )}>
           {getFormattedDateLabel()}
         </span>
@@ -193,23 +200,26 @@ export function CustomDatePicker({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1.5 p-4 bg-white dark:bg-slate-950 border border-neutral-200 dark:border-slate-800 rounded-xl shadow-xl w-[290px] animate-in fade-in-0 zoom-in-95 duration-100 origin-top select-none left-0 sm:left-auto">
+        <div className={cn(
+          "absolute z-50 mt-1.5 p-4 bg-white dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl w-[290px] animate-in fade-in-0 zoom-in-95 duration-100 origin-top select-none",
+          align === "right" ? "right-0" : "left-0 sm:left-auto"
+        )}>
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-slate-900 mb-3">
+          <div className="flex items-center justify-between pb-3 border-b border-neutral-100 dark:border-neutral-800 mb-3">
             <button
               type="button"
               onClick={handlePrevMonth}
-              className="p-1 hover:bg-neutral-50 dark:hover:bg-slate-900 rounded-lg text-neutral-500 dark:text-neutral-400 transition-colors cursor-pointer"
+              className="p-1 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded-lg text-neutral-500 dark:text-neutral-400 transition-colors cursor-pointer"
             >
               <ChevronLeft size={16} />
             </button>
-            <div className="text-sm font-bold text-neutral-850 dark:text-neutral-250">
+            <div className="text-sm font-bold text-neutral-850 dark:text-neutral-200">
               {MONTHS[currentMonth]}, {currentYear}
             </div>
             <button
               type="button"
               onClick={handleNextMonth}
-              className="p-1 hover:bg-neutral-50 dark:hover:bg-slate-900 rounded-lg text-neutral-500 dark:text-neutral-400 transition-colors cursor-pointer"
+              className="p-1 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded-lg text-neutral-500 dark:text-neutral-400 transition-colors cursor-pointer"
             >
               <ChevronRight size={16} />
             </button>
@@ -235,9 +245,9 @@ export function CustomDatePicker({
                   // Current month style
                   cell.isCurrentMonth 
                     ? "text-neutral-800 dark:text-neutral-200" 
-                    : "text-neutral-300 dark:text-neutral-600",
+                    : "text-neutral-350 dark:text-neutral-600",
                   // Hover styles for enabled
-                  !cell.isDisabled && "hover:bg-neutral-100 dark:hover:bg-slate-900",
+                  !cell.isDisabled && "hover:bg-neutral-100 dark:hover:bg-neutral-900",
                   // Selected style
                   cell.isSelected && "bg-[#D71920] dark:bg-[#D71920] hover:bg-[#b8141a] dark:hover:bg-[#b8141a] text-white dark:text-white font-bold ring-2 ring-[#D71920]/20",
                   // Today style (not selected)
@@ -252,12 +262,12 @@ export function CustomDatePicker({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-between pt-3 border-t border-neutral-100 dark:border-slate-900 mt-3 text-xs">
+          <div className="flex items-center justify-between pt-3 border-t border-neutral-100 dark:border-neutral-800 mt-3 text-xs">
             {!required ? (
               <button
                 type="button"
                 onClick={clearDate}
-                className="font-bold text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-white transition-colors cursor-pointer"
+                className="font-bold text-neutral-500 hover:text-neutral-800 dark:text-neutral-450 dark:hover:text-white transition-colors cursor-pointer"
               >
                 Clear
               </button>
@@ -267,7 +277,7 @@ export function CustomDatePicker({
             <button
               type="button"
               onClick={selectToday}
-              className="font-bold text-[#D71920] hover:text-[#b8141a] dark:text-red-400 dark:hover:text-red-500 transition-colors cursor-pointer"
+              className="font-bold text-[#D71920] hover:text-[#b8141a] dark:text-red-405 dark:hover:text-red-500 transition-colors cursor-pointer"
             >
               Today
             </button>

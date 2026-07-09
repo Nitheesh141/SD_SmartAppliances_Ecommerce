@@ -20,7 +20,12 @@ export default function AdminWarrantiesPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
 
   // Theme & State
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("admin-theme") as "light" | "dark") || "dark";
+    }
+    return "dark";
+  });
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("ALL");
@@ -202,12 +207,18 @@ export default function AdminWarrantiesPage() {
   const isDark = theme === "dark";
 
   return (
-    <div className={cn("min-h-screen flex", isDark ? "bg-[#0A0F1D] text-slate-100" : "bg-slate-50 text-slate-800")}>
+    <div className={cn(
+      "min-h-screen flex flex-col lg:flex-row transition-colors duration-300 font-sans selection:bg-[#D71920]/30 selection:text-white",
+      isDark ? "dark bg-[#0d0d0d] text-white" : "bg-[#fafafa] text-slate-900"
+    )}>
       <AdminSidebar currentPath="/admin/warranties" theme={theme} toggleTheme={toggleTheme} />
 
-      <div className="flex-grow flex flex-col min-w-0">
+      <div className="flex-1 lg:pl-64 flex flex-col min-h-screen min-w-0">
         {/* Header bar */}
-        <header className={cn("p-6 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4", isDark ? "border-slate-800/60 bg-[#0E1526]/80" : "border-slate-200 bg-white")}>
+        <header className={cn(
+          "px-6 py-6 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-colors duration-300",
+          isDark ? "border-neutral-800 bg-[#0d0d0d]/80" : "border-neutral-200 bg-white"
+        )}>
           <div>
             <h1 className="text-xl md:text-2xl font-black font-heading tracking-tight flex items-center gap-2">
               <ShieldCheck className="text-[#D71920]" />
@@ -223,7 +234,7 @@ export default function AdminWarrantiesPage() {
             className={cn(
               "px-4 py-2 border rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto",
               isDark
-                ? "bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800"
+                ? "bg-neutral-900 border-neutral-800 text-neutral-300 hover:text-white hover:bg-neutral-800"
                 : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
             )}
           >
@@ -236,28 +247,28 @@ export default function AdminWarrantiesPage() {
         <main className="flex-grow p-6 space-y-6">
           {/* Key Metrics row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className={cn("p-4 border rounded-2xl shadow-sm", isDark ? "bg-[#0E1526]/40 border-slate-800/80" : "bg-white border-slate-200")}>
+            <div className={cn("p-4 border rounded-2xl shadow-sm", isDark ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200")}>
               <span className="text-3xs font-bold text-neutral-400 uppercase tracking-widest block mb-1">Total Submissions</span>
               <span className="text-xl md:text-2xl font-black font-heading">{totalCount}</span>
             </div>
-            <div className={cn("p-4 border rounded-2xl shadow-sm", isDark ? "bg-[#0E1526]/40 border-slate-800/80" : "bg-white border-slate-200")}>
+            <div className={cn("p-4 border rounded-2xl shadow-sm", isDark ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200")}>
               <span className="text-3xs font-bold text-amber-500 uppercase tracking-widest block mb-1">Pending Audit</span>
               <span className="text-xl md:text-2xl font-black font-heading text-amber-500">{pendingCount}</span>
             </div>
-            <div className={cn("p-4 border rounded-2xl shadow-sm", isDark ? "bg-[#0E1526]/40 border-slate-800/80" : "bg-white border-slate-200")}>
+            <div className={cn("p-4 border rounded-2xl shadow-sm", isDark ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200")}>
               <span className="text-3xs font-bold text-green-500 uppercase tracking-widest block mb-1">Verified</span>
               <span className="text-xl md:text-2xl font-black font-heading text-green-500">{verifiedCount}</span>
             </div>
-            <div className={cn("p-4 border rounded-2xl shadow-sm", isDark ? "bg-[#0E1526]/40 border-slate-800/80" : "bg-white border-slate-200")}>
+            <div className={cn("p-4 border rounded-2xl shadow-sm", isDark ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200")}>
               <span className="text-3xs font-bold text-red-500 uppercase tracking-widest block mb-1">Rejected</span>
               <span className="text-xl md:text-2xl font-black font-heading text-red-500">{rejectedCount}</span>
             </div>
           </div>
 
           {/* Table Container */}
-          <div className={cn("border rounded-2xl shadow-sm overflow-hidden flex flex-col", isDark ? "bg-[#0E1526]/30 border-slate-800/80" : "bg-white border-slate-200")}>
+          <div className={cn("border rounded-2xl shadow-sm overflow-hidden flex flex-col", isDark ? "bg-neutral-900 border-neutral-800" : "bg-white border-slate-200")}>
             {/* Search and Filters Bar */}
-            <div className={cn("p-4 border-b flex flex-col md:flex-row md:items-center justify-between gap-4", isDark ? "border-slate-800/60 bg-[#0E1526]/40" : "border-slate-200 bg-slate-50/50")}>
+            <div className={cn("p-4 border-b flex flex-col md:flex-row md:items-center justify-between gap-4", isDark ? "border-neutral-800 bg-neutral-900/40" : "border-slate-200 bg-slate-50/50")}>
               {/* Tabs */}
               <div className="flex flex-wrap gap-1.5 border-b md:border-b-0 pb-3 md:pb-0">
                 {(["ALL", "PENDING_VERIFICATION", "VERIFIED", "REJECTED", "EXPIRED"] as TabType[]).map((tab) => (
@@ -269,7 +280,7 @@ export default function AdminWarrantiesPage() {
                       activeTab === tab
                         ? "bg-[#D71920] text-white"
                         : isDark
-                          ? "text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"
+                          ? "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-850"
                           : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                     )}
                   >
@@ -280,7 +291,7 @@ export default function AdminWarrantiesPage() {
 
               {/* Search Box */}
               <div className="relative max-w-xs w-full">
-                <Search className={cn("absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4", isDark ? "text-slate-500" : "text-slate-400")} />
+                <Search className={cn("absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4", isDark ? "text-neutral-450" : "text-slate-400")} />
                 <input
                   type="text"
                   placeholder="Search ID, customer, serial, invoice..."
@@ -289,12 +300,12 @@ export default function AdminWarrantiesPage() {
                   className={cn(
                     "w-full pl-10 pr-4 py-2 text-xs border rounded-xl outline-none transition-all",
                     isDark
-                      ? "bg-slate-950 border-slate-800 text-slate-100 focus:border-[#D71920]"
+                      ? "bg-neutral-950 border-neutral-800 text-white focus:border-[#D71920]"
                       : "bg-white border-slate-200 text-slate-800 focus:border-[#D71920]"
                   )}
                 />
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-100">
+                  <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-neutral-400 hover:text-white">
                     <X size={12} />
                   </button>
                 )}
@@ -316,7 +327,7 @@ export default function AdminWarrantiesPage() {
               ) : (
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className={cn("text-3xs font-extrabold uppercase tracking-wider border-b", isDark ? "border-slate-800/80 bg-slate-900/10 text-slate-400" : "border-slate-200 bg-slate-50 text-slate-500")}>
+                    <tr className={cn("text-3xs font-extrabold uppercase tracking-wider border-b", isDark ? "border-neutral-800 bg-neutral-950/20 text-neutral-400" : "border-slate-200 bg-slate-50 text-slate-500")}>
                       <th className="px-6 py-4">ID / Date</th>
                       <th className="px-6 py-4">Customer Details</th>
                       <th className="px-6 py-4">Appliance Info</th>
@@ -325,9 +336,9 @@ export default function AdminWarrantiesPage() {
                       <th className="px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className={cn("divide-y text-xs", isDark ? "divide-slate-800/40" : "divide-slate-200")}>
+                  <tbody className={cn("divide-y text-xs", isDark ? "divide-neutral-800" : "divide-slate-200")}>
                     {filteredRegs.map((reg) => (
-                      <tr key={reg.id} className={cn("hover:bg-slate-50/5 transition-colors", isDark ? "hover:bg-[#0E1526]/40" : "hover:bg-slate-50")}>
+                      <tr key={reg.id} className={cn("hover:bg-slate-50/5 transition-colors", isDark ? "hover:bg-neutral-850" : "hover:bg-slate-50")}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="font-bold text-slate-900 dark:text-slate-100 block">{reg.registrationId}</span>
                           <span className="text-3xs text-neutral-400 block mt-0.5">
@@ -366,7 +377,7 @@ export default function AdminWarrantiesPage() {
                             onClick={() => setSelectedReg(reg)}
                             className={cn(
                               "p-1.5 border rounded-lg transition-all hover:bg-[#D71920] hover:text-white cursor-pointer inline-flex items-center gap-1 text-2xs font-semibold",
-                              isDark ? "border-slate-800 bg-slate-900 text-slate-400" : "border-slate-200 bg-white text-slate-600"
+                              isDark ? "border-neutral-800 bg-neutral-900 text-neutral-450" : "border-slate-200 bg-white text-slate-600"
                             )}
                           >
                             <Eye size={12} />
@@ -389,16 +400,19 @@ export default function AdminWarrantiesPage() {
           {/* Overlay click to close */}
           <div className="absolute inset-0 -z-10" onClick={() => { setSelectedReg(null); setActionRemarks(""); }} />
 
-          <div className={cn("w-full max-w-lg h-full overflow-y-auto flex flex-col p-6 shadow-2xl animate-in slide-in-from-right duration-300 text-left", isDark ? "bg-[#0E1526] border-l border-slate-850" : "bg-white border-l border-slate-200")}>
+          <div className={cn(
+            "w-full max-w-lg h-full overflow-y-auto flex flex-col p-6 shadow-2xl animate-in slide-in-from-right duration-300 text-left",
+            isDark ? "bg-neutral-900 border-l border-neutral-800 text-white" : "bg-white border-l border-slate-200 text-slate-900"
+          )}>
             {/* Header */}
-            <div className="flex items-center justify-between border-b pb-4 mb-6">
+            <div className={cn("flex items-center justify-between border-b pb-4 mb-6", isDark ? "border-neutral-850" : "border-slate-200")}>
               <div>
                 <span className="text-3xs font-extrabold text-[#D71920] uppercase tracking-wider">REGISTRATION TICKET</span>
                 <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">{selectedReg.registrationId}</h2>
               </div>
               <button
                 onClick={() => { setSelectedReg(null); setActionRemarks(""); }}
-                className={cn("p-1.5 border rounded-lg cursor-pointer", isDark ? "border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800" : "border-slate-200 hover:bg-slate-50")}
+                className={cn("p-1.5 border rounded-lg cursor-pointer", isDark ? "border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800" : "border-slate-200 hover:bg-slate-50")}
               >
                 <X size={16} />
               </button>
@@ -407,7 +421,7 @@ export default function AdminWarrantiesPage() {
             {/* Content info blocks */}
             <div className="space-y-6 flex-grow">
               {/* Customer information */}
-              <div className={cn("p-4 border rounded-xl", isDark ? "bg-slate-950/20 border-slate-850" : "bg-slate-50 border-slate-200/50")}>
+              <div className={cn("p-4 border rounded-xl", isDark ? "bg-neutral-950/40 border-neutral-800" : "bg-slate-50 border-slate-200/50")}>
                 <h3 className="text-3xs font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                   <User size={12} /> Customer Information
                 </h3>
@@ -428,7 +442,7 @@ export default function AdminWarrantiesPage() {
                     <span className="text-slate-400 block mb-0.5">Alt Contact</span>
                     <span className="font-semibold">{selectedReg.customerAltPhone || "N/A"}</span>
                   </div>
-                  <div className="col-span-2 border-t pt-2 mt-1 border-slate-250/20">
+                  <div className={cn("col-span-2 border-t pt-2 mt-1", isDark ? "border-neutral-800" : "border-slate-250/20")}>
                     <span className="text-slate-400 block mb-0.5">Address</span>
                     <p className="font-semibold leading-relaxed">
                       {selectedReg.addressLine1}
@@ -441,7 +455,7 @@ export default function AdminWarrantiesPage() {
               </div>
 
               {/* Product and Purchase Details */}
-              <div className={cn("p-4 border rounded-xl", isDark ? "bg-slate-950/20 border-slate-850" : "bg-slate-50 border-slate-200/50")}>
+              <div className={cn("p-4 border rounded-xl", isDark ? "bg-neutral-950/40 border-neutral-800" : "bg-slate-50 border-slate-200/50")}>
                 <h3 className="text-3xs font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                   <Package size={12} /> Product & Purchase Details
                 </h3>
@@ -460,7 +474,7 @@ export default function AdminWarrantiesPage() {
                   </div>
                   <div>
                     <span className="text-slate-400 block mb-0.5">Serial Code</span>
-                    <span className="font-bold text-indigo-500">{selectedReg.serialNumber}</span>
+                    <span className="font-bold text-indigo-550">{selectedReg.serialNumber}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block mb-0.5">Invoice Number</span>
@@ -482,7 +496,7 @@ export default function AdminWarrantiesPage() {
               </div>
 
               {/* Warranty Auto calculations display */}
-              <div className="bg-red-50/20 border border-red-900/10 rounded-xl p-4 text-xs dark:bg-red-950/10 dark:border-red-900/30">
+              <div className="bg-red-50/25 border border-red-900/10 rounded-xl p-4 text-xs dark:bg-red-950/10 dark:border-red-900/30">
                 <h4 className="text-3xs font-extrabold text-red-500 uppercase tracking-widest mb-2">Calculated Expiry Dates</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -493,7 +507,7 @@ export default function AdminWarrantiesPage() {
                   </div>
                   <div>
                     <span className="text-slate-400 block">Warranty Expiry</span>
-                    <span className="font-bold text-green-600 dark:text-green-400">
+                    <span className="font-bold text-green-650 dark:text-green-400">
                       {new Date(selectedReg.warrantyExpiryDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                     </span>
                   </div>
@@ -513,14 +527,14 @@ export default function AdminWarrantiesPage() {
                         rel="noreferrer"
                         className={cn(
                           "p-2.5 border rounded-lg flex items-center justify-between hover:border-[#D71920] group transition-all",
-                          isDark ? "bg-slate-950/40 border-slate-850 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"
+                          isDark ? "bg-neutral-950/60 border-neutral-800 text-neutral-300" : "bg-slate-50 border-slate-200 text-slate-700"
                         )}
                       >
                         <div className="flex items-center gap-2 overflow-hidden">
                           {att.fileType === "PRODUCT_IMAGE" ? (
                             <ImageIcon className="w-4 h-4 text-emerald-500" />
                           ) : (
-                            <FileText className="w-4 h-4 text-red-500" />
+                            <FileText className="w-4 h-4 text-red-550" />
                           )}
                           <span className="truncate max-w-[120px] font-semibold">{att.fileName}</span>
                         </div>
@@ -537,14 +551,14 @@ export default function AdminWarrantiesPage() {
               {selectedReg.status === "REJECTED" && (
                 <div className="bg-red-50/50 border border-red-100 rounded-xl p-4 text-xs dark:bg-red-950/20 dark:border-red-900/40">
                   <h4 className="font-extrabold text-red-500 uppercase tracking-widest mb-1">Rejection Reason Remarks</h4>
-                  <p className="text-slate-600 dark:text-slate-400 leading-relaxed font-semibold">{selectedReg.rejectionReason}</p>
+                  <p className="text-slate-600 dark:text-slate-450 leading-relaxed font-semibold">{selectedReg.rejectionReason}</p>
                 </div>
               )}
             </div>
 
             {/* Actions verification drawer panel */}
             {selectedReg.status === "PENDING_VERIFICATION" && (
-              <div className="border-t pt-6 mt-6 space-y-4">
+              <div className={cn("border-t pt-6 mt-6 space-y-4", isDark ? "border-neutral-850" : "border-slate-200")}>
                 <div>
                   <label className="block text-3xs font-extrabold text-slate-400 uppercase tracking-widest mb-2">Verification Audit Remarks</label>
                   <textarea
@@ -554,7 +568,7 @@ export default function AdminWarrantiesPage() {
                     placeholder="Enter audit/rejection details here..."
                     className={cn(
                       "w-full px-4 py-2.5 text-xs border rounded-xl outline-none focus:border-[#D71920] dark:text-slate-100 resize-none",
-                      isDark ? "bg-slate-950 border-slate-800" : "bg-slate-50 border-slate-200"
+                      isDark ? "bg-neutral-950 border-neutral-800" : "bg-slate-50 border-slate-200"
                     )}
                   />
                 </div>
