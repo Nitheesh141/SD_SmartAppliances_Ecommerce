@@ -102,7 +102,12 @@ export default function AdminOrdersPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   
   // Theme State
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("admin-theme") as "light" | "dark") || "dark";
+    }
+    return "dark";
+  });
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("PENDING");

@@ -215,7 +215,16 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     res.status(201).json({ success: true, order });
   } catch (error: any) {
     console.error("Create order error:", error);
-    res.status(500).json({ success: false, message: error.message || "Failed to place order" });
+    const msg = error.message || "";
+    if (
+      msg.includes("Invalid promo code") ||
+      msg.includes("no longer available") ||
+      msg.includes("has expired")
+    ) {
+      res.status(400).json({ success: false, message: msg });
+      return;
+    }
+    res.status(500).json({ success: false, message: msg || "Failed to place order" });
   }
 };
 
@@ -760,12 +769,17 @@ export const getUnreadCounts = async (req: Request, res: Response): Promise<void
       where: { viewedByAdmin: false }
     });
 
+    const warrantiesCount = await prisma.warrantyRegistration.count({
+      where: { status: "PENDING_VERIFICATION" }
+    });
+
     res.json({
       success: true,
       counts: {
         orders: ordersCount,
         distributors: distributorsCount,
-        serviceRequests: serviceRequestsCount
+        serviceRequests: serviceRequestsCount,
+        warranties: warrantiesCount
       }
     });
   } catch (error: any) {

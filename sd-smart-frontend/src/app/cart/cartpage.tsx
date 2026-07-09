@@ -19,6 +19,18 @@ export default function CartPage() {
   const [excludedItems, setExcludedItems] = useState<Set<string>>(new Set());
   const [calculationResult, setCalculationResult] = useState<any>(null);
   const [calculating, setCalculating] = useState(false);
+  const [dbThreshold, setDbThreshold] = useState<number>(10000);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.settings && data.settings.freeShippingThreshold) {
+          setDbThreshold(Number(data.settings.freeShippingThreshold));
+        }
+      })
+      .catch(err => console.error("Failed to load settings in cartpage:", err));
+  }, []);
 
   const isItemOutOfStock = (item: any) => {
     const product = item.product || {};
@@ -224,14 +236,19 @@ export default function CartPage() {
                         <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-4 gap-3 pointer-events-auto">
                           <div className="flex flex-col">
                             <span className="text-xs text-neutral-500 font-medium mb-0.5">Price</span>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-bold text-[#1C1C1C] text-base">
                                 ₹{(matchedCalcItem ? matchedCalcItem.unitPrice : (product.price || 0)).toLocaleString('en-IN')}
                               </span>
                               {isDiscounted && !isOutOfStock && (
-                                <span className="text-xs text-neutral-400 line-through">
-                                  ₹{matchedCalcItem.originalPrice.toLocaleString('en-IN')}
-                                </span>
+                                <>
+                                  <span className="text-xs text-neutral-400 line-through">
+                                    ₹{matchedCalcItem.originalPrice.toLocaleString('en-IN')}
+                                  </span>
+                                  <span className="text-[10px] font-extrabold text-[#388e3c] bg-green-50 dark:bg-green-950/20 px-1.5 py-0.5 rounded border border-green-150 shrink-0">
+                                    {Math.round(((matchedCalcItem.originalPrice - matchedCalcItem.unitPrice) / matchedCalcItem.originalPrice) * 100)}% OFF
+                                  </span>
+                                </>
                               )}
                             </div>
                           </div>
@@ -326,10 +343,10 @@ export default function CartPage() {
                 {/* Smart Delivery Banner */}
                 {!isDistributor && (() => {
                   const deliveryInfo = calculationResult?.deliveryInfo;
-                  const effectiveDC = calculationResult ? calculationResult.summary.deliveryCharges : (calculatedCartTotal >= 10000 ? 0 : 200);
+                  const effectiveDC = calculationResult ? calculationResult.summary.deliveryCharges : (calculatedCartTotal >= dbThreshold ? 0 : 200);
                   const isFree = effectiveDC === 0;
-                  const needed = deliveryInfo?.amountNeededForFreeDelivery ?? 0;
-                  const threshold = deliveryInfo?.freeDeliveryThreshold ?? 10000;
+                  const needed = deliveryInfo ? deliveryInfo.amountNeededForFreeDelivery : Math.max(0, dbThreshold - calculatedCartTotal);
+                  const threshold = deliveryInfo?.freeDeliveryThreshold ?? dbThreshold;
                   const progress = Math.min(100, ((threshold - needed) / threshold) * 100);
                   const fsProductIds: string[] = deliveryInfo?.freeShippingProductIds ?? [];
                   return (
@@ -408,7 +425,7 @@ export default function CartPage() {
                         </div>
                       )}
                       {(() => {
-                        const effectiveDC = calculationResult ? calculationResult.summary.deliveryCharges : (calculatedCartTotal >= 10000 ? 0 : 200);
+                        const effectiveDC = calculationResult ? calculationResult.summary.deliveryCharges : (calculatedCartTotal >= dbThreshold ? 0 : 200);
                         const isFree = effectiveDC === 0;
                         return (
                           <div className={`flex justify-between items-center font-medium ${ isFree ? 'text-green-600' : 'text-neutral-600' }`}>

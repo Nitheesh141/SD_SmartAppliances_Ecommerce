@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "../utils/db";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { matchProduct } from "../utils/search";
+import { applyDynamicPricesToProducts } from "../utils/pricing";
 
 // Get all products with optional filters
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
@@ -52,7 +53,9 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       formattedProducts = formattedProducts.filter((p: any) => matchProduct(p, queryStr));
     }
 
-    res.json({ success: true, products: formattedProducts });
+    const updatedProducts = await applyDynamicPricesToProducts(formattedProducts);
+
+    res.json({ success: true, products: updatedProducts });
   } catch (error: any) {
     console.error("Get products error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch products" });
@@ -88,7 +91,9 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
     const todayStockOut = product.transactions.filter((t: any) => t.type === "OUT").reduce((sum: number, t: any) => sum + t.quantity, 0);
     const { transactions, ...rest } = product;
 
-    res.json({ success: true, product: { ...rest, todayStockIn, todayStockOut } });
+    const updatedProduct = await applyDynamicPricesToProducts({ ...rest, todayStockIn, todayStockOut });
+
+    res.json({ success: true, product: updatedProduct });
   } catch (error: any) {
     console.error("Get product by id error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch product" });
@@ -539,7 +544,9 @@ export const getBestsellerProducts = async (req: Request, res: Response): Promis
       return { ...rest, todayStockIn, todayStockOut };
     });
 
-    res.json({ success: true, products: formattedProducts });
+    const updatedProducts = await applyDynamicPricesToProducts(formattedProducts);
+
+    res.json({ success: true, products: updatedProducts });
   } catch (error: any) {
     console.error("Get bestseller products error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch bestseller products" });

@@ -20,7 +20,6 @@ interface OfferType {
   description: string | null;
   offerType: string;
   bannerImage: string | null;
-  priority: number;
   status: string;
   startDate: string;
   endDate: string;
@@ -216,7 +215,12 @@ export default function AdminMarketingPage() {
   const [offers, setOffers] = useState<OfferType[]>([]);
   const [products, setProducts] = useState<ProductType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("admin-theme") as "light" | "dark") || "dark";
+    }
+    return "dark";
+  });
 
   // Tab Management
   const currentTab = searchParams.get("tab") || "discounts";
@@ -233,7 +237,6 @@ export default function AdminMarketingPage() {
   const [formDescription, setFormDescription] = useState("");
   const [formOfferType, setFormOfferType] = useState("PRODUCT_DISCOUNT");
   const [formBannerImage, setFormBannerImage] = useState("");
-  const [formPriority, setFormPriority] = useState(0);
   const [formStatus, setFormStatus] = useState("ACTIVE");
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
@@ -285,6 +288,36 @@ export default function AdminMarketingPage() {
     { minQty: 2, discountType: "PERCENTAGE", discountValue: 5 }
   ]);
 
+  // Free Shipping settings states
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState<number>(10000);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch("http://localhost:5000/api/settings", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ freeShippingThreshold })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update settings");
+      }
+
+      toast.success("Free shipping settings updated successfully");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Failed to update settings");
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
   // Cascading dropdown state for Target Products
   const [targetSelCategory, setTargetSelCategory] = useState("");
   const [targetSelModel, setTargetSelModel] = useState("");
@@ -329,6 +362,15 @@ export default function AdminMarketingPage() {
       if (productsRes.ok) {
         const productsData = await productsRes.json();
         setProducts(productsData.products || []);
+      }
+
+      // 3. Fetch Settings
+      const settingsRes = await fetch("http://localhost:5000/api/settings");
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json();
+        if (settingsData.settings && settingsData.settings.freeShippingThreshold) {
+          setFreeShippingThreshold(Number(settingsData.settings.freeShippingThreshold));
+        }
       }
     } catch (error: any) {
       console.error(error);
@@ -377,7 +419,6 @@ export default function AdminMarketingPage() {
     setFormDescription("");
     setFormOfferType("PRODUCT_DISCOUNT");
     setFormBannerImage("");
-    setFormPriority(0);
     setFormStatus("ACTIVE");
     // Default dates (today to next month)
     const today = new Date().toISOString().split("T")[0] || "";
@@ -441,7 +482,6 @@ export default function AdminMarketingPage() {
     setFormDescription(offer.description || "");
     setFormOfferType(offer.offerType);
     setFormBannerImage(offer.bannerImage || "");
-    setFormPriority(offer.priority);
     setFormStatus(offer.status);
     setFormStartDate(offer.startDate.split("T")[0] || "");
     setFormEndDate(offer.endDate.split("T")[0] || "");
@@ -639,7 +679,6 @@ export default function AdminMarketingPage() {
       description: formDescription,
       offerType: formOfferType,
       bannerImage: formBannerImage || null,
-      priority: Number(formPriority),
       status: formStatus,
       startDate: new Date(formStartDate).toISOString(),
       endDate: new Date(formEndDate).toISOString(),
@@ -892,24 +931,64 @@ export default function AdminMarketingPage() {
 
           {/* Main Tab Views */}
           {currentTab === "analytics" ? (
-            <div className={cn("p-8 rounded-2xl border text-center font-sans", isDark ? "bg-neutral-950/60 border-neutral-800/80" : "bg-white border-neutral-200")}>
-              <AlertCircle className="w-12 h-12 mx-auto mb-4 text-[#D71920]" />
-              <h3 className="text-lg font-bold">Marketing Analytics Center</h3>
-              <p className="text-sm text-neutral-500 mt-1 max-w-md mx-auto">
-                Track conversions, coupon claim percentages, and campaign revenue impact. Data syncs dynamically from completed orders.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 max-w-3xl mx-auto">
-                <div className="p-4 border border-neutral-800 bg-neutral-900/30 rounded-xl">
-                  <span className="text-xs text-neutral-500 block font-bold mb-1">Coupon Conversion</span>
-                  <span className="text-xl font-extrabold text-[#D71920]">24.8%</span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Marketing Analytics Card (2/3 width on desktop) */}
+              <div className={cn("lg:col-span-2 p-8 rounded-2xl border text-center font-sans", isDark ? "bg-neutral-950/60 border-neutral-800/80" : "bg-white border-neutral-200")}>
+                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-[#D71920]" />
+                <h3 className="text-lg font-bold">Marketing Analytics Center</h3>
+                <p className="text-sm text-neutral-500 mt-1 max-w-md mx-auto">
+                  Track conversions, coupon claim percentages, and campaign revenue impact. Data syncs dynamically from completed orders.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 max-w-3xl mx-auto">
+                  <div className={cn("p-4 border rounded-xl", isDark ? "border-neutral-800 bg-neutral-900/30" : "border-slate-200 bg-slate-50")}>
+                    <span className={cn("text-xs block font-bold mb-1", isDark ? "text-neutral-500" : "text-slate-500")}>Coupon Conversion</span>
+                    <span className="text-xl font-extrabold text-[#D71920]">24.8%</span>
+                  </div>
+                  <div className={cn("p-4 border rounded-xl", isDark ? "border-neutral-800 bg-neutral-900/30" : "border-slate-200 bg-slate-50")}>
+                    <span className={cn("text-xs block font-bold mb-1", isDark ? "text-neutral-500" : "text-slate-500")}>Average Discount Value</span>
+                    <span className="text-xl font-extrabold text-blue-500">₹1,240</span>
+                  </div>
+                  <div className={cn("p-4 border rounded-xl", isDark ? "border-neutral-800 bg-neutral-900/30" : "border-slate-200 bg-slate-50")}>
+                    <span className={cn("text-xs block font-bold mb-1", isDark ? "text-neutral-500" : "text-slate-500")}>Repeated Claims Rate</span>
+                    <span className="text-xl font-extrabold text-green-500">12.5%</span>
+                  </div>
                 </div>
-                <div className="p-4 border border-neutral-800 bg-neutral-900/30 rounded-xl">
-                  <span className="text-xs text-neutral-500 block font-bold mb-1">Average Discount Value</span>
-                  <span className="text-xl font-extrabold text-blue-500">₹1,240</span>
+              </div>
+
+              {/* Free Shipping Settings Card (1/3 width on desktop) */}
+              <div className={cn("p-6 rounded-2xl border font-sans text-left flex flex-col justify-between", isDark ? "bg-neutral-950/60 border-neutral-800/80" : "bg-white border-neutral-200")}>
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Truck className="text-[#D71920]" size={20} />
+                    <h3 className="text-sm font-extrabold uppercase tracking-wider">Free Shipping Settings</h3>
+                  </div>
+                  <p className="text-xs text-neutral-500 mb-5 leading-relaxed">
+                    Orders above this threshold amount will receive free delivery dynamically across the storefront.
+                  </p>
+                  <div className="space-y-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-extrabold uppercase text-neutral-400">Free Shipping Threshold (₹)</label>
+                      <input
+                        type="number"
+                        value={freeShippingThreshold}
+                        onChange={(e) => setFreeShippingThreshold(Number(e.target.value))}
+                        className={cn(
+                          "px-3.5 py-2.5 rounded-lg border text-sm font-bold focus:outline-none focus:border-[#D71920] w-full",
+                          isDark ? "border-neutral-800 bg-neutral-900/60 text-white" : "border-neutral-200 bg-slate-50 text-slate-900"
+                        )}
+                        placeholder="e.g. 2000"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-4 border border-neutral-800 bg-neutral-900/30 rounded-xl">
-                  <span className="text-xs text-neutral-500 block font-bold mb-1">Repeated Claims Rate</span>
-                  <span className="text-xl font-extrabold text-green-500">12.5%</span>
+                <div className="mt-6">
+                  <button
+                    onClick={handleSaveSettings}
+                    disabled={isSavingSettings}
+                    className="w-full py-3 bg-[#D71920] hover:bg-[#B91520] rounded-xl text-sm font-bold text-white transition-all cursor-pointer shadow-lg shadow-[#D71920]/20 flex items-center justify-center gap-2 disabled:opacity-40"
+                  >
+                    {isSavingSettings ? "Saving..." : "Save Configuration"}
+                  </button>
                 </div>
               </div>
             </div>
@@ -937,7 +1016,6 @@ export default function AdminMarketingPage() {
                         <th className="py-4 px-6">Offer Info</th>
                         <th className="py-4 px-6">Type</th>
                         <th className="py-4 px-6">Validity Duration</th>
-                        <th className="py-4 px-6 text-center">Priority</th>
                         <th className="py-4 px-6 text-center">Status</th>
                         <th className="py-4 px-6 text-right">Actions</th>
                       </tr>
@@ -983,11 +1061,6 @@ export default function AdminMarketingPage() {
                               <Calendar size={12} className="text-[#D71920]" />
                               <span>{new Date(offer.startDate).toLocaleDateString()} - {new Date(offer.endDate).toLocaleDateString()}</span>
                             </div>
-                          </td>
-
-                          {/* Priority */}
-                          <td className="py-4 px-6 text-center font-bold font-sans">
-                            {offer.priority}
                           </td>
 
                           {/* Status */}
@@ -1124,7 +1197,7 @@ export default function AdminMarketingPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col">
                     <label className={modalLabelClass}>Offer Type</label>
                     <CustomDropdown
@@ -1132,18 +1205,6 @@ export default function AdminMarketingPage() {
                       value={formOfferType}
                       onChange={(val) => setFormOfferType(val)}
                       isDark={isDark}
-                    />
-                  </div>
-
-                  <div className="flex flex-col">
-                    <label className={modalLabelClass}>Priority Rank (1-8 Sequence)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={formPriority}
-                      onChange={(e) => setFormPriority(Number(e.target.value))}
-                      className={modalInputClass}
                     />
                   </div>
 
@@ -1156,6 +1217,7 @@ export default function AdminMarketingPage() {
                         onChange={(val) => setFormStartDate(val)}
                         placeholder="Start date"
                         className="w-1/2"
+                        buttonClassName="bg-slate-50 border-slate-200 dark:bg-neutral-900/60 dark:border-neutral-800 text-slate-900 dark:text-white rounded-lg py-2"
                       />
                       <span className={cn("text-xs font-semibold", isDark ? "text-neutral-500" : "text-slate-400")}>to</span>
                       <CustomDatePicker
@@ -1165,12 +1227,14 @@ export default function AdminMarketingPage() {
                         placeholder="End date"
                         className="w-1/2"
                         min={formStartDate}
+                        align="right"
+                        buttonClassName="bg-slate-50 border-slate-200 dark:bg-neutral-900/60 dark:border-neutral-800 text-slate-900 dark:text-white rounded-lg py-2"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex flex-col">
                     <label className={modalLabelClass}>Display Badge Text</label>
                     <input
@@ -1188,6 +1252,19 @@ export default function AdminMarketingPage() {
                       options={badgeColorOptions}
                       value={formBadgeColor}
                       onChange={(val) => setFormBadgeColor(val)}
+                      isDark={isDark}
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className={modalLabelClass}>Campaign Status</label>
+                    <CustomDropdown
+                      options={[
+                        { value: "ACTIVE", label: "Active" },
+                        { value: "INACTIVE", label: "Inactive" },
+                      ]}
+                      value={formStatus}
+                      onChange={(val) => setFormStatus(val)}
                       isDark={isDark}
                     />
                   </div>
@@ -1209,21 +1286,11 @@ export default function AdminMarketingPage() {
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={formApplyAutomatically}
-                      onChange={(e) => setFormApplyAutomatically(e.target.checked)}
+                      checked={!formApplyAutomatically}
+                      onChange={(e) => setFormApplyAutomatically(!e.target.checked)}
                       className={modalCheckboxClass}
                     />
-                    <span>Apply Automatically at Checkout</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formStackable}
-                      onChange={(e) => setFormStackable(e.target.checked)}
-                      className={modalCheckboxClass}
-                    />
-                    <span>Stackable with other campaigns</span>
+                    <span>Apply only through Promo Code</span>
                   </label>
                 </div>
               </div>

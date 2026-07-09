@@ -1,13 +1,6 @@
 import dynamic from "next/dynamic";
 import React from "react";
-
-// Helper loading component
-const PageLoader = () => (
-  <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-950 font-sans">
-    <div className="w-12 h-12 border-4 border-[#D71920]/25 border-t-[#D71920] rounded-full animate-spin"></div>
-    <p className="mt-4 text-sm font-semibold text-neutral-500 tracking-wider">Loading...</p>
-  </div>
-);
+import PageLoader from "@/components/layout/PageLoader";
 
 // Lazy-loaded route page components
 

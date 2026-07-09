@@ -1,6 +1,18 @@
 import { Response } from "express";
 import { prisma } from "../utils/db";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
+import { applyDynamicPricesToProducts } from "../utils/pricing";
+
+const mapCartPrices = async (cart: any) => {
+  if (cart && cart.items) {
+    for (const item of cart.items) {
+      if (item.product) {
+        item.product = await applyDynamicPricesToProducts(item.product);
+      }
+    }
+  }
+  return cart;
+};
 
 export const getCart = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -29,7 +41,8 @@ export const getCart = async (req: AuthenticatedRequest, res: Response): Promise
       });
     }
 
-    res.json({ success: true, data: cart });
+    const finalCart = await mapCartPrices(cart);
+    res.json({ success: true, data: finalCart });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Error fetching cart" });
@@ -91,7 +104,8 @@ export const addToCart = async (req: AuthenticatedRequest, res: Response): Promi
       }
     });
 
-    res.json({ success: true, data: updatedCart });
+    const finalCart = await mapCartPrices(updatedCart);
+    res.json({ success: true, data: finalCart });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Error adding to cart" });
@@ -140,7 +154,8 @@ export const updateCartItem = async (req: AuthenticatedRequest, res: Response): 
       }
     });
 
-    res.json({ success: true, data: updatedCart });
+    const finalCart = await mapCartPrices(updatedCart);
+    res.json({ success: true, data: finalCart });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Error updating cart item" });
@@ -187,7 +202,8 @@ export const removeFromCart = async (req: AuthenticatedRequest, res: Response): 
       }
     });
 
-    res.json({ success: true, data: updatedCart });
+    const finalCart = await mapCartPrices(updatedCart);
+    res.json({ success: true, data: finalCart });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Error removing cart item" });

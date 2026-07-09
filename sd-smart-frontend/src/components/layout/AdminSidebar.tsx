@@ -24,7 +24,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [marketingOpen, setMarketingOpen] = useState(currentPath.startsWith("/admin/marketing"));
-  const [counts, setCounts] = useState({ orders: 0, distributors: 0, serviceRequests: 0 });
+  const [counts, setCounts] = useState({ orders: 0, distributors: 0, serviceRequests: 0, warranties: 0 });
 
   // Fetch counts periodically
   useEffect(() => {
@@ -147,6 +147,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
     if (label === "Orders") return counts.orders;
     if (label === "Distributors") return counts.distributors;
     if (label === "Service Requests") return counts.serviceRequests;
+    if (label === "Warranty Registrations") return counts.warranties || 0;
     return 0;
   };
 
@@ -242,7 +243,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
         </div>
 
         {/* Main Navigation Links */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5">
+        <nav className="flex-1 overflow-y-auto sidebar-scrollbar px-4 py-6 space-y-1.5">
           <p className="px-3 text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-3">Management</p>
           {menuItems.map((item) => {
             const hasChildren = !!item.children;

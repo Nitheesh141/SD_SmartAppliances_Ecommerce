@@ -4,8 +4,8 @@ import { authenticateToken } from "../middleware/auth.middleware";
 
 const router = Router();
 
-// GET endpoint (Any logged-in user needs this to render their order invoice details)
-router.get("/", authenticateToken, getInvoiceSettings);
+// GET endpoint (Public details like seller info & shipping threshold)
+router.get("/", getInvoiceSettings);
 
 // PATCH/PUT endpoint (Admin only)
 router.patch("/", authenticateToken, updateInvoiceSettings);
