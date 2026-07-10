@@ -492,6 +492,11 @@ export default function CartPage() {
                       <span>Checkout Disabled</span>
                     </button>
                   </div>
+                ) : includedItems.length === 0 ? (
+                  <button disabled className="w-full bg-neutral-200 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 py-4 rounded-xl font-bold text-sm cursor-not-allowed flex items-center justify-center gap-2">
+                    <span>Proceed to Checkout</span>
+                    <ArrowRight size={16} />
+                  </button>
                 ) : (
                   <Link href="/checkout" className="w-full relative group overflow-hidden bg-[#1C1C1C] hover:bg-black text-white py-4 rounded-xl font-bold text-sm transition-all duration-300 shadow-lg shadow-black/10 flex items-center justify-center gap-2 cursor-pointer">
                     <span className="relative z-10">Proceed to Checkout</span>

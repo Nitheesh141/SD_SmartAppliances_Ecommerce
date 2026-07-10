@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
         hostname: "images.unsplash.com",
       },
     ],
+    localPatterns: [
+      {
+        pathname: "/**",
+      },
+    ],
   },
   turbopack: {
     root: path.resolve(__dirname, ".."),

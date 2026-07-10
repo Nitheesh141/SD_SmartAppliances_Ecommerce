@@ -92,9 +92,18 @@ html {
 }
 
 /* Fix input cursor visibility issues on hover across the entire application */
-input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
 textarea {
   cursor: text !important;
+}
+
+/* Ensure range inputs and their thumbs/tracks show the pointer (human finger) cursor */
+input[type="range"],
+input[type="range"]::-webkit-slider-runnable-track,
+input[type="range"]::-webkit-slider-thumb,
+input[type="range"]::-moz-range-track,
+input[type="range"]::-moz-range-thumb {
+  cursor: pointer !important;
 }
 
 select {
