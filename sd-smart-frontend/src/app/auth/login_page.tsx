@@ -41,11 +41,10 @@ export default function LoginPage() {
       await login(identifier, password);
       setIsSuccess(true);
 
-      const cachedProfile = localStorage.getItem("userProfile");
-      const loggedUser = cachedProfile ? JSON.parse(cachedProfile) : null;
-
       // Redirect to admin, distributor, or home after success animation completes
       setTimeout(() => {
+        const cachedProfile = localStorage.getItem("userProfile");
+        const loggedUser = cachedProfile ? JSON.parse(cachedProfile) : null;
         const role = loggedUser?.role?.toUpperCase();
         if (loggedUser && (role === "ADMIN" || role === "SUPERADMIN" || loggedUser.role === "admin" || loggedUser.role === "superadmin")) {
           router.push("/admin/dashboard");

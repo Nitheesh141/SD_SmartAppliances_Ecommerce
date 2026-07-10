@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/providers/CartProvider";
 import Header from "@/components/layout/Header";
+import { useAuth } from "@/providers/AuthProvider";
 import Footer from "../../components/layout/Footer";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
 import ProductCard from "@/components/cards/ProductCard";
@@ -37,6 +38,8 @@ const sortOptions = [
 export default function ShopPage() {
   const allProducts = useDynamicProducts();
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
+  const isDistributor = isAuthenticated && user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
 
   // Safe Cart Count retrieval
   let cartCount = 0;
@@ -456,17 +459,19 @@ export default function ShopPage() {
                 Category
               </button>
               {/* Price Tab */}
-              <button
-                onClick={() => setActiveFilterTab("price")}
-                className={cn(
-                  "py-4 px-3 text-left text-xs font-bold transition-all relative border-b border-slate-100/50 dark:border-neutral-900/30",
-                  activeFilterTab === "price"
-                    ? "bg-white dark:bg-neutral-900 text-[#D71920] dark:text-red-400 border-l-4 border-l-[#D71920]"
-                    : "text-slate-600 dark:text-neutral-450"
-                )}
-              >
-                Price Range
-              </button>
+              {!isDistributor && (
+                <button
+                  onClick={() => setActiveFilterTab("price")}
+                  className={cn(
+                    "py-4 px-3 text-left text-xs font-bold transition-all relative border-b border-slate-100/50 dark:border-neutral-900/30",
+                    activeFilterTab === "price"
+                      ? "bg-white dark:bg-neutral-900 text-[#D71920] dark:text-red-400 border-l-4 border-l-[#D71920]"
+                      : "text-slate-600 dark:text-neutral-450"
+                  )}
+                >
+                  Price Range
+                </button>
+              )}
               {/* Availability Tab */}
               <button
                 onClick={() => setActiveFilterTab("availability")}
@@ -509,14 +514,14 @@ export default function ShopPage() {
               )}
 
               {/* Price Content */}
-              {activeFilterTab === "price" && (
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-[10px] font-black tracking-wider uppercase text-neutral-400 mb-1">Max Price Limit</p>
-                    <p className="text-sm font-extrabold text-slate-800 dark:text-white">₹{maxPrice.toLocaleString("en-IN")}</p>
+              {!isDistributor && activeFilterTab === "price" && (
+                <div className="space-y-6 cursor-pointer select-none">
+                  <div className="cursor-pointer">
+                    <p className="text-[10px] font-black tracking-wider uppercase text-neutral-400 mb-1 cursor-pointer">Max Price Limit</p>
+                    <p className="text-sm font-extrabold text-slate-800 dark:text-white cursor-pointer">₹{maxPrice.toLocaleString("en-IN")}</p>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 cursor-pointer">
                     <input
                       type="range"
                       min={priceLimits.min}
@@ -525,9 +530,9 @@ export default function ShopPage() {
                       onChange={(e) => setMaxPrice(Number(e.target.value))}
                       className="w-full h-1.5 bg-slate-100 dark:bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-[#D71920]"
                     />
-                    <div className="flex justify-between text-[10px] text-slate-400 font-mono font-bold">
-                      <span>Min: ₹{priceLimits.min.toLocaleString("en-IN")}</span>
-                      <span>Max: ₹{priceLimits.max.toLocaleString("en-IN")}</span>
+                    <div className="flex justify-between text-[10px] text-slate-400 font-mono font-bold cursor-pointer">
+                      <span className="cursor-pointer">Min: ₹{priceLimits.min.toLocaleString("en-IN")}</span>
+                      <span className="cursor-pointer">Max: ₹{priceLimits.max.toLocaleString("en-IN")}</span>
                     </div>
                   </div>
                 </div>

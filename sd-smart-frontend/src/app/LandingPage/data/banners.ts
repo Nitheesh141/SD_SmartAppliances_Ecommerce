@@ -9,7 +9,7 @@ export const banners: Banner[] = [
     primaryCTA: { label: "Shop Wet Grinders", href: "/shop/wet-grinders" },
     secondaryCTA: { label: "Explore Collection", href: "/shop" },
     bgColor: "from-slate-950/80 via-slate-900/40 to-slate-950/80",
-    image: "/sd-smart-ecommerce/Landing-Banner 1.png"
+    image: "/sd-smart-ecommerce/LandingBanner 1.png"
   },
   {
     id: "banner-2",
@@ -19,7 +19,7 @@ export const banners: Banner[] = [
     primaryCTA: { label: "Shop Cookware", href: "/shop/non-stick" },
     secondaryCTA: { label: "View Collection", href: "/shop" },
     bgColor: "from-slate-950/80 via-slate-900/40 to-slate-950/80",
-    image: "/sd-smart-ecommerce/Landing-Banner 2.png"
+    image: "/sd-smart-ecommerce/LandingBanner 2.png"
   },
   {
     id: "banner-3",
@@ -29,6 +29,6 @@ export const banners: Banner[] = [
     primaryCTA: { label: "Shop LPG Stoves", href: "/shop/gas-stoves" },
     secondaryCTA: { label: "Learn More", href: "/shop" },
     bgColor: "from-slate-950/80 via-slate-900/40 to-slate-950/80",
-    image: "/sd-smart-ecommerce/Landing-Banner 3.png"
+    image: "/sd-smart-ecommerce/LandingBanner 3.png"
   }
 ];

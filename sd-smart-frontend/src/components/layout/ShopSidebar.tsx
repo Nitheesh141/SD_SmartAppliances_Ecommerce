@@ -3,6 +3,7 @@
 import React from "react";
 import { Filter, Check, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/providers/AuthProvider";
 
 interface ShopSidebarProps {
   selectedCategory: string;
@@ -29,6 +30,9 @@ export default function ShopSidebar({
   categoriesList,
   className,
 }: ShopSidebarProps) {
+  const { user, isAuthenticated } = useAuth();
+  const isDistributor = isAuthenticated && user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
+
   return (
     <aside className={cn("space-y-8 text-left", className)}>
 
@@ -71,26 +75,28 @@ export default function ShopSidebar({
       </div>
 
       {/* Price Filter */}
-      <div className="space-y-3">
-        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#4E5D6C] dark:text-slate-400">
-          Max Price (₹{maxPrice.toLocaleString("en-IN")})
-        </label>
-        <div className="relative pt-1">
-          <input
-            id="sidebar-price-range-input"
-            type="range"
-            min={priceLimits.min}
-            max={priceLimits.max}
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(Number(e.target.value))}
-            className="w-full h-1.5 bg-slate-200 dark:bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-[#D71920] focus:outline-none"
-          />
-          <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 dark:text-neutral-500 mt-2">
-            <span>Min: ₹{priceLimits.min.toLocaleString("en-IN")}</span>
-            <span>Max: ₹{priceLimits.max.toLocaleString("en-IN")}</span>
+      {!isDistributor && (
+        <div className="space-y-3 cursor-pointer select-none">
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-[#4E5D6C] dark:text-slate-400 cursor-pointer">
+            Max Price (₹{maxPrice.toLocaleString("en-IN")})
+          </label>
+          <div className="relative pt-1 cursor-pointer">
+            <input
+              id="sidebar-price-range-input"
+              type="range"
+              min={priceLimits.min}
+              max={priceLimits.max}
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(Number(e.target.value))}
+              className="w-full h-1.5 bg-slate-200 dark:bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-[#D71920] focus:outline-none"
+            />
+            <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 dark:text-neutral-500 mt-2 cursor-pointer">
+              <span className="cursor-pointer">Min: ₹{priceLimits.min.toLocaleString("en-IN")}</span>
+              <span className="cursor-pointer">Max: ₹{priceLimits.max.toLocaleString("en-IN")}</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Availability */}
       <div className="space-y-3">
