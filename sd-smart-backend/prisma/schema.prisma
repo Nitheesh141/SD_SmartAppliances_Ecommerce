@@ -295,17 +295,26 @@ model SystemSetting {
 model ServiceRequest {
   id                  String                     @id @default(uuid())
   ticketId            String                     @unique // e.g., SR-2026-000001
-  userId              String
-  user                User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              String?
+  user                User?                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId           String
   product             Product                    @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderId             String? // Optional Order ID / Order Number
+  purchasePlace       String? // Dedicated field for Purchase Place / Dealer Name
   purchaseDate        DateTime
   serviceCategory     String // Repair, Installation, Warranty Claim, Product Not Working, Spare Parts Request
   issueDescription    String
-  preferredPickupDate DateTime
+  preferredPickupDate DateTime?
   contactNumber       String
   pickupAddress       String
+  contactPersonName   String?
+  email               String?
+  pincode             String?
+  technicianName      String?
+  technicianPhone     String?
+  expectedVisitDate   DateTime?
+  expectedVisitTime   String?
+  internalRemarks     String?
   warrantyExpiryDate  DateTime
   warrantyStatus      String // UNDER_WARRANTY or WARRANTY_EXPIRED
   currentStatus       String // PENDING_VERIFICATION, VERIFIED, PICKUP_SCHEDULED, etc.

@@ -6,20 +6,24 @@ import {
   getServiceRequestById,
   getPurchasedProducts,
   updateServiceRequestStatus,
-  respondToEstimate
+  respondToEstimate,
+  trackServiceRequest
 } from "../controllers/serviceRequest.controller";
 import { markServiceRequestsAsRead } from "../controllers/order.controller";
 
 const router = Router();
 
-// Protect all service request routes
+// Public routes to submit a service request and view ticket details
+router.post("/", createServiceRequest);
+router.get("/:id", getServiceRequestById);
+router.post("/track", trackServiceRequest);
+
+// Protect all other routes
 router.use(authenticateToken);
 
-router.post("/", createServiceRequest);
 router.get("/", getServiceRequests);
 router.get("/purchased-products", getPurchasedProducts);
 router.post("/mark-read", markServiceRequestsAsRead);
-router.get("/:id", getServiceRequestById);
 router.patch("/:id/status", updateServiceRequestStatus);
 router.patch("/:id/customer-response", respondToEstimate);
 

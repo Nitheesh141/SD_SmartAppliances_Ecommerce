@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/providers/AuthProvider";
+import Link from "next/link";
+import { Headphones } from "lucide-react";
 import AnnouncementBar from "../../components/layout/AnnouncementBar";
 import Header from "../../components/layout/Header";
 import Footer from "../../components/layout/Footer";
@@ -80,6 +82,16 @@ export default function LandingPage() {
 
       {/* ── Footer ──────────────────────────────────────────── */}
       <Footer footerColumns={footerColumns} socialLinks={socialLinks} />
+      {/* Floating Service Ticket FAB */}
+      <div className="fixed bottom-6 right-6 z-45">
+        <Link
+          href="/service-request"
+          className="flex items-center gap-2 px-5 py-3.5 bg-[#D71920] hover:bg-[#b8141a] hover:text-white text-white text-xs font-black uppercase tracking-wider rounded-full shadow-[0_8px_30px_rgba(215,25,32,0.35)] hover:shadow-[0_8px_30px_rgba(215,25,32,0.55)] active:scale-95 transition-all duration-300 group border border-white/10"
+        >
+          <Headphones size={15} className="group-hover:scale-110 transition-transform" />
+          <span>File Service Ticket</span>
+        </Link>
+      </div>
     </div>
   );
 }

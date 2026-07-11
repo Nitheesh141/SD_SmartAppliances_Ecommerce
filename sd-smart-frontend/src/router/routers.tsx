@@ -158,8 +158,14 @@ const FAQsPage = dynamic(() => import("../app/faqs/faqspage"), {
   ssr: true,
 });
 
+const TrackServiceRequestPage = dynamic(() => import("../app/track-service-request/track-service-requestpage"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 export const routes: Record<string, React.ComponentType<any>> = {
   "/": LandingPage,
+  "/track-service-request": TrackServiceRequestPage,
   "/auth/login": LoginPage,
   "/auth/signup": SignupPage,
   "/auth/distributor-signup": DistributorSignupPage,

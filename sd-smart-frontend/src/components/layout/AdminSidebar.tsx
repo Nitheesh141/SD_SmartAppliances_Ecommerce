@@ -159,7 +159,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
         isDark ? "bg-[#0d0d0d] border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
       )}>
         <div className="flex items-center gap-3">
-          <Link href="/">
+          <Link href="/?bypass=true">
             <img
               src="/sd-smart-ecommerce/SD-logo.png"
               alt="SD Smart Appliances"
@@ -196,7 +196,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
           isDark ? "border-neutral-800" : "border-neutral-200"
         )}>
           <div className="flex items-center gap-3">
-            <Link href="/" onClick={() => setIsOpen(false)}>
+            <Link href="/?bypass=true" onClick={() => setIsOpen(false)}>
               <img
                 src="/sd-smart-ecommerce/SD-logo.png"
                 alt="SD Smart Appliances"
@@ -349,7 +349,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
           
           {/* Storefront Link */}
           <Link
-            href="/"
+            href="/?bypass=true"
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group cursor-pointer",
               isDark 

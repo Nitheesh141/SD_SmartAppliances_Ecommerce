@@ -47,6 +47,9 @@ export default function LoginPage() {
         const loggedUser = cachedProfile ? JSON.parse(cachedProfile) : null;
         const role = loggedUser?.role?.toUpperCase();
         if (loggedUser && (role === "ADMIN" || role === "SUPERADMIN" || loggedUser.role === "admin" || loggedUser.role === "superadmin")) {
+          if (typeof window !== "undefined") {
+            document.cookie = "adminLandingBypass=true; path=/; SameSite=Lax";
+          }
           router.push("/admin/dashboard");
         } else if (loggedUser && (role === "DISTRIBUTOR" || loggedUser.role === "distributor")) {
           router.push("/distributor/dashboard");
