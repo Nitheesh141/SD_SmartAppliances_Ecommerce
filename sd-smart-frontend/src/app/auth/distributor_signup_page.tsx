@@ -46,12 +46,22 @@ export default function DistributorSignupPage() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    let value = e.target.value;
+    if (e.target.name === "mobileNumber") {
+      value = value.replace(/\D/g, "").slice(0, 10);
+    }
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (formData.mobileNumber.length !== 10) {
+      setError("Mobile Number must be exactly 10 digits.");
+      toast.error("Mobile Number must be exactly 10 digits.");
+      return;
+    }
 
     // Password validations
     if (formData.password.length < 8) {

@@ -5,7 +5,9 @@ import { cn } from "@/lib/utils";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { CartProvider } from "@/providers/CartProvider";
 import { WishlistProvider } from "@/providers/WishlistProvider";
+import { AppRouteGuard } from "@/providers/AppRouteGuard";
 import { Toaster } from "sonner";
+import { cookies } from "next/headers";
 
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
@@ -24,11 +26,22 @@ export const metadata: Metadata = {
   description: "Buy smart appliances online",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const userProfileCookie = cookieStore.get("userProfile")?.value;
+  let serverUser = null;
+  if (userProfileCookie) {
+    try {
+      serverUser = JSON.parse(decodeURIComponent(userProfileCookie));
+    } catch (e) {
+      console.error("Failed to parse userProfile cookie in layout:", e);
+    }
+  }
+
   return (
     <html
       lang="en"
@@ -38,7 +51,9 @@ export default function RootLayout({
         <AuthProvider>
           <WishlistProvider>
             <CartProvider>
-              {children}
+              <AppRouteGuard serverUser={serverUser}>
+                {children}
+              </AppRouteGuard>
               <Toaster position="bottom-right" richColors />
             </CartProvider>
           </WishlistProvider>

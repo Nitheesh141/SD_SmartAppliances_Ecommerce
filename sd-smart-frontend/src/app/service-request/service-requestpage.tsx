@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
 import { 
   Headphones, Plus, ArrowLeft, Loader2, Calendar, FileText, MapPin, Phone, 
   CheckCircle, Clock, ShieldAlert, Image as ImageIcon, Eye, Download, Info,
-  AlertCircle, ChevronRight, X
+  AlertCircle, ChevronRight, X, User, Search, Copy
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -17,6 +18,7 @@ import { productService } from "@/services/productService";
 import { apiGet } from "@/utils/api";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
+import { cn } from "@/lib/utils";
 
 const SERVICE_CATEGORIES = [
   "Repair",
@@ -25,51 +27,97 @@ const SERVICE_CATEGORIES = [
   "Spare Parts Request"
 ];
 
+const PRODUCT_CATEGORIES = [
+  "Mixer Grinder",
+  "Wet Grinder",
+  "Pressure Cooker",
+  "Gas Stove",
+  "Induction Stove",
+  "Chimney",
+  "Rice Cooker"
+];
+
+const calculateWarrantyExpiry = (purchaseDateStr: string, warrantyText: string): { expiryDate: Date; isExpired: boolean } => {
+  if (!purchaseDateStr) return { expiryDate: new Date(), isExpired: true };
+  const purchaseDate = new Date(purchaseDateStr);
+  const text = (warrantyText || "1 Year").trim().toLowerCase();
+  
+  const hasNoWarranty = 
+    !text || 
+    text === "0" || 
+    text === "no" ||
+    text.includes("no warranty") || 
+    text.startsWith("0");
+
+  if (hasNoWarranty) {
+    return {
+      expiryDate: new Date(purchaseDate),
+      isExpired: true
+    };
+  }
+
+  let monthsToAdd = 12; // Default to 1 Year
+
+  const match = text.match(/(\d+)\s*(year|month|day|yr|mo|d)s?/);
+  if (match && match[1] && match[2]) {
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+
+    if (unit.startsWith("year") || unit.startsWith("yr")) {
+      monthsToAdd = value * 12;
+    } else if (unit.startsWith("month") || unit.startsWith("mo")) {
+      monthsToAdd = value;
+    } else if (unit.startsWith("day") || unit.startsWith("d")) {
+      const expiryDate = new Date(purchaseDate);
+      expiryDate.setDate(expiryDate.getDate() + value);
+      const isExpired = expiryDate.getTime() < Date.now();
+      return { expiryDate, isExpired };
+    }
+  }
+
+  const expiryDate = new Date(purchaseDate);
+  expiryDate.setMonth(expiryDate.getMonth() + monthsToAdd);
+  const isExpired = expiryDate.getTime() < Date.now();
+  return { expiryDate, isExpired };
+};
+
 const getStatusSteps = (warrantyStatus: string, currentStatus: string, cancellationReason?: string | null) => {
+  const steps = [
+    { label: "Request Submitted", key: "Request Submitted" },
+    { label: "Warranty Verified", key: "Warranty Verified" },
+    { label: "Request Accepted", key: "Request Accepted" },
+    { label: "Technician Assigned", key: "Technician Assigned" },
+    { label: "Technician Visiting", key: "Technician On The Way" },
+    { label: "Reached Location", key: "Reached Customer Location" },
+    { label: "Inspection Started", key: "Inspection Started" },
+    { label: "Repair In Progress", key: "Repair In Progress" },
+    { label: "Service Completed", key: "Service Completed" }
+  ];
+
   if (currentStatus === "Request Rejected") {
     return [
-      { label: "Request Submitted", key: "Pending Verification" },
+      { label: "Request Submitted", key: "Request Submitted" },
       { label: "Request Rejected", key: "Request Rejected" }
     ];
   }
 
-  const isExpired = warrantyStatus === "Warranty Expired";
-  
-  const steps = [
-    { label: "Request Submitted", key: "Pending Verification" },
-    { label: "Verified", key: "Verified" },
-    { label: "Pickup Scheduled", key: "Pickup Scheduled" },
-    { label: "Product Collected", key: "Product Collected" },
-    { label: "Under Inspection", key: "Under Inspection" },
-  ];
-
-  if (isExpired) {
-    steps.push(
-      { label: "Awaiting Cost Estimation", key: "Awaiting Cost Estimation" },
-      { label: "Awaiting Customer Approval", key: "Awaiting Customer Approval" }
-    );
-    
-    if (cancellationReason || currentStatus === "Cancellation Requested" || currentStatus === "Service Cancelled") {
-      steps.push({ label: "Cancellation Requested", key: "Cancellation Requested" });
-      steps.push({ label: "Service Cancelled", key: "Service Cancelled" });
-      if (currentStatus === "Closed") {
-        steps.push({ label: "Closed", key: "Closed" });
-      }
-      return steps;
+  // Filter or insert optional ones
+  const filteredSteps = steps.filter(step => {
+    if (step.key === "Customer Feedback" && currentStatus !== "Customer Feedback" && currentStatus !== "Closed") {
+      return false;
     }
-    
-    steps.push({ label: "Cost Approved", key: "Cost Approved" });
+    return true;
+  });
+
+  // If status is Waiting For Spare Parts, insert it
+  if (currentStatus === "Waiting For Spare Parts") {
+    const idx = filteredSteps.findIndex(s => s.key === "Service Completed");
+    if (idx !== -1) {
+      filteredSteps.splice(idx, 0, { label: "Waiting For Spare Parts", key: "Waiting For Spare Parts" });
+    }
   }
 
-  steps.push(
-    { label: "Under Repair", key: "Under Repair" },
-    { label: "Service Completed", key: "Service Completed" },
-    { label: "Ready For Delivery", key: "Ready For Delivery" },
-    { label: "Delivered", key: "Delivered" },
-    { label: "Closed", key: "Closed" }
-  );
-
-  return steps;
+  return filteredSteps;
 };
 
 export default function ServiceRequestPage() {
@@ -116,37 +164,53 @@ export default function ServiceRequestPage() {
 
   const isDistributor = user?.role === "DISTRIBUTOR";
   
-  const [addedProducts, setAddedProducts] = useState([{
-    localId: Math.random().toString(36).substr(2, 9),
-    categoryLabel: "",
-    productId: "",
-    serviceCategory: SERVICE_CATEGORIES[0],
-    issueDescription: "",
-    productImages: [] as string[],
-    warrantyCard: "",
-    orderId: "",
-    purchaseDate: ""
-  }]);
-
-  // Removed global orderId and purchaseDate
-  const [preferredPickupDate, setPreferredPickupDate] = useState("");
+  // Form input fields
+  const [contactPersonName, setContactPersonName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [pickupAddress, setPickupAddress] = useState("");
-  
-  // Attachments state
-  const [warrantyCard, setWarrantyCard] = useState<string>("");
+  const [pincode, setPincode] = useState("");
+
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState("");
+  const [purchasePlace, setPurchasePlace] = useState("");
+  const [serviceCategory, setServiceCategory] = useState("Repair");
+  const [issueDescription, setIssueDescription] = useState("");
+  const [warrantyCard, setWarrantyCard] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [warrantyStatus, setWarrantyStatus] = useState<"Under Warranty" | "Warranty Expired" | null>(null);
+  const [submittedRequest, setSubmittedRequest] = useState<any | null>(null);
 
   // Derived categories
   const categories = Array.from(new Set(allProducts.map(p => p.categoryLabel || p.category))).filter(Boolean);
 
-  // Auth redirection
+  // View state initial sync
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      toast.error("Please login to access the Service Requests portal");
-      router.push("/auth/login?redirect=/service-request");
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        setView("CREATE");
+      }
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated]);
+
+  // Poll request details when on the confirmation page
+  useEffect(() => {
+    if (!submittedRequest) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        const res = await serviceRequestService.getServiceRequestById(submittedRequest.id);
+        if (res.success && res.data) {
+          setSubmittedRequest(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to poll request status", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [submittedRequest]);
 
   // Load service requests
   const fetchRequests = async (isBackground = false) => {
@@ -196,47 +260,19 @@ export default function ServiceRequestPage() {
     }
   }, [isAuthenticated, user]);
 
-  // Load products and user details on form opening
+  // Load products details on form opening
   useEffect(() => {
-    if (view === "CREATE" && isAuthenticated) {
+    if (view === "CREATE") {
       const loadFormData = async () => {
         setLoadingProducts(true);
         try {
-          // Pre-populate contact number if available
-          if (user?.phoneNumber) {
-            setContactNumber(user.phoneNumber);
-          }
-
-          // Pre-populate pickup address with default address if available
-          const token = localStorage.getItem("authToken");
-          if (token) {
-            const addrRes = await fetch("http://localhost:5000/api/addresses", {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            if (addrRes.ok) {
-              const addrData = await addrRes.json();
-              if (addrData.success && addrData.data?.length > 0) {
-                const defaultAddr = addrData.data.find((a: any) => a.isDefault) || addrData.data[0];
-                setPickupAddress(
-                  `${defaultAddr.fullName}, ${defaultAddr.addressLine1}${defaultAddr.addressLine2 ? ', ' + defaultAddr.addressLine2 : ''}, ${defaultAddr.city}, ${defaultAddr.state} - ${defaultAddr.pincode}`
-                );
-              }
-            }
-          }
-
-          // Fetch purchased products
-          const purchasedRes = await serviceRequestService.getPurchasedProducts();
-          if (purchasedRes.success) {
-            setPurchasedProducts(purchasedRes.data || []);
-          }
-
-          // Fetch all products as fallback
+          // Fetch all products dynamically from Product table
           const allProdRes = await productService.getProducts({ limit: 100 });
           if (allProdRes.success && allProdRes.data) {
             setAllProducts(allProdRes.data.products || []);
           }
         } catch (error) {
-          console.error("Error loading products details:", error);
+          console.error("Error loading products:", error);
         } finally {
           setLoadingProducts(false);
         }
@@ -244,26 +280,27 @@ export default function ServiceRequestPage() {
 
       loadFormData();
     }
-  }, [view, isAuthenticated, user]);
+  }, [view]);
 
-  // Handle product dropdown selection
-  const handleProductChange = (productId: string, localId: string) => {
-    const purchased = purchasedProducts.find(p => p.id === productId);
-    setAddedProducts(prev => prev.map(p => {
-      if (p.localId === localId) {
-        return {
-          ...p,
-          productId,
-          orderId: purchased?.orderNumber || "",
-          purchaseDate: purchased?.purchaseDate ? new Date(purchased.purchaseDate).toISOString().split('T')[0] : ""
-        };
-      }
-      return p;
-    }));
-  };
+  // Automatic warranty validation trigger
+  useEffect(() => {
+    if (!selectedProductId || !purchaseDate) {
+      setWarrantyStatus(null);
+      return;
+    }
+
+    const product = allProducts.find(p => p.id === selectedProductId);
+    if (!product) {
+      setWarrantyStatus(null);
+      return;
+    }
+
+    const { isExpired } = calculateWarrantyExpiry(purchaseDate, product.warranty);
+    setWarrantyStatus(isExpired ? "Warranty Expired" : "Under Warranty");
+  }, [selectedProductId, purchaseDate, allProducts]);
 
   // Upload file to server
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: "PRODUCT_IMAGE" | "WARRANTY_CARD", localId?: string) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const fileArray = Array.from(e.target.files);
     
@@ -285,25 +322,8 @@ export default function ServiceRequestPage() {
 
       const result = await response.json();
       if (result.success && result.urls) {
-        if (fileType === "WARRANTY_CARD") {
-          if (localId) {
-            setAddedProducts(prev => prev.map(p => 
-              p.localId === localId 
-                ? { ...p, warrantyCard: result.urls[0] }
-                : p
-            ));
-          } else {
-            setWarrantyCard(result.urls[0]);
-          }
-          toast.success("Warranty card uploaded successfully");
-        } else if (fileType === "PRODUCT_IMAGE" && localId) {
-          setAddedProducts(prev => prev.map(p => 
-            p.localId === localId 
-              ? { ...p, productImages: [...p.productImages, ...result.urls] }
-              : p
-          ));
-          toast.success(`${result.urls.length} product image(s) uploaded`);
-        }
+        setWarrantyCard(result.urls[0]);
+        toast.success("Warranty card uploaded successfully");
       } else {
         throw new Error(result.message || "Failed to parse upload results");
       }
@@ -319,80 +339,46 @@ export default function ServiceRequestPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Per-product validations
-    for (const [index, p] of addedProducts.entries()) {
-      if (!p.productId) { toast.error(`Please select a product for item #${index + 1}`); return; }
-      if (!p.purchaseDate) { toast.error(`Please select purchase date for item #${index + 1}`); return; }
-      if (!p.issueDescription) { toast.error(`Please provide issue description for item #${index + 1}`); return; }
-    }
+    if (!contactPersonName) { toast.error("Please provide Contact Person Name"); return; }
+    if (!contactNumber) { toast.error("Please provide Mobile Number"); return; }
+    if (contactNumber.length !== 10) { toast.error("Mobile Number must be exactly 10 digits"); return; }
+    if (!email) { toast.error("Please provide Email Address"); return; }
+    if (!pickupAddress) { toast.error("Please provide Complete Address"); return; }
+    if (!pincode) { toast.error("Please provide Pincode"); return; }
 
-    if (!contactNumber) { toast.error("Please provide Contact Number"); return; }
-    if (!pickupAddress) { toast.error("Please provide Pickup Address"); return; }
-    if (!preferredPickupDate) {
-      toast.error("Preferred pickup date is required");
-      return;
-    }
+    if (!selectedCategory) { toast.error("Please select a Product Category"); return; }
+    if (!selectedProductId) { toast.error("Please select a Product Name"); return; }
+
+    if (!purchaseDate) { toast.error("Please provide Purchase Date"); return; }
+    if (!purchasePlace) { toast.error("Please provide Purchase Place / Dealer Name"); return; }
+
+    if (!warrantyStatus) { toast.error("Warranty must be validated before submitting"); return; }
 
     try {
       setUploading(true);
       
       const payload = {
-        userId: user?.id,
-        productId: addedProducts[0].productId,
-        orderId: addedProducts[0].orderId || null,
-        purchaseDate: new Date(addedProducts[0].purchaseDate),
-        serviceCategory: addedProducts[0].serviceCategory,
-        issueDescription: addedProducts[0].issueDescription,
-        preferredPickupDate: new Date(preferredPickupDate),
+        productId: selectedProductId,
+        purchasePlace,
+        purchaseDate: new Date(purchaseDate),
+        serviceCategory,
+        issueDescription: issueDescription || "N/A",
+        contactPersonName,
         contactNumber,
-        pickupAddress,
-        // Send the full array of items for distributors
-        distributorItems: isDistributor ? addedProducts.map(p => {
-          const productDetails = allProducts.find(prod => prod.id === p.productId) || {};
-          return {
-            productId: p.productId,
-            productName: productDetails.name || "Unknown Product",
-            sku: productDetails.sku || "Unknown SKU",
-            serviceCategory: p.serviceCategory,
-            issueDescription: p.issueDescription,
-            productImages: p.productImages,
-            warrantyCard: p.warrantyCard,
-            orderId: p.orderId,
-            purchaseDate: p.purchaseDate
-          };
-        }) : null,
-        attachments: [
-          { fileUrl: addedProducts[0].warrantyCard, fileType: "WARRANTY_CARD", fileName: "warranty_card" },
-          // Flatten all product images for the main attachments array if needed, or just let them stay in distributorItems.
-          ...(!isDistributor ? addedProducts[0].productImages.map((img, i) => ({
-            fileUrl: img,
-            fileType: "PRODUCT_IMAGE",
-            fileName: `product_img_${i + 1}`
-          })) : [])
-        ].filter(a => a.fileUrl)
+        email,
+        pickupAddress, // Complete Address
+        pincode,
+        attachments: warrantyCard ? [
+          { fileUrl: warrantyCard, fileType: "WARRANTY_CARD", fileName: "warranty_card" }
+        ] : []
       };
 
       const res = await serviceRequestService.createServiceRequest(payload);
       if (res.success) {
         const ticketId = res.data?.ticketId || (res as any).ticketId || "";
         toast.success(`Service request submitted successfully! Ticket ID: ${ticketId}`);
-        // Reset form
-        setAddedProducts([{
-          localId: Math.random().toString(36).substr(2, 9),
-          categoryLabel: "",
-          productId: "",
-          serviceCategory: SERVICE_CATEGORIES[0],
-          issueDescription: "",
-          productImages: [],
-          warrantyCard: "",
-          orderId: "",
-          purchaseDate: ""
-        }]);
-        setPreferredPickupDate("");
         
-        // Go back to dashboard list and refresh
-        setView("LIST");
-        fetchRequests();
+        setSubmittedRequest(res.data);
       } else {
         toast.error(res.message || "Failed to submit request");
       }
@@ -402,6 +388,11 @@ export default function ServiceRequestPage() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleCopyTicket = (ticketId: string) => {
+    navigator.clipboard.writeText(ticketId);
+    toast.success("Ticket ID copied to clipboard!");
   };
 
   // View individual ticket detail
@@ -455,32 +446,28 @@ export default function ServiceRequestPage() {
   // Render status badge
   const getStatusBadge = (status: string, cancellationReason?: string | null) => {
     switch (status) {
-      case "Pending Verification":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-950/20 dark:text-yellow-400">Pending Verification</span>;
-      case "Verified":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/20 dark:text-blue-400">Verified</span>;
-      case "Pickup Scheduled":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950/20 dark:text-purple-400">Pickup Scheduled</span>;
-      case "Product Collected":
-      case "Under Inspection":
-      case "Under Repair":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950/20 dark:text-indigo-400">{status}</span>;
-      case "Awaiting Cost Estimation":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-orange-100 text-orange-800 dark:bg-orange-950/20 dark:text-orange-400">Awaiting Cost Estimation</span>;
-      case "Awaiting Customer Approval":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-cyan-100 text-cyan-800 dark:bg-cyan-950/20 dark:text-cyan-400">Awaiting Customer Approval</span>;
-      case "Cost Approved":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-400">Cost Approved</span>;
-      case "Cancellation Requested":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-orange-100 text-orange-850 dark:bg-amber-950/20 dark:text-amber-400">Cancellation Requested</span>;
-      case "Service Cancelled":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800 dark:bg-red-950/20 dark:text-red-400">Service Cancelled</span>;
-      case "Request Rejected":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800 dark:bg-red-950/20 dark:text-red-400">Request Rejected</span>;
+      case "Request Submitted":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-yellow-555/10 text-yellow-500 border border-yellow-500/10">Request Submitted</span>;
+      case "Warranty Verified":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-blue-555/10 text-blue-500 border border-blue-500/10">Warranty Verified</span>;
+      case "Request Accepted":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-green-555/10 text-green-500 border border-green-500/10">Request Accepted</span>;
+      case "Technician Assigned":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-purple-555/10 text-purple-500 border border-purple-500/10">Technician Assigned</span>;
+      case "Technician On The Way":
+      case "Reached Customer Location":
+      case "Inspection Started":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-indigo-555/10 text-indigo-500 border border-indigo-500/10">{status}</span>;
+      case "Repair In Progress":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-cyan-555/10 text-cyan-500 border border-cyan-500/10">Repair In Progress</span>;
+      case "Waiting For Spare Parts":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-orange-555/10 text-orange-500 border border-orange-500/10">Waiting For Spare Parts</span>;
       case "Service Completed":
-      case "Ready For Delivery":
-      case "Delivered":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-green-100 text-green-800 dark:bg-green-950/20 dark:text-green-400">{status}</span>;
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-green-555/10 text-green-550 border border-green-550/10">Service Completed</span>;
+      case "Customer Feedback":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-555/10 text-emerald-500 border border-emerald-500/10">Customer Feedback</span>;
+      case "Request Rejected":
+        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-red-555/10 text-red-500 border border-red-500/10">Request Rejected</span>;
       case "Closed":
         if (cancellationReason) {
           return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-red-100 text-red-850 dark:bg-red-950/20 dark:text-red-400">Closed (Cancelled)</span>;
@@ -504,14 +491,18 @@ export default function ServiceRequestPage() {
 
   // Calculate current status index in timeline
   const getStatusIndex = (currentStatus: string, steps: any[]) => {
+    if (currentStatus === "Closed" || currentStatus === "Ready For Delivery" || currentStatus === "Delivered") {
+      const idx = steps.findIndex(step => step.key === "Service Completed");
+      return idx !== -1 ? idx : steps.length - 1;
+    }
     return steps.findIndex(step => step.key === currentStatus);
   };
 
-  if (authLoading || !user) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-950 font-sans">
         <Loader2 className="w-12 h-12 text-[#D71920] animate-spin" />
-        <p className="mt-4 text-sm font-semibold text-neutral-500 tracking-wider">Verifying session...</p>
+        <p className="mt-4 text-sm font-semibold text-neutral-500 tracking-wider">Loading Service Request portal...</p>
       </div>
     );
   }
@@ -522,8 +513,7 @@ export default function ServiceRequestPage() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 text-left overflow-x-hidden">
         
-        {/* VIEW: DASHBOARD LIST */}
-        {view === "LIST" && (
+        {view === "LIST" ? (
           <div className="space-y-8">
             
             {/* Header and Call to Action */}
@@ -582,7 +572,7 @@ export default function ServiceRequestPage() {
                            <th className="px-6 py-4">Ticket ID</th>
                            <th className="px-6 py-4">Product Name</th>
                            <th className="px-6 py-4">Warranty Status</th>
-                           <th className="px-6 py-4 hidden xl:table-cell">Preferred Pickup</th>
+                           <th className="px-6 py-4 hidden xl:table-cell">Technician Visit</th>
                            <th className="px-6 py-4">Current Status</th>
                            <th className="px-6 py-4 hidden xl:table-cell">Created Date</th>
                            <th className="px-6 py-4 text-right">Actions</th>
@@ -595,7 +585,16 @@ export default function ServiceRequestPage() {
                              <td className="px-6 py-4 font-semibold">{req.product?.name || "Product"}</td>
                              <td className="px-6 py-4">{getWarrantyBadge(getEffectiveWarrantyStatus(req))}</td>
                              <td className="px-6 py-4 text-xs font-semibold text-neutral-600 dark:text-neutral-350 whitespace-nowrap hidden xl:table-cell">
-                               {new Date(req.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                               {req.technicianName ? (
+                                  <div>
+                                    <p className="font-bold text-neutral-800 dark:text-neutral-200">{req.technicianName}</p>
+                                    <p className="text-[10px] text-neutral-400">
+                                      {req.expectedVisitDate ? new Date(req.expectedVisitDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <span className="text-neutral-400">Awaiting Assignment</span>
+                                )}
                              </td>
                              <td className="px-6 py-4">{getStatusBadge(getEffectiveCurrentStatus(req), req.cancellationReason)}</td>
                              <td className="px-6 py-4 text-xs text-neutral-500 dark:text-neutral-400 whitespace-nowrap hidden xl:table-cell">
@@ -653,9 +652,9 @@ export default function ServiceRequestPage() {
                       {/* Footer Info & Action */}
                       <div className="pt-3 border-t border-neutral-100 dark:border-slate-800 flex justify-between items-center text-xs">
                         <div>
-                          <span className="block text-[9px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-0.5">Preferred Pickup</span>
+                          <span className="block text-[9px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-0.5">Technician Visit</span>
                           <span className="font-semibold text-neutral-600 dark:text-neutral-350">
-                            {new Date(req.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            {req.technicianName ? `${req.technicianName} (${req.expectedVisitDate ? new Date(req.expectedVisitDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""})` : "Awaiting Assignment"}
                           </span>
                         </div>
                         
@@ -673,245 +672,74 @@ export default function ServiceRequestPage() {
               </div>
             )}
           </div>
-        )}
-
-        {/* VIEW: CREATE FORM */}
-        {view === "CREATE" && (
-          <div className="space-y-6 max-w-4xl mx-auto">
+        ) : (
+          <div className={cn(
+            "space-y-6 w-full mx-auto transition-all",
+            submittedRequest ? "max-w-7xl" : "max-w-4xl"
+          )}>
             
             {/* Header back row */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setView("LIST")}
-                className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 hover:bg-neutral-50 cursor-pointer"
-              >
-                <ArrowLeft size={16} />
-              </button>
-              <div>
-                <h1 className="text-2xl font-black">Submit Service Request</h1>
-                <p className="text-xs text-neutral-500">Provide details for validation, inspection, and repair</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-neutral-150/60 dark:border-slate-800/80 pb-4">
+              <div className="flex items-center gap-3">
+                {isAuthenticated && (
+                  <button
+                    type="button"
+                    onClick={() => setView("LIST")}
+                    className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 hover:bg-neutral-50 cursor-pointer text-neutral-800 dark:text-neutral-200"
+                  >
+                    <ArrowLeft size={16} />
+                  </button>
+                )}
+                <div>
+                  <h1 className="text-2xl font-black">Submit Service Request</h1>
+                  <p className="text-xs text-neutral-500">Provide details for validation, inspection, and repair</p>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <Link
+                  href="/track-service-request"
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-[#E11D2E] hover:bg-[#E11D2E] hover:text-white text-[#E11D2E] text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer bg-white dark:bg-slate-950 font-bold"
+                >
+                  <Search size={14} />
+                  <span>Track Existing Request</span>
+                </Link>
               </div>
             </div>
 
-            {/* Form Box */}
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 rounded-2xl p-6 sm:p-10 space-y-8 shadow-md text-left">
+            {/* Layout Grid */}
+            <div className={cn(
+              "grid grid-cols-1 gap-8",
+              submittedRequest ? "lg:grid-cols-2" : "grid-cols-1"
+            )}>
+              {/* Form Box */}
+              <form onSubmit={handleSubmit} className={cn(
+                "bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 rounded-2xl p-6 sm:p-10 space-y-8 shadow-md text-left h-fit",
+                submittedRequest && "opacity-75 pointer-events-none select-none"
+              )}>
               
-              {/* Per-Product Entry Section */}
-              <div className="space-y-6">
-                <div className="flex items-center justify-between border-b border-neutral-100 dark:border-slate-800/80 pb-2">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-[#D71920]">
-                    1. Product & Service Details
-                  </h3>
-                  {isDistributor && (
-                    <button
-                      type="button"
-                      onClick={() => setAddedProducts(prev => [...prev, {
-                        localId: Math.random().toString(36).substr(2, 9),
-                        categoryLabel: "",
-                        productId: "",
-                        serviceCategory: SERVICE_CATEGORIES[0],
-                        issueDescription: "",
-                        productImages: [],
-                        warrantyCard: "",
-                        orderId: "",
-                        purchaseDate: ""
-                      }])}
-                      className="px-3 py-1.5 text-xs font-bold text-[#D71920] bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-950/50 rounded-lg transition-colors flex items-center gap-1"
-                    >
-                      <Plus size={14} /> Add Product
-                    </button>
-                  )}
-                </div>
-
-                {loadingProducts ? (
-                  <div className="py-4 flex gap-2 items-center text-xs text-neutral-500 font-semibold"><Loader2 size={14} className="animate-spin" /> Loading your orders details...</div>
-                ) : (
-                  <div className="space-y-8">
-                    {addedProducts.map((product, idx) => (
-                      <div key={product.localId} className="p-5 border border-neutral-200 dark:border-slate-800 rounded-xl space-y-6 bg-neutral-50/30 dark:bg-slate-800/20 relative">
-                        {isDistributor && addedProducts.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setAddedProducts(prev => prev.filter(p => p.localId !== product.localId))}
-                            className="absolute top-4 right-4 p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-lg transition-colors"
-                          >
-                            <X size={16} />
-                          </button>
-                        )}
-                        
-                        {/* Product Selection */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                          {isDistributor && (
-                            <div>
-                              <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Category <span className="text-red-500">*</span></label>
-                              <CustomSelect
-                                required
-                                value={product.categoryLabel}
-                                onChange={(val) => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, categoryLabel: val, productId: "" } : p))}
-                                placeholder="Select category..."
-                                groups={[{
-                                  label: "Categories",
-                                  options: categories.map(c => ({ value: c, label: c }))
-                                }]}
-                              />
-                            </div>
-                          )}
-                          
-                          <div className={!isDistributor ? "sm:col-span-2" : ""}>
-                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Product Name <span className="text-red-500">*</span></label>
-                            <CustomSelect
-                              required
-                              value={product.productId}
-                              onChange={(val) => handleProductChange(val, product.localId)}
-                              placeholder="Select a product..."
-                              groups={
-                                isDistributor 
-                                  ? [{
-                                      label: product.categoryLabel ? `Products in ${product.categoryLabel}` : "Select a category first",
-                                      options: allProducts.filter(p => (p.categoryLabel || p.category) === product.categoryLabel).map(p => ({ value: p.id, label: p.name, subLabel: `SKU: ${p.sku || "N/A"}` }))
-                                    }]
-                                  : [{
-                                      label: "Your Purchased Products",
-                                      options: purchasedProducts.map(p => ({ value: p.id, label: p.name, subLabel: `SKU: ${p.sku || "N/A"}` }))
-                                    }]
-                              }
-                            />
-                          </div>
-                        </div>
-
-                        {/* Order ID & Purchase Date (Per Product) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                          <div>
-                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Order ID / Order Number (Optional)</label>
-                            <input
-                              type="text"
-                              placeholder="e.g. ORD-12345"
-                              value={product.orderId}
-                              onChange={(e) => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, orderId: e.target.value } : p))}
-                              className="w-full px-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Purchase Date <span className="text-red-500">*</span></label>
-                            <CustomDatePicker
-                              required
-                              value={product.purchaseDate}
-                              onChange={(val) => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, purchaseDate: val } : p))}
-                              placeholder="Select purchase date..."
-                              max={new Date().toISOString().split('T')[0]}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Service Category */}
-                        <div>
-                          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Service Category <span className="text-red-500">*</span></label>
-                          <div className="flex flex-wrap gap-2.5">
-                            {SERVICE_CATEGORIES.map(cat => (
-                              <button
-                                key={cat}
-                                type="button"
-                                onClick={() => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, serviceCategory: cat } : p))}
-                                className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                                  product.serviceCategory === cat
-                                    ? "bg-[#D71920] border-[#D71920] text-white shadow-md shadow-red-500/10"
-                                    : "bg-white border-neutral-200 dark:bg-slate-900 dark:border-slate-700 hover:border-neutral-300"
-                                }`}
-                              >
-                                {cat}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Issue Description */}
-                        <div>
-                          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Detailed Issue Description <span className="text-red-500">*</span></label>
-                          <textarea
-                            required
-                            rows={3}
-                            placeholder="Please describe in detail what is wrong with the appliance..."
-                            value={product.issueDescription}
-                            onChange={(e) => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, issueDescription: e.target.value } : p))}
-                            className="w-full px-4 py-3 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all resize-none"
-                          />
-                        </div>
-
-                        {/* Product Images & Warranty Card */}
-                        <div className="space-y-4">
-                          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider">Product Images & Warranty Card <span className="text-red-500">*</span></label>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-neutral-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/50 hover:bg-neutral-50 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
-                              <ImageIcon size={20} className="text-neutral-400 group-hover:text-[#D71920] mb-2 transition-colors" />
-                              <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 group-hover:text-[#D71920] transition-colors">Upload Product Images</span>
-                              <span className="text-[10px] text-neutral-400 mt-1">JPEG, PNG, WEBP (Max 5MB)</span>
-                              <input type="file" className="hidden" accept="image/*" multiple onChange={(e) => handleFileUpload(e, "PRODUCT_IMAGE", product.localId)} disabled={uploading} />
-                            </label>
-                            <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-neutral-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/50 hover:bg-neutral-50 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
-                              <FileText size={20} className="text-neutral-400 group-hover:text-[#D71920] mb-2 transition-colors" />
-                              <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 group-hover:text-[#D71920] transition-colors">Upload Warranty Card</span>
-                              <span className="text-[10px] text-neutral-400 mt-1">Optional for verification</span>
-                              <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => handleFileUpload(e, "WARRANTY_CARD", product.localId)} disabled={uploading} />
-                            </label>
-                          </div>
-                          
-                          {/* Preview uploaded images for this product */}
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {product.productImages.map((img, i) => (
-                              <div key={i} className="relative w-16 h-16 rounded overflow-hidden border border-neutral-200 dark:border-slate-700">
-                                <img src={img} alt={`Preview ${i+1}`} className="w-full h-full object-cover" />
-                                <button
-                                  type="button"
-                                  onClick={() => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, productImages: p.productImages.filter((_, index) => index !== i) } : p))}
-                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
-                                >
-                                  <X size={10} />
-                                </button>
-                              </div>
-                            ))}
-                            {product.warrantyCard && (
-                              <div className="relative w-16 h-16 rounded overflow-hidden border border-green-500 bg-green-50 dark:bg-green-900/20 flex flex-col items-center justify-center">
-                                <FileText size={16} className="text-green-600" />
-                                <span className="text-[8px] font-bold mt-1 text-green-700 uppercase">Warranty</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setAddedProducts(prev => prev.map(p => p.localId === product.localId ? { ...p, warrantyCard: "" } : p))}
-                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
-                                >
-                                  <X size={10} />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Pickup & Contact Information */}
+              {/* SECTION 1 – CUSTOMER DETAILS */}
               <div className="space-y-4">
                 <h3 className="text-sm font-black uppercase tracking-widest text-[#D71920] border-b border-neutral-100 dark:border-slate-800/80 pb-2">
-                  2. Pickup & Contact Information
+                  Section 1 – Customer Details
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Preferred Pickup Date <span className="text-red-500">*</span></label>
-                    <CustomDatePicker
-                      required
-                      value={preferredPickupDate}
-                      onChange={(val) => setPreferredPickupDate(val)}
-                      placeholder="Select pickup date..."
-                      min={new Date().toISOString().split('T')[0]}
-                    />
-                    <p className="text-[10px] text-neutral-400 mt-1">Our logistics partner will collect the product on or near this date.</p>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Full Name <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="Enter full name"
+                        value={contactPersonName}
+                        onChange={(e) => setContactPersonName(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                      />
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Contact Number <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Mobile Number <span className="text-red-500">*</span></label>
                     <div className="relative">
                       <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
                       <input
@@ -919,20 +747,50 @@ export default function ServiceRequestPage() {
                         required
                         placeholder="10-digit mobile number"
                         value={contactNumber}
-                        onChange={(e) => setContactNumber(e.target.value)}
+                        onChange={(e) => setContactNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                        className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Email Address <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <FileText size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="Enter email address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Pincode <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="6-digit pincode"
+                        value={pincode}
+                        onChange={(e) => setPincode(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Pickup Address <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Complete Address <span className="text-red-500">*</span></label>
                     <div className="relative">
                       <MapPin size={16} className="absolute left-3.5 top-5 text-neutral-400" />
                       <textarea
                         required
-                        rows={3}
-                        placeholder="Street details, locality, city, state and pincode"
+                        rows={2}
+                        placeholder="Street details, building number, locality, city and state"
                         value={pickupAddress}
                         onChange={(e) => setPickupAddress(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all resize-none"
@@ -942,27 +800,282 @@ export default function ServiceRequestPage() {
                 </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex gap-4 pt-4 border-t border-neutral-100 dark:border-slate-800">
-                <button
-                  type="submit"
-                  disabled={uploading}
-                  className="flex-1 py-3 bg-[#D71920] hover:bg-[#b8141a] text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-red-500/10 cursor-pointer disabled:opacity-50 text-center"
-                >
-                  {uploading ? "UPLOADING ATTACHMENTS..." : "SUBMIT SERVICE TICKET"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setView("LIST")}
-                  className="px-6 py-3 border border-neutral-300 hover:bg-neutral-50 text-sm font-bold rounded-xl transition-all cursor-pointer"
-                >
-                  CANCEL
-                </button>
+              {/* SECTION 2 – PRODUCT DETAILS */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-[#D71920] border-b border-neutral-100 dark:border-slate-800/80 pb-2">
+                  Section 2 – Product Details
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Category <span className="text-red-500">*</span></label>
+                    <CustomSelect
+                      required
+                      value={selectedCategory}
+                      onChange={(val) => {
+                        setSelectedCategory(val);
+                        setSelectedProductId("");
+                      }}
+                      placeholder="Select category..."
+                      groups={[{
+                        label: "Categories",
+                        options: categories.map(c => ({ value: c, label: c }))
+                      }]}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Product Name <span className="text-red-500">*</span></label>
+                    <CustomSelect
+                      required
+                      value={selectedProductId}
+                      onChange={(val) => setSelectedProductId(val)}
+                      placeholder={selectedCategory ? "Select product..." : "Please select a category first"}
+                      groups={[{
+                        label: selectedCategory ? `Products in ${selectedCategory}` : "Select a category first",
+                        options: allProducts
+                          .filter(p => {
+                            if (!selectedCategory) return false;
+                            const pCat = (p.categoryLabel || p.category || "").toLowerCase().replace(/\s+/g, "").trim();
+                            const sCat = selectedCategory.toLowerCase().replace(/\s+/g, "").trim();
+                            return pCat === sCat || pCat.includes(sCat) || sCat.includes(pCat);
+                          })
+                          .map(p => ({
+                            value: p.id,
+                            label: `${p.name} (SKU : ${p.sku || "N/A"})`
+                          }))
+                      }]}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Service Category <span className="text-red-500">*</span></label>
+                    <CustomSelect
+                      required
+                      value={serviceCategory}
+                      onChange={(val) => setServiceCategory(val)}
+                      placeholder="Select service category..."
+                      groups={[{
+                        label: "Service Categories",
+                        options: SERVICE_CATEGORIES.map(cat => ({ value: cat, label: cat }))
+                      }]}
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Detailed Issue Description <span className="text-red-500">*</span></label>
+                    <textarea
+                      required
+                      rows={3}
+                      placeholder="Please describe in detail what is wrong with the appliance..."
+                      value={issueDescription}
+                      onChange={(e) => setIssueDescription(e.target.value)}
+                      className="w-full px-4 py-3 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3 – PURCHASE DETAILS */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-[#D71920] border-b border-neutral-100 dark:border-slate-800/80 pb-2">
+                  Section 3 – Purchase Details
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Purchase Date <span className="text-red-500">*</span></label>
+                    <CustomDatePicker
+                      required
+                      value={purchaseDate}
+                      onChange={(val) => setPurchaseDate(val)}
+                      placeholder="Select purchase date..."
+                      max={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Purchase Place / Dealer Name <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Retailer Store, Amazon, Chennai"
+                      value={purchasePlace}
+                      onChange={(e) => setPurchasePlace(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2 space-y-2">
+                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider">Warranty Card Upload <span className="text-red-500">*</span></label>
+                    <div className="grid grid-cols-1 gap-4">
+                      <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-neutral-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900/50 hover:bg-neutral-50 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
+                        <FileText size={20} className="text-neutral-400 group-hover:text-[#D71920] mb-2 transition-colors" />
+                        <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300 group-hover:text-[#D71920] transition-colors">Upload Warranty Card</span>
+                        <span className="text-[10px] text-neutral-400 mt-1">JPEG, PNG, PDF (Max 5MB)</span>
+                        <input type="file" className="hidden" accept="image/*,.pdf" onChange={handleFileUpload} disabled={uploading} />
+                      </label>
+                    </div>
+                    
+                    {warrantyCard && (
+                      <div className="flex gap-2 mt-2">
+                        <div className="relative w-16 h-16 rounded overflow-hidden border border-green-500 bg-green-50 dark:bg-green-900/20 flex flex-col items-center justify-center">
+                          <FileText size={16} className="text-green-600" />
+                          <span className="text-[8px] font-bold mt-1 text-green-700 uppercase">Uploaded</span>
+                          <button
+                            type="button"
+                            onClick={() => setWarrantyCard("")}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 4 – WARRANTY VALIDATION */}
+              {selectedProductId && purchaseDate && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-[#D71920] border-b border-neutral-100 dark:border-slate-800/80 pb-2">
+                    Section 4 – Warranty Validation
+                  </h3>
+                  <div className="p-5 border rounded-2xl bg-neutral-50/50 dark:bg-slate-900/40 border-neutral-200 dark:border-slate-800 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold">Calculated Status:</span>
+                      {warrantyStatus === "Under Warranty" ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black rounded-full bg-green-500/10 text-green-500 border border-green-500/25">
+                          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                          <span>🟢 Under Warranty</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black rounded-full bg-red-500/10 text-red-500 border border-red-500/25">
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                          <span>🔴 Warranty Expired</span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-bold text-neutral-600 dark:text-neutral-400">
+                      {warrantyStatus === "Under Warranty"
+                        ? "Your product is covered under warranty."
+                        : "Warranty has expired. Service charges may apply after inspection."}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION 5 – SUBMIT */}
+              <div className="pt-6 border-t border-neutral-100 dark:border-slate-800 space-y-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-[#D71920]">
+                  Section 5 – Submit
+                </h3>
+                <div className="flex gap-4">
+                  <button
+                    type="submit"
+                    disabled={uploading || !warrantyStatus}
+                    className="flex-1 py-3 bg-[#D71920] hover:bg-[#b8141a] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md shadow-red-500/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                  >
+                    {uploading ? "UPLOADING ATTACHMENTS..." : "SUBMIT SERVICE TICKET"}
+                  </button>
+                  {isAuthenticated && (
+                    <button
+                      type="button"
+                      onClick={() => setView("LIST")}
+                      className="px-6 py-3 border border-neutral-300 hover:bg-neutral-50 dark:border-slate-700 dark:hover:bg-slate-900 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                    >
+                      CANCEL
+                    </button>
+                  )}
+                </div>
               </div>
 
             </form>
+
+            {/* Confirmation details segment on the right */}
+            {submittedRequest && (
+              <div className="bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 rounded-2xl p-8 shadow-md space-y-8 animate-in fade-in zoom-in-95 duration-200 text-left h-fit lg:sticky lg:top-6 w-full">
+                {/* Success Message Header */}
+                <div className="flex flex-col items-center text-center space-y-4 border-b border-neutral-100 dark:border-slate-800/80 pb-6">
+                  <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center text-green-500">
+                    <CheckCircle size={36} />
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-black text-neutral-900 dark:text-white uppercase tracking-wide">
+                    ✅ Service Request Submitted Successfully
+                  </h2>
+                  <div className="space-y-1 text-sm text-neutral-500 dark:text-neutral-400">
+                    <p className="font-semibold text-neutral-600 dark:text-neutral-350">Thank you for contacting SD Smart Appliances.</p>
+                    <p>Your request has been registered successfully.</p>
+                  </div>
+                </div>
+
+                {/* Ticket ID Box */}
+                <div className="bg-neutral-50 dark:bg-slate-950 p-5 rounded-2xl border border-neutral-200/60 dark:border-slate-800 flex flex-col items-center justify-center text-center space-y-2 relative overflow-hidden">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Ticket ID</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xl sm:text-2xl font-black text-[#E11D2E] tracking-wider">
+                      {submittedRequest.ticketId}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyTicket(submittedRequest.ticketId)}
+                      className="p-1.5 rounded-lg text-neutral-400 hover:text-[#E11D2E] hover:bg-neutral-100 dark:hover:bg-slate-900 transition-colors cursor-pointer flex items-center justify-center"
+                      title="Copy Ticket ID"
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Estimated Processing Time */}
+                <div className="p-5 border-l-4 border-[#E11D2E] bg-[#E11D2E]/5 rounded-r-2xl space-y-2 text-xs sm:text-sm leading-relaxed text-neutral-600 dark:text-neutral-350">
+                  <p className="font-extrabold text-[#E11D2E] text-xs sm:text-sm uppercase tracking-wide mb-1">Estimated Processing Time</p>
+                  <p className="text-base font-black text-neutral-900 dark:text-white">2–7 Working Days</p>
+                  <p className="text-neutral-500 dark:text-neutral-400">A technician will be assigned after warranty verification.</p>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-neutral-100 dark:border-slate-800">
+                  <Link
+                    href={`/track-service-request?ticketId=${submittedRequest.ticketId}&mobileNumber=${contactNumber}`}
+                    className="flex-1 py-3 bg-[#E11D2E] hover:bg-[#c11524] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md shadow-red-500/10 cursor-pointer text-center font-bold flex items-center justify-center"
+                  >
+                    Track My Request
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setSubmittedRequest(null);
+                      // Reset all form inputs
+                      setContactPersonName("");
+                      setContactNumber("");
+                      setEmail("");
+                      setPickupAddress("");
+                      setPincode("");
+                      setSelectedCategory("");
+                      setSelectedProductId("");
+                      setPurchaseDate("");
+                      setPurchasePlace("");
+                      setServiceCategory("Repair");
+                      setIssueDescription("");
+                      setWarrantyCard("");
+                      setWarrantyStatus(null);
+                      
+                      if (isAuthenticated) {
+                        setView("LIST");
+                        fetchRequests();
+                      } else {
+                        setView("CREATE");
+                      }
+                    }}
+                    className="flex-1 py-3 border border-neutral-300 dark:border-slate-700 hover:bg-neutral-50 dark:hover:bg-slate-900 text-neutral-700 dark:text-neutral-300 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer text-center font-bold"
+                  >
+                    Raise Another Request
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      )}
 
       </main>
 
@@ -1106,6 +1219,12 @@ export default function ServiceRequestPage() {
                           <p className="text-neutral-400 mb-0.5">Order ID</p>
                           <p className="font-semibold font-mono break-all">{selectedRequest.orderId || "N/A"}</p>
                         </div>
+                        {selectedRequest.purchasePlace && (
+                          <div>
+                            <p className="text-neutral-400 mb-0.5">Purchase Place / Dealer Name</p>
+                            <p className="font-semibold break-words">{selectedRequest.purchasePlace}</p>
+                          </div>
+                        )}
                         <div>
                           <p className="text-neutral-400 mb-0.5">Purchase Date</p>
                           <p className="font-semibold">
@@ -1134,20 +1253,26 @@ export default function ServiceRequestPage() {
                           <p className="font-bold text-neutral-700 dark:text-neutral-200 break-words">{selectedRequest.serviceCategory}</p>
                         </div>
                         <div>
-                          <p className="text-neutral-400 mb-0.5">Preferred Pickup Date</p>
-                          <p className="font-semibold text-neutral-700 dark:text-neutral-200">
-                            {new Date(selectedRequest.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                          </p>
+                          <p className="text-neutral-400 mb-0.5">Contact Person Name</p>
+                          <p className="font-bold text-neutral-700 dark:text-neutral-200 break-words">{selectedRequest.contactPersonName || (selectedRequest.user?.firstName + " " + selectedRequest.user?.lastName)}</p>
                         </div>
-                        <div className="col-span-2">
+                        <div>
                           <p className="text-neutral-400 mb-0.5">Contact Number</p>
                           <p className="font-semibold text-neutral-700 dark:text-neutral-200 flex items-center gap-1.5 break-all">
                             <Phone size={12} className="text-neutral-400" />
                             <span>{selectedRequest.contactNumber}</span>
                           </p>
                         </div>
+                        <div>
+                          <p className="text-neutral-400 mb-0.5">Email Address</p>
+                          <p className="font-semibold text-neutral-700 dark:text-neutral-200 break-all">{selectedRequest.email || selectedRequest.user?.email || "N/A"}</p>
+                        </div>
+                        <div>
+                          <p className="text-neutral-400 mb-0.5">Pincode</p>
+                          <p className="font-semibold text-neutral-700 dark:text-neutral-200">{selectedRequest.pincode || "N/A"}</p>
+                        </div>
                         <div className="col-span-2">
-                          <p className="text-neutral-400 mb-0.5">Pickup Address</p>
+                          <p className="text-neutral-400 mb-0.5">Complete Address</p>
                           <p className="font-semibold text-neutral-700 dark:text-neutral-200 flex items-start gap-1.5 break-words">
                             <MapPin size={12} className="text-neutral-400 mt-0.5 flex-shrink-0" />
                             <span>{selectedRequest.pickupAddress}</span>
@@ -1159,6 +1284,29 @@ export default function ServiceRequestPage() {
                             {selectedRequest.issueDescription}
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+ 
+                {/* Technician Details */}
+                {selectedRequest.technicianName && (
+                  <div className="p-4 bg-red-500/5 dark:bg-slate-850 border border-red-500/10 dark:border-slate-800 rounded-xl space-y-2.5">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-[#D71920]">Technician Details</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs sm:text-sm text-left">
+                      <div>
+                        <p className="text-neutral-400 mb-0.5">Technician Name</p>
+                        <p className="font-bold text-neutral-800 dark:text-neutral-200">{selectedRequest.technicianName}</p>
+                      </div>
+                      <div>
+                        <p className="text-neutral-400 mb-0.5">Contact Number</p>
+                        <p className="font-bold text-neutral-800 dark:text-neutral-200">{selectedRequest.technicianPhone}</p>
+                      </div>
+                      <div>
+                        <p className="text-neutral-400 mb-0.5">Expected Visit Date</p>
+                        <p className="font-bold text-neutral-800 dark:text-neutral-200">
+                          {selectedRequest.expectedVisitDate ? new Date(selectedRequest.expectedVisitDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}
+                        </p>
                       </div>
                     </div>
                   </div>

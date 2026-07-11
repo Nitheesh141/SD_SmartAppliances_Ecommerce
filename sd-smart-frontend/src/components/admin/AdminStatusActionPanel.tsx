@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { 
   Calendar, Info, AlertCircle, 
-  Check, ShieldCheck, Truck, ShieldAlert, Plus, MessageSquare, X, CheckCircle
+  Check, ShieldCheck, Truck, ShieldAlert, Plus, MessageSquare, X, CheckCircle, User, Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { serviceRequestService } from "@/services/serviceRequestService";
@@ -36,27 +36,65 @@ export function AdminStatusActionPanel({
   const [sparePartsCost, setSparePartsCost] = useState<string>("");
   const [inspectionRemarks, setInspectionRemarks] = useState<string>("");
 
+  const [techName, setTechName] = useState("");
+  const [techPhone, setTechPhone] = useState("");
+  const [expectedDate, setExpectedDate] = useState("");
+  const [internalRemarks, setInternalRemarks] = useState("");
+
   useEffect(() => {
     if (currentItem) {
       setServiceCharge(currentItem.serviceCharge?.toString() || "");
       setSparePartsCost(currentItem.sparePartsCost?.toString() || "");
       setInspectionRemarks(currentItem.inspectionRemarks || "");
+      
+      setTechName(currentItem.technicianName || "");
+      setTechPhone(currentItem.technicianPhone || "");
+      setExpectedDate(currentItem.expectedVisitDate ? new Date(currentItem.expectedVisitDate).toISOString().split('T')[0] : "");
+      setInternalRemarks(currentItem.internalRemarks || "");
+      
       setActionRemarks("");
     }
   }, [currentItem]);
+
+  const handleTechnicianAssignment = async () => {
+    if (!techName.trim()) { toast.error("Technician Name is required"); return; }
+    if (!techPhone.trim()) { toast.error("Technician Mobile Number is required"); return; }
+    if (techPhone.trim().length !== 10) { toast.error("Technician Mobile Number must be exactly 10 digits"); return; }
+    if (!expectedDate) { toast.error("Expected Visit Date is required"); return; }
+
+    setUpdatingStatus(true);
+    try {
+      const payload = {
+        status: "Technician Assigned",
+        technicianName: techName.trim(),
+        technicianPhone: techPhone.trim(),
+        expectedVisitDate: expectedDate,
+        expectedVisitTime: "",
+        internalRemarks: internalRemarks.trim(),
+        remarks: `Technician ${techName.trim()} assigned. Visit scheduled for ${new Date(expectedDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`
+      };
+
+      const res = await serviceRequestService.updateServiceRequestStatus(request.id, payload);
+
+      if (res.success) {
+        toast.success(`Technician assigned successfully!`);
+        onUpdate();
+      } else {
+        toast.error(res.message || "Failed to assign technician");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to assign technician");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const handleStatusUpdate = async (newStatus: string) => {
     setUpdatingStatus(true);
     try {
       let remarks = actionRemarks.trim();
       
-      if (newStatus === "Pickup Scheduled") {
-        const formattedDate = new Date(request.preferredPickupDate).toLocaleDateString("en-IN", {
-          day: "numeric", month: "long", year: "numeric"
-        });
-        remarks = `Pickup confirmed for ${formattedDate}. ${remarks}`;
-      }
-
       let payload: any = {
         status: newStatus,
         remarks: remarks || undefined
@@ -66,16 +104,8 @@ export function AdminStatusActionPanel({
         payload.itemIndex = itemIndex;
       }
 
-      if (newStatus === "Awaiting Customer Approval") {
-        if (!serviceCharge) {
-          toast.error("Service Charge is required");
-          setUpdatingStatus(false);
-          return;
-        }
-        payload.serviceCharge = parseFloat(serviceCharge);
-        payload.sparePartsCost = sparePartsCost ? parseFloat(sparePartsCost) : 0;
-        payload.inspectionRemarks = inspectionRemarks.trim();
-        payload.remarks = remarks || `Estimated Service Cost: ₹${payload.serviceCharge + payload.sparePartsCost} (Service Charge: ₹${payload.serviceCharge}, Spare Parts: ₹${payload.sparePartsCost}). Remarks: ${payload.inspectionRemarks}`;
+      if (newStatus === "Awaiting Cost Estimation") {
+        payload.remarks = remarks || `Moved to Awaiting Cost Estimation.`;
       }
 
       const res = await serviceRequestService.updateServiceRequestStatus(request.id, payload);
@@ -108,215 +138,238 @@ export function AdminStatusActionPanel({
         </div>
 
         <div className="space-y-4">
-          {currentItem.currentStatus === "Pending Verification" && (
-            <div className="flex flex-col gap-3">
-              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Action Required</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleStatusUpdate("Verified")}
-                  disabled={updatingStatus}
-                  className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1"
-                >
-                  <Check size={14} />
-                  <span>VERIFY REQUEST</span>
-                </button>
-                <button
-                  onClick={() => handleStatusUpdate("Request Rejected")}
-                  disabled={updatingStatus}
-                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1"
-                >
-                  <X size={14} />
-                  <span>REJECT REQUEST</span>
-                </button>
+          {currentItem.currentStatus === "Request Submitted" && (
+            <div className="space-y-4">
+              {/* Warranty Verification section displayed first */}
+              <div className="p-4 rounded-xl border border-neutral-800 dark:border-slate-800 bg-neutral-900/10 dark:bg-slate-900/40 text-left space-y-3">
+                <h5 className="text-[10px] font-black uppercase tracking-wider text-[#D71920]">Warranty Verification</h5>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <p className="text-neutral-500">Purchase Date</p>
+                    <p className="font-bold text-neutral-800 dark:text-neutral-200">
+                      {new Date(request.purchaseDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-neutral-500">Warranty Duration</p>
+                    <p className="font-bold text-neutral-800 dark:text-neutral-200">{request.product?.warranty || "1 Year"}</p>
+                  </div>
+                  <div className="col-span-2 border-t border-neutral-200 dark:border-slate-800 pt-2 flex items-center justify-between">
+                    <span className="text-neutral-500">Warranty Status:</span>
+                    {request.warrantyStatus === "Under Warranty" ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-green-500">
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <span>Under Warranty</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-red-500">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                        <span>Warranty Expired</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider text-left">Action Required</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleStatusUpdate("Request Accepted")}
+                    disabled={updatingStatus}
+                    className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1"
+                  >
+                    <Check size={14} />
+                    <span>ACCEPT REQUEST</span>
+                  </button>
+                  <button
+                    onClick={() => handleStatusUpdate("Request Rejected")}
+                    disabled={updatingStatus}
+                    className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1"
+                  >
+                    <X size={14} />
+                    <span>REJECT REQUEST</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
-          {currentItem.currentStatus === "Verified" && (
-            <div className="space-y-3">
-              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Action Required: Schedule Pickup</p>
-              <div className="p-3 bg-neutral-50 dark:bg-slate-850 rounded-xl border border-neutral-100 dark:border-slate-800 text-left">
-                <p className="text-[10px] text-neutral-500 uppercase font-bold tracking-wider mb-1">Customer Selected Date</p>
-                <p className="font-bold text-neutral-800 dark:text-neutral-200">
-                  {new Date(request.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                </p>
+          {currentItem.currentStatus === "Request Accepted" && (
+            <div className="space-y-3.5 text-left">
+              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Technician Assignment</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Technician Name *</label>
+                  <input
+                    type="text"
+                    placeholder="Technician Name"
+                    value={techName}
+                    onChange={(e) => setTechName(e.target.value)}
+                    className={cn(
+                      "w-full px-3 py-2 text-xs rounded-xl border outline-none",
+                      isDark ? "bg-slate-950 border-neutral-800 text-white" : "bg-white border-neutral-300"
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Technician Mobile *</label>
+                  <input
+                    type="text"
+                    placeholder="Technician Phone"
+                    value={techPhone}
+                    onChange={(e) => setTechPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    className={cn(
+                      "w-full px-3 py-2 text-xs rounded-xl border outline-none",
+                      isDark ? "bg-slate-950 border-neutral-800 text-white" : "bg-white border-neutral-300"
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Expected Visit Date *</label>
+                  <input
+                    type="date"
+                    value={expectedDate}
+                    onChange={(e) => setExpectedDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className={cn(
+                      "w-full px-3 py-2 text-xs rounded-xl border outline-none",
+                      isDark ? "bg-slate-950 border-neutral-800 text-white" : "bg-white border-neutral-300"
+                    )}
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Internal Remarks (Optional)</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Private notes..."
+                    value={internalRemarks}
+                    onChange={(e) => setInternalRemarks(e.target.value)}
+                    className={cn(
+                      "w-full px-3 py-2 text-xs rounded-xl border outline-none resize-none",
+                      isDark ? "bg-slate-950 border-neutral-800 text-white" : "bg-white border-neutral-300"
+                    )}
+                  />
+                </div>
               </div>
+
               <button
-                onClick={() => handleStatusUpdate("Pickup Scheduled")}
+                onClick={handleTechnicianAssignment}
                 disabled={updatingStatus}
-                className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
               >
-                <Calendar size={15} />
-                <span>CONFIRM PICKUP SCHEDULED</span>
+                <Plus size={15} />
+                <span>SAVE & ASSIGN TECHNICIAN</span>
               </button>
             </div>
           )}
 
-          {currentItem.currentStatus === "Pickup Scheduled" && (
+          {currentItem.currentStatus === "Technician Assigned" && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl border border-neutral-200 dark:border-slate-800 bg-neutral-50 dark:bg-slate-900/30 text-left space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-wider text-purple-500">Assigned Technician</p>
+                <p className="text-xs font-bold text-neutral-800 dark:text-neutral-200">{currentItem.technicianName} ({currentItem.technicianPhone})</p>
+                <p className="text-[10px] text-neutral-500 dark:text-neutral-400">Visit Scheduled: {currentItem.expectedVisitDate ? new Date(currentItem.expectedVisitDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""}</p>
+                {currentItem.internalRemarks && (
+                  <p className="text-[10px] text-neutral-400 italic">Remarks: "{currentItem.internalRemarks}"</p>
+                )}
+              </div>
+              <button
+                onClick={() => handleStatusUpdate("Technician On The Way")}
+                disabled={updatingStatus}
+                className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Truck size={15} />
+                <span>MARK TECHNICIAN ON THE WAY</span>
+              </button>
+            </div>
+          )}
+
+          {currentItem.currentStatus === "Technician On The Way" && (
             <button
-              onClick={() => handleStatusUpdate("Product Collected")}
+              onClick={() => handleStatusUpdate("Reached Customer Location")}
               disabled={updatingStatus}
               className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Truck size={15} />
-              <span>MARK PRODUCT COLLECTED</span>
+              <span>MARK REACHED LOCATION</span>
             </button>
           )}
 
-          {currentItem.currentStatus === "Product Collected" && (
+          {currentItem.currentStatus === "Reached Customer Location" && (
             <button
-              onClick={() => handleStatusUpdate("Under Inspection")}
+              onClick={() => handleStatusUpdate("Inspection Started")}
               disabled={updatingStatus}
               className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
             >
-              <Info size={15} />
-              <span>MOVE TO UNDER INSPECTION</span>
+              <Clock size={15} />
+              <span>MARK INSPECTION STARTED</span>
             </button>
           )}
 
-          {currentItem.currentStatus === "Under Inspection" && (
-            currentItem.warrantyStatus === "Warranty Expired" ? (
-              <button
-                onClick={() => handleStatusUpdate("Awaiting Cost Estimation")}
-                disabled={updatingStatus}
-                className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <Info size={15} />
-                <span>MOVE TO AWAITING COST ESTIMATION</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => handleStatusUpdate("Under Repair")}
-                disabled={updatingStatus}
-                className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <Plus size={15} />
-                <span>MOVE TO UNDER REPAIR</span>
-              </button>
-            )
-          )}
-
-          {currentItem.currentStatus === "Awaiting Cost Estimation" && (
-            <div className="text-xs text-orange-400 font-semibold text-center py-2 bg-orange-500/5 rounded-xl border border-orange-500/10">
-              Please enter the service charges in the section below to proceed.
-            </div>
-          )}
-
-          {currentItem.currentStatus === "Awaiting Customer Approval" && (
-            <div className="text-xs text-cyan-400 font-semibold text-center py-2 bg-cyan-500/5 rounded-xl border border-cyan-500/10">
-              Estimated cost is sent. Awaiting Customer/Distributor Approval.
-            </div>
-          )}
-
-          {currentItem.currentStatus === "Cost Approved" && (
+          {currentItem.currentStatus === "Inspection Started" && (
             <button
-              onClick={() => handleStatusUpdate("Under Repair")}
+              onClick={() => handleStatusUpdate("Repair In Progress")}
               disabled={updatingStatus}
               className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Plus size={15} />
-              <span>START REPAIR PROCESS</span>
+              <span>MARK REPAIR IN PROGRESS</span>
             </button>
           )}
 
-          {currentItem.currentStatus === "Cancellation Requested" && (() => {
-            const phone = request.contactNumber || request.user?.phoneNumber;
-            const isPhoneAvailable = !!phone && phone.trim().length > 0;
-            const customerName = request.user ? `${request.user.firstName} ${request.user.lastName}` : "Customer";
-            return (
-              <div className="flex flex-col gap-3.5 p-4 rounded-xl border border-orange-500/10 bg-orange-500/5 text-left">
-                <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider">
-                  <AlertCircle size={15} />
-                  <span>Cancellation Requested by User</span>
-                </div>
-                
-                <div className="text-xs text-neutral-300 bg-neutral-900/40 p-3 rounded-lg border border-neutral-800 italic">
-                  <span className="font-extrabold text-[10px] uppercase text-neutral-400 block mb-1">Cancelled Message:</span>
-                  "{currentItem.cancellationReason}"
-                </div>
-
-                <div className="text-xs space-y-1.5 text-neutral-400">
-                  <div>Customer Name: <span className="text-neutral-200 font-bold">{customerName}</span></div>
-                  <div>Customer Phone: <span className="text-neutral-200 font-mono font-bold">{isPhoneAvailable ? phone : "Not Available"}</span></div>
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    onClick={() => handleStatusUpdate("Service Cancelled")}
-                    disabled={updatingStatus}
-                    className="w-full py-2.5 bg-red-650 hover:bg-red-750 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Check size={13} />
-                    <span>CONFIRM CANCELLATION</span>
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
-
-          {currentItem.currentStatus === "Service Cancelled" && (
-            <div className="flex flex-col gap-3">
-              <div className="text-xs text-red-400 font-semibold text-center py-2 bg-red-500/5 rounded-xl border border-red-500/10">
-                Service request was rejected/cancelled by the customer.
-              </div>
-              {currentItem.cancellationReason && (
-                <div className="text-xs text-neutral-300 bg-neutral-900/40 p-3 rounded-lg border border-neutral-800 italic">
-                  <span className="font-extrabold text-[10px] uppercase text-neutral-400 block mb-1">Cancellation Reason:</span>
-                  "{currentItem.cancellationReason}"
-                </div>
+          {(currentItem.currentStatus === "Repair In Progress" || currentItem.currentStatus === "Waiting For Spare Parts") && (
+            <div className="space-y-3">
+              {currentItem.currentStatus === "Repair In Progress" && (
+                <button
+                  onClick={() => handleStatusUpdate("Waiting For Spare Parts")}
+                  disabled={updatingStatus}
+                  className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Info size={15} />
+                  <span>WAITING FOR SPARE PARTS</span>
+                </button>
+              )}
+              {currentItem.currentStatus === "Waiting For Spare Parts" && (
+                <button
+                  onClick={() => handleStatusUpdate("Repair In Progress")}
+                  disabled={updatingStatus}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Plus size={15} />
+                  <span>RESUME REPAIR PROCESS</span>
+                </button>
               )}
               <button
-                onClick={() => handleStatusUpdate("Closed")}
+                onClick={() => handleStatusUpdate("Service Completed")}
                 disabled={updatingStatus}
-                className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <ShieldCheck size={15} />
-                <span>CLOSE TICKET</span>
+                <CheckCircle size={15} />
+                <span>MARK SERVICE COMPLETED</span>
               </button>
             </div>
           )}
 
-          {currentItem.currentStatus === "Under Repair" && (
-            <button
-              onClick={() => handleStatusUpdate("Service Completed")}
-              disabled={updatingStatus}
-              className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <CheckCircle size={15} />
-              <span>MOVE TO SERVICE COMPLETED</span>
-            </button>
-          )}
-
           {currentItem.currentStatus === "Service Completed" && (
             <button
-              onClick={() => handleStatusUpdate("Ready For Delivery")}
+              onClick={() => handleStatusUpdate("Customer Feedback")}
               disabled={updatingStatus}
               className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
             >
-              <Truck size={15} />
-              <span>MARK READY FOR DELIVERY</span>
+              <MessageSquare size={15} />
+              <span>COLLECT CUSTOMER FEEDBACK</span>
             </button>
           )}
 
-          {currentItem.currentStatus === "Ready For Delivery" && (
-            <button
-              onClick={() => handleStatusUpdate("Delivered")}
-              disabled={updatingStatus}
-              className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <CheckCircle size={15} />
-              <span>MARK DELIVERED</span>
-            </button>
-          )}
-
-          {currentItem.currentStatus === "Delivered" && (
+          {currentItem.currentStatus === "Customer Feedback" && (
             <button
               onClick={() => handleStatusUpdate("Closed")}
               disabled={updatingStatus}
               className="w-full py-3 bg-[#D71920] hover:bg-[#b8141a] text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5"
             >
               <ShieldCheck size={15} />
-              <span>CLOSE TICKET</span>
+              <span>CLOSE SERVICE TICKET</span>
             </button>
           )}
 

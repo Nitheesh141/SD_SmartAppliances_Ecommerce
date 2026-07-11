@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [didInit, setDidInit] = useState(false);
 
   // Check if user is logged in on mount
   useEffect(() => {
@@ -66,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("Auth check failed:", error);
       } finally {
         setLoading(false);
+        setDidInit(true);
       }
     };
 
@@ -183,6 +185,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("userProfile");
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("adminLandingBypass");
+    }
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -278,6 +283,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   };
+
+  // Sync user profile state with cookies for Server-Side routing
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (user) {
+        document.cookie = `userProfile=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=86400; SameSite=Lax`;
+      } else if (didInit) {
+        document.cookie = "userProfile=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+        document.cookie = "adminLandingBypass=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+      }
+    }
+  }, [user, didInit]);
 
   return (
     <AuthContext.Provider

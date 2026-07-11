@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { CheckCircle2, Building2, MapPin, CreditCard, Banknote, ShieldCheck, Plus, ArrowRight, Loader2, Truck, Package, Tag, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -111,6 +112,12 @@ export default function CheckoutPage() {
 
     if (!newAddress.fullName || !newAddress.mobileNumber || !newAddress.addressLine1 || !newAddress.city || !newAddress.state || !newAddress.pincode) {
       setAddressError("Please fill all mandatory fields.");
+      return;
+    }
+
+    if (newAddress.mobileNumber.length !== 10) {
+      setAddressError("Mobile Number must be exactly 10 digits.");
+      toast.error("Mobile Number must be exactly 10 digits.");
       return;
     }
 
@@ -497,7 +504,7 @@ export default function CheckoutPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Mobile Number *</label>
-                      <input type="tel" required value={newAddress.mobileNumber} onChange={e => setNewAddress({ ...newAddress, mobileNumber: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
+                      <input type="tel" required value={newAddress.mobileNumber} onChange={e => setNewAddress({ ...newAddress, mobileNumber: e.target.value.replace(/\D/g, "").slice(0, 10) })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Company Name (Optional)</label>

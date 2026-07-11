@@ -158,65 +158,197 @@ export default function AdminServiceRequestsPage() {
     const effStatus = getEffectiveCurrentStatus(req);
     switch (activeTab) {
       case "PENDING_VERIFICATION":
-        return effStatus === "Pending Verification";
+        return effStatus === "Request Submitted";
       case "PICKUP_SCHEDULED":
-        return effStatus === "Pickup Scheduled";
+        return ["Request Accepted", "Technician Assigned"].includes(effStatus);
       case "UNDER_SERVICE":
-        return ["Product Collected", "Under Inspection", "Awaiting Cost Estimation", "Awaiting Customer Approval", "Cost Approved", "Under Repair"].includes(effStatus);
+        return ["Technician On The Way", "Reached Customer Location", "Inspection Started", "Repair In Progress", "Waiting For Spare Parts"].includes(effStatus);
       case "COMPLETED":
-        return ["Service Completed", "Ready For Delivery", "Delivered"].includes(effStatus);
+        return ["Service Completed", "Customer Feedback"].includes(effStatus);
       case "CLOSED":
-        return ["Closed", "Service Cancelled", "Request Rejected"].includes(effStatus);
+        return ["Closed", "Request Rejected"].includes(effStatus);
       case "ALL":
       default:
         return true;
     }
   });
-
+ 
   // Calculate KPI metrics
   const totalRequests = requests.length;
-  const pendingRequests = requests.filter(r => getEffectiveCurrentStatus(r) === "Pending Verification").length;
-  const pickupScheduledRequests = requests.filter(r => getEffectiveCurrentStatus(r) === "Pickup Scheduled").length;
-  const underServiceRequests = requests.filter(r => ["Product Collected", "Under Inspection", "Awaiting Cost Estimation", "Awaiting Customer Approval", "Cost Approved", "Under Repair"].includes(getEffectiveCurrentStatus(r))).length;
-  const completedRequests = requests.filter(r => ["Service Completed", "Ready For Delivery", "Delivered"].includes(getEffectiveCurrentStatus(r))).length;
-  const closedRequests = requests.filter(r => ["Closed", "Service Cancelled", "Request Rejected"].includes(getEffectiveCurrentStatus(r))).length;
+  const pendingRequests = requests.filter(r => getEffectiveCurrentStatus(r) === "Request Submitted").length;
+  const pickupScheduledRequests = requests.filter(r => ["Request Accepted", "Technician Assigned"].includes(getEffectiveCurrentStatus(r))).length;
+  const underServiceRequests = requests.filter(r => ["Technician On The Way", "Reached Customer Location", "Inspection Started", "Repair In Progress", "Waiting For Spare Parts"].includes(getEffectiveCurrentStatus(r))).length;
+  const completedRequests = requests.filter(r => ["Service Completed", "Customer Feedback"].includes(getEffectiveCurrentStatus(r))).length;
+  const closedRequests = requests.filter(r => ["Closed", "Request Rejected"].includes(getEffectiveCurrentStatus(r))).length;
 
   // Render Status Badge
   const getStatusBadge = (status: string, cancellationReason?: string | null) => {
+    const isDarkTheme = theme === "dark";
     switch (status) {
+      case "Request Submitted":
       case "Pending Verification":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-yellow-500/10 text-yellow-400">Pending Verification</span>;
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" 
+              : "bg-yellow-50 text-yellow-800 border-yellow-200"
+          )}>
+            {status}
+          </span>
+        );
+      case "Warranty Verified":
       case "Verified":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-blue-500/10 text-blue-400">Verified</span>;
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-blue-500/10 text-blue-400 border-blue-500/20" 
+              : "bg-blue-50 text-blue-800 border-blue-200"
+          )}>
+            {status}
+          </span>
+        );
+      case "Request Accepted":
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-green-500/10 text-green-400 border-green-500/20" 
+              : "bg-green-50 text-green-800 border-green-200"
+          )}>
+            Request Accepted
+          </span>
+        );
+      case "Technician Assigned":
       case "Pickup Scheduled":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-purple-500/10 text-purple-400">Pickup Scheduled</span>;
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-purple-500/10 text-purple-400 border-purple-500/20" 
+              : "bg-purple-50 text-purple-800 border-purple-200"
+          )}>
+            {status}
+          </span>
+        );
+      case "Technician On The Way":
+      case "Reached Customer Location":
+      case "Inspection Started":
       case "Product Collected":
       case "Under Inspection":
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" 
+              : "bg-indigo-50 text-indigo-800 border-indigo-200"
+          )}>
+            {status}
+          </span>
+        );
+      case "Repair In Progress":
       case "Under Repair":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-indigo-500/10 text-indigo-400">{status}</span>;
-      case "Awaiting Cost Estimation":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-orange-500/10 text-orange-400">Awaiting Cost Estimation</span>;
-      case "Awaiting Customer Approval":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-cyan-500/10 text-cyan-400">Awaiting Customer Approval</span>;
-      case "Cost Approved":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-500/10 text-emerald-400">Cost Approved</span>;
-      case "Cancellation Requested":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-orange-500/10 text-orange-400">Cancellation Requested</span>;
-      case "Service Cancelled":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-red-500/10 text-red-400">Service Cancelled</span>;
-      case "Request Rejected":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-red-500/10 text-red-500">Request Rejected</span>;
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" 
+              : "bg-cyan-50 text-cyan-800 border-cyan-200"
+          )}>
+            {status}
+          </span>
+        );
+      case "Waiting For Spare Parts":
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-orange-500/10 text-orange-400 border-orange-500/20" 
+              : "bg-orange-50 text-orange-850 border-orange-200"
+          )}>
+            Waiting For Spare Parts
+          </span>
+        );
       case "Service Completed":
-      case "Ready For Delivery":
-      case "Delivered":
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-green-500/10 text-green-400">{status}</span>;
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-green-500/10 text-green-400 border-green-500/20" 
+              : "bg-green-50 text-green-800 border-green-200"
+          )}>
+            Service Completed
+          </span>
+        );
+      case "Customer Feedback":
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+              : "bg-emerald-50 text-emerald-800 border-emerald-200"
+          )}>
+            Customer Feedback
+          </span>
+        );
+      case "Request Rejected":
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-red-500/10 text-red-400 border-red-500/20" 
+              : "bg-red-50 text-red-800 border-red-200"
+          )}>
+            Request Rejected
+          </span>
+        );
       case "Closed":
         if (cancellationReason) {
-          return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-red-500/10 text-red-400">Closed (Cancelled)</span>;
+          return (
+            <span className={cn(
+              "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+              isDarkTheme 
+                ? "bg-red-950/20 text-red-400 border-red-950/20" 
+                : "bg-red-50 text-red-800 border-red-200"
+            )}>
+              Closed (Cancelled)
+            </span>
+          );
         }
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-neutral-800 text-neutral-400">Closed</span>;
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-neutral-800 text-neutral-400 border-neutral-700" 
+              : "bg-neutral-100 text-neutral-800 border-neutral-200"
+          )}>
+            Closed
+          </span>
+        );
+      case "Batch Process":
+      case "Batch Request":
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-blue-500/10 text-blue-400 border-blue-500/20" 
+              : "bg-blue-50 text-blue-800 border-blue-200"
+          )}>
+            {status}
+          </span>
+        );
       default:
-        return <span className="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-neutral-800 text-neutral-400">{status}</span>;
+        return (
+          <span className={cn(
+            "inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full border",
+            isDarkTheme 
+              ? "bg-neutral-800 text-neutral-400 border-neutral-700" 
+              : "bg-neutral-100 text-neutral-800 border-neutral-200"
+          )}>
+            {status}
+          </span>
+        );
     }
   };
 
@@ -245,7 +377,7 @@ export default function AdminServiceRequestsPage() {
         <main className="flex-grow flex flex-col min-w-0 max-w-full overflow-x-hidden h-screen overflow-y-auto px-6 sm:px-10 py-8 text-left">
         
         {/* Page title and Search */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-6 border-neutral-800">
+        <div className={cn("flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-6", isDark ? "border-neutral-800" : "border-neutral-200")}>
           <div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Service Requests</h1>
             <p className="text-xs text-neutral-500 mt-1">Review validation and transition service request lifecycles.</p>
@@ -270,12 +402,12 @@ export default function AdminServiceRequestsPage() {
         {/* KPI Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mt-6">
           {[
-            { label: "Total Requests", val: totalRequests, color: "text-[#D71920] bg-[#D71920]/10" },
-            { label: "Pending Verification", val: pendingRequests, color: "text-yellow-500 bg-yellow-500/10" },
-            { label: "Pickup Scheduled", val: pickupScheduledRequests, color: "text-purple-500 bg-purple-500/10" },
-            { label: "Under Service", val: underServiceRequests, color: "text-indigo-500 bg-indigo-500/10" },
-            { label: "Completed Services", val: completedRequests, color: "text-green-500 bg-green-500/10" },
-            { label: "Closed Requests", val: closedRequests, color: "text-neutral-600 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800/40" },
+            { label: "Total Requests", val: totalRequests, color: isDark ? "text-[#D71920] bg-[#D71920]/20" : "text-[#D71920] bg-[#D71920]/10" },
+            { label: "Submitted Requests", val: pendingRequests, color: isDark ? "text-yellow-400 bg-yellow-500/20 animate-pulse" : "text-yellow-850 bg-yellow-50" },
+            { label: "Assigned Visits", val: pickupScheduledRequests, color: isDark ? "text-purple-400 bg-purple-500/20" : "text-purple-800 bg-purple-50" },
+            { label: "Visits In Progress", val: underServiceRequests, color: isDark ? "text-indigo-400 bg-indigo-500/20" : "text-indigo-800 bg-indigo-50" },
+            { label: "Completed Services", val: completedRequests, color: isDark ? "text-green-400 bg-green-500/20" : "text-green-800 bg-green-50" },
+            { label: "Closed Requests", val: closedRequests, color: isDark ? "text-neutral-400 bg-neutral-800" : "text-neutral-600 bg-neutral-100" },
           ].map((card, idx) => (
             <div
               key={idx}
@@ -293,7 +425,7 @@ export default function AdminServiceRequestsPage() {
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex flex-wrap items-center gap-2 mt-8 border-b border-neutral-800 pb-2">
+        <div className={cn("flex flex-wrap items-center gap-2 mt-8 border-b pb-2", isDark ? "border-neutral-800" : "border-neutral-200")}>
           {(["ALL", "PENDING_VERIFICATION", "PICKUP_SCHEDULED", "UNDER_SERVICE", "COMPLETED", "CLOSED"] as TabType[]).map((tab) => (
             <button
               key={tab}
@@ -307,7 +439,10 @@ export default function AdminServiceRequestsPage() {
                     : "text-neutral-600 hover:text-[#D71920] hover:bg-red-50/50"
               )}
             >
-              {tab.replace("_", " ")}
+              {tab === "PENDING_VERIFICATION" ? "SUBMITTED" :
+               tab === "PICKUP_SCHEDULED" ? "ASSIGNED" :
+               tab === "UNDER_SERVICE" ? "IN PROGRESS" :
+               tab.replace("_", " ")}
             </button>
           ))}
         </div>
@@ -348,7 +483,7 @@ export default function AdminServiceRequestsPage() {
                       <th className="px-3 py-4">Product Name</th>
                       <th className="px-3 py-4 hidden lg:table-cell">Purchase Date</th>
                       <th className="px-3 py-4">Warranty Status</th>
-                      <th className="px-3 py-4 hidden lg:table-cell">Preferred Pickup</th>
+                      <th className="px-3 py-4 hidden lg:table-cell">Technician Visit</th>
                       <th className="px-3 py-4">Status</th>
                       <th className="px-3 py-4 text-right">Action</th>
                     </tr>
@@ -378,7 +513,16 @@ export default function AdminServiceRequestsPage() {
                           )}>{getEffectiveWarrantyStatus(req).toUpperCase()}</span>
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap hidden lg:table-cell">
-                          {new Date(req.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          {req.technicianName ? (
+                            <div>
+                              <p className="font-bold text-neutral-800 dark:text-neutral-200">{req.technicianName}</p>
+                              <p className="text-[10px] text-neutral-400">
+                                {req.expectedVisitDate ? new Date(req.expectedVisitDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-neutral-400">Awaiting Assignment</span>
+                          )}
                         </td>
                         <td className="px-3 py-4">{getStatusBadge(getEffectiveCurrentStatus(req), req.cancellationReason)}</td>
                         <td className="px-3 py-4 text-right">
@@ -464,9 +608,9 @@ export default function AdminServiceRequestsPage() {
                         </span>
                       </div>
                       <div>
-                        <span className="block text-[8px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-0.5">Preferred Pickup</span>
+                        <span className="block text-[8px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-0.5">Technician Visit</span>
                         <span className="font-semibold text-neutral-600 dark:text-neutral-350">
-                          {new Date(req.preferredPickupDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          {req.technicianName ? `${req.technicianName} (${req.expectedVisitDate ? new Date(req.expectedVisitDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""})` : "Awaiting Assignment"}
                         </span>
                       </div>
                     </div>
@@ -681,6 +825,18 @@ export default function AdminServiceRequestsPage() {
                         <p className="text-neutral-500">Internal Product ID</p>
                         <p className="font-mono text-neutral-450 mt-0.5 break-all">{selectedRequest.product?.id}</p>
                       </div>
+                      {selectedRequest.orderId && (
+                        <div>
+                          <p className="text-neutral-500">Order ID</p>
+                          <p className="font-mono font-bold mt-0.5 break-all">{selectedRequest.orderId}</p>
+                        </div>
+                      )}
+                      {selectedRequest.purchasePlace && (
+                        <div>
+                          <p className="text-neutral-500">Purchase Place / Dealer Name</p>
+                          <p className="font-bold mt-0.5 break-words">{selectedRequest.purchasePlace}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-neutral-500">Purchase Date</p>
                         <p className="font-semibold mt-0.5">
@@ -729,7 +885,7 @@ export default function AdminServiceRequestsPage() {
                     </p>
                     <p className="flex items-start gap-1">
                       <MapPin size={11} className="text-neutral-500 mt-0.5 flex-shrink-0" />
-                      <span>{selectedRequest.pickupAddress}</span>
+                      <span>{selectedRequest.pickupAddress} {selectedRequest.pincode ? `- ${selectedRequest.pincode}` : ""}</span>
                     </p>
                   </div>
                 </div>

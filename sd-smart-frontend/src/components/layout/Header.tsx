@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, User, ShoppingCart, ChevronDown, Menu, X } from "lucide-react";
+import { Search, User, ShoppingCart, ChevronDown, Menu, X, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink } from "../../app/LandingPage/types";
 import { THEME_CLASSES } from "@/config/themes";
@@ -23,6 +23,7 @@ const defaultNavLinks = [
   { label: "Categories", href: "/shop", hasDropdown: true },
   { label: "Bestsellers", href: "/shop" },
   { label: "Why Us", href: "/about" },
+  { label: "About Us", href: "/about" },
   { label: "Appliances", href: "/shop" },
 ];
 
@@ -595,127 +596,169 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
             )}
           </div>
         )}
-
-        {/* Mobile menu */}
+        {/* Mobile menu (Sidebar drawer) */}
         {mobileOpen && (
-          <div className="xl:hidden fixed inset-x-0 top-[56px] bottom-0 z-50 py-6 px-5 flex flex-col gap-2 bg-white dark:bg-slate-950 overflow-y-auto border-t border-neutral-100 dark:border-neutral-900/60 shadow-xl animate-in slide-in-from-top duration-300">
-            {navLinks.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
-                onClick={() => setMobileOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="mt-2 pt-2 border-t border-neutral-200/10 dark:border-neutral-800/60 flex flex-col gap-1">
-              {shopDropdownLinks.map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className="px-3 py-2 text-sm text-neutral-600 dark:text-neutral-455 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 text-left"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  — {l.label}
-                </Link>
-              ))}
-            </div>
+          <>
+            {/* Backdrop Overlay */}
+            <div 
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 xl:hidden animate-in fade-in duration-300"
+              onClick={() => setMobileOpen(false)}
+            />
 
-            {/* Mobile Profile & Account (if authenticated) */}
-            {isAuthenticated ? (
-              <div className="mt-4 pt-4 border-t border-neutral-200/10 dark:border-neutral-800/60 flex flex-col gap-1">
-                <div className="px-3 py-2.5 mb-2 bg-red-100/35 dark:bg-red-950/10 rounded-xl text-left">
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">Hello, {userProfile?.name || "User"}</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{userProfile?.email}</p>
-                </div>
-                <Link
-                  href="/account?tab=profile"
-                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  My Profile
+            {/* Sidebar drawer panel */}
+            <div className="xl:hidden fixed top-0 bottom-0 left-0 w-[280px] max-w-[85vw] h-screen bg-white dark:bg-slate-950 z-50 shadow-2xl border-r border-neutral-100 dark:border-neutral-900/60 flex flex-col animate-in slide-in-from-left duration-300">
+              {/* Sidebar Header */}
+              <div className="px-5 py-4 border-b border-neutral-100 dark:border-neutral-900/60 flex items-center justify-between">
+                <Link href="/" onClick={() => setMobileOpen(false)}>
+                  <img
+                    src="/sd-smart-ecommerce/SD-logo.png"
+                    alt="SD Smart Appliances"
+                    className="h-10 w-auto object-contain mix-blend-multiply"
+                  />
                 </Link>
-                <Link
-                  href="/wishlist"
-                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  Wishlist
-                </Link>
-                <Link
-                  href="/account?tab=orders"
-                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  My Orders
-                </Link>
-                {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
-                  <Link
-                    href="/admin/dashboard"
-                    className="px-3 py-2.5 text-sm font-semibold text-[#D71920] dark:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Admin Panel
-                  </Link>
-                )}
                 <button
-                  onClick={async () => {
-                    setMobileOpen(false);
-                    try {
-                      await logout();
-                      router.push("/");
-                    } catch (err) {
-                      console.error("Logout failed:", err);
-                    }
-                  }}
-                  className="w-full text-left px-3 py-2.5 text-sm font-semibold text-[#D71920] dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+                  onClick={() => setMobileOpen(false)}
+                  className="p-1.5 rounded-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-slate-900 transition-colors"
                 >
-                  Logout
+                  <X size={18} />
                 </button>
               </div>
-            ) : (
-              /* Mobile Auth Section (if not authenticated) */
-              <div className="mt-4 pt-4 border-t border-neutral-200/10 dark:border-neutral-800/60 flex flex-col gap-2">
-                <Link
-                  href="/auth/login"
-                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-center"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/auth/signup"
-                  className="px-3 py-2.5 text-sm font-semibold text-white bg-[#D71920] rounded-lg hover:bg-[#B91520] transition-colors text-center"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  Register
-                </Link>
+
+              {/* Scrollable Sidebar Content */}
+              <div className="flex-grow overflow-y-auto py-5 px-5 space-y-6 text-left">
+                {/* Navigation Links */}
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-2">Navigation</p>
+                  {navLinks.map((link) => (
+                    <Link
+                      key={link.label}
+                      href={link.href}
+                      className={cn(
+                        "flex items-center justify-between px-3 py-2.5 text-sm font-semibold rounded-lg hover:bg-red-50/50 dark:hover:bg-red-950/20 transition-all",
+                        isLinkActive(link.href) 
+                          ? "text-[#D71920] bg-red-500/5 font-bold" 
+                          : "text-[#1C1C1C] dark:text-neutral-200"
+                      )}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <span>{link.label}</span>
+                      <ChevronRight size={14} className="text-neutral-400" />
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Shop Categories */}
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-2">Shop Categories</p>
+                  <div className="grid grid-cols-1 gap-1 pl-1">
+                    {shopDropdownLinks.map((l) => (
+                      <Link
+                        key={l.href}
+                        href={l.href}
+                        className="px-3 py-2 text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:text-[#D71920] hover:bg-red-50/30 dark:hover:bg-red-950/10 rounded-lg transition-colors text-left"
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        {l.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Profile & Account Actions */}
+                <div className="border-t border-neutral-100 dark:border-neutral-900/60 pt-5 space-y-4">
+                  {isAuthenticated ? (
+                    <div className="space-y-3">
+                      <div className="px-3 py-2.5 bg-red-500/5 dark:bg-slate-900/40 rounded-xl">
+                        <p className="text-xs font-bold text-neutral-800 dark:text-neutral-200 truncate">{userProfile?.name || "User"}</p>
+                        <p className="text-[10px] text-neutral-400 dark:text-neutral-500 truncate">{userProfile?.email}</p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {userProfile && (userProfile.role?.toUpperCase() === "DISTRIBUTOR") && (
+                          <Link
+                            href="/distributor/dashboard"
+                            className="block px-3 py-2 text-xs font-bold text-[#D71920] dark:text-red-400 rounded-lg hover:bg-red-50/50"
+                            onClick={() => setMobileOpen(false)}
+                          >
+                            Distributor Portal
+                          </Link>
+                        )}
+                        {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
+                          <Link
+                            href="/admin/dashboard"
+                            className="block px-3 py-2 text-xs font-bold text-[#D71920] dark:text-red-400 rounded-lg hover:bg-red-50/50"
+                            onClick={() => setMobileOpen(false)}
+                          >
+                            Admin Panel
+                          </Link>
+                        )}
+                        <Link
+                          href="/account?tab=profile"
+                          className="block px-3 py-2.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-50 dark:hover:bg-slate-900"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          My Profile
+                        </Link>
+                        <Link
+                          href="/wishlist"
+                          className="block px-3 py-2.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-50 dark:hover:bg-slate-900"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          Wishlist
+                        </Link>
+                        <Link
+                          href="/account?tab=orders"
+                          className="block px-3 py-2.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-50 dark:hover:bg-slate-900"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          My Orders
+                        </Link>
+                        <Link
+                          href="/service-request"
+                          className="block px-3 py-2.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-50 dark:hover:bg-slate-900"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          Service Requests
+                        </Link>
+
+                        <button
+                          onClick={async () => {
+                            setMobileOpen(false);
+                            try {
+                              await logout();
+                              router.push("/");
+                            } catch (err) {
+                              console.error("Logout failed:", err);
+                            }
+                          }}
+                          className="w-full text-left px-3 py-2.5 text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <Link
+                        href="/auth/login"
+                        className="px-3 py-2 text-xs font-bold text-center border border-neutral-200 dark:border-slate-800 rounded-xl hover:bg-neutral-50 dark:hover:bg-slate-900 transition-colors"
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        Login
+                      </Link>
+                      <Link
+                        href="/auth/signup"
+                        className="px-3 py-2 text-xs font-bold text-center text-white bg-[#D71920] hover:bg-[#B91520] rounded-xl transition-colors"
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        Register
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-            {isAuthenticated && (
-              <div className="mt-4 pt-4 border-t border-neutral-200/10 dark:border-neutral-800/60 flex flex-col gap-2">
-                {userProfile && (userProfile.role?.toUpperCase() === "DISTRIBUTOR") && (
-                  <Link
-                    href="/distributor/dashboard"
-                    className="px-3 py-2.5 text-sm font-bold text-white bg-[#D71920] rounded-lg hover:bg-[#B91520] transition-colors text-center"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Distributor Portal
-                  </Link>
-                )}
-                {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
-                  <Link
-                    href="/admin/dashboard"
-                    className="px-3 py-2.5 text-sm font-bold text-white bg-[#D71920] rounded-lg hover:bg-[#B91520] transition-colors text-center"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Admin Panel
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
+            </div>
+          </>
         )}
       </div>
     </header>

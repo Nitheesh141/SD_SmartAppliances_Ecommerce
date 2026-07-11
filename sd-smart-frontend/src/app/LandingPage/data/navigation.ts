@@ -4,6 +4,7 @@ export const navLinks: NavLink[] = [
   { label: "Home", href: "/", hasDropdown: false },
   { label: "Categories", href: "/#categories", hasDropdown: false },
   { label: "Why Us", href: "/#why-choose-us", hasDropdown: false },
+  { label: "About Us", href: "/about", hasDropdown: false },
   { label: "Appliances", href: "/shop", hasDropdown: false },
 ];
 
