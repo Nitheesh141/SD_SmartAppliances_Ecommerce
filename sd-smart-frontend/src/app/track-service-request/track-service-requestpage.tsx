@@ -34,13 +34,17 @@ function TrackServiceRequestContent() {
   const [request, setRequest] = useState<any | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const ticketIdParam = searchParams.get("ticketId");
-  const mobileNumberParam = searchParams.get("mobileNumber");
+  const ticketIdParam = searchParams.get("ticketId") || searchParams.get("ticket");
+  const mobileNumberParam = searchParams.get("mobileNumber") || searchParams.get("mobile");
 
   useEffect(() => {
-    if (ticketIdParam && mobileNumberParam) {
+    if (ticketIdParam) {
       setTicketId(ticketIdParam);
+    }
+    if (mobileNumberParam) {
       setMobileNumber(mobileNumberParam);
+    }
+    if (ticketIdParam && mobileNumberParam) {
       performTracking(ticketIdParam, mobileNumberParam);
     }
   }, [ticketIdParam, mobileNumberParam]);
@@ -98,7 +102,11 @@ function TrackServiceRequestContent() {
     }
 
     // Update query params in URL without full refresh for sharing/bookmarking
-    router.replace(`/track-service-request?ticketId=${encodeURIComponent(ticketId.trim())}&mobileNumber=${encodeURIComponent(mobileNumber.trim())}`);
+    const isNewPath = typeof window !== "undefined" && window.location.pathname.includes("/service-request/track");
+    const newPath = isNewPath 
+      ? `/service-request/track?ticket=${encodeURIComponent(ticketId.trim())}&mobile=${encodeURIComponent(mobileNumber.trim())}`
+      : `/track-service-request?ticketId=${encodeURIComponent(ticketId.trim())}&mobileNumber=${encodeURIComponent(mobileNumber.trim())}`;
+    router.replace(newPath);
     performTracking(ticketId, mobileNumber);
   };
 

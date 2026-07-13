@@ -3,6 +3,7 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
+import { categories } from "../LandingPage/data/categories";
 import { 
   ShieldCheck, 
   Award, 
@@ -315,44 +316,23 @@ export default function AboutPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 text-left">
-            {[
-              {
-                title: "Pressure Cookers",
-                image: "https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?q=80&w=600"
-              },
-              {
-                title: "Mixer Grinders",
-                image: "https://images.unsplash.com/photo-1578643463396-0997cb5328c1?q=80&w=600"
-              },
-              {
-                title: "Wet Grinders",
-                image: "https://images.unsplash.com/photo-1585518419759-7fe2e0f31384?q=80&w=600"
-              },
-              {
-                title: "Gas Stoves",
-                image: "https://images.unsplash.com/photo-1522836924445-4478bdeb860c?q=80&w=600"
-              },
-              {
-                title: "Commercial Kitchen Equipment",
-                image: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=600"
-              }
-            ].map((cat, idx) => (
+            {categories.map((cat, idx) => (
               <div 
-                key={idx} 
+                key={cat.id || idx} 
                 className="bg-neutral-50/50 dark:bg-slate-900/30 border border-neutral-250/30 dark:border-slate-800 rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col group"
               >
                 <div className="h-44 w-full overflow-hidden relative">
                   <img
                     src={cat.image}
-                    alt={cat.title}
+                    alt={cat.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                 </div>
                 <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
-                  <h3 className="text-xs font-black uppercase tracking-wide text-neutral-800 dark:text-neutral-200">{cat.title}</h3>
+                  <h3 className="text-xs font-black uppercase tracking-wide text-neutral-800 dark:text-neutral-200">{cat.name}</h3>
                   <Link 
-                    href={`/shop?category=${encodeURIComponent(cat.title)}`}
+                    href={cat.href}
                     className="text-[10px] font-black uppercase tracking-widest text-[#E11D2E] hover:text-[#c11524] transition-colors inline-flex items-center gap-1.5 pt-1"
                   >
                     <span>View Category</span>

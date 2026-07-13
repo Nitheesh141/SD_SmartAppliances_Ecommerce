@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "../utils/db";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
+import { sendServiceRequestConfirmationEmail } from "../utils/email";
 
 /**
  * Calculates warranty expiry date and determines status
@@ -274,6 +275,25 @@ export const createServiceRequest = async (req: Request, res: Response): Promise
 
       return request;
     });
+
+    // Trigger automatic email notification asynchronously (failures are caught and logged)
+    try {
+      const requestDateFormatted = new Date().toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+      await sendServiceRequestConfirmationEmail(
+        email,
+        contactPersonName,
+        ticketId,
+        contactNumber,
+        product.name,
+        requestDateFormatted
+      );
+    } catch (emailError) {
+      console.error("Failed to send service request confirmation email via SMTP:", emailError);
+    }
 
     res.status(201).json({
       success: true,
