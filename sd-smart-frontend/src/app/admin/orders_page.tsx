@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -185,7 +186,7 @@ export default function AdminOrdersPage() {
       const token = localStorage.getItem("authToken");
       if (!token) return;
 
-      const res = await fetch("http://localhost:5000/api/orders/all", {
+      const res = await fetch(`${ENV.API_BASE_URL}/orders/all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -213,7 +214,7 @@ export default function AdminOrdersPage() {
     const fetchSettings = async () => {
       try {
         const token = localStorage.getItem("authToken");
-        const res = await fetch("http://localhost:5000/api/settings", {
+        const res = await fetch(`${ENV.API_BASE_URL}/settings`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -250,7 +251,7 @@ export default function AdminOrdersPage() {
     setUpdatingStatus(true);
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`http://localhost:5000/api/orders/${selectedOrder.id}/status`, {
+      const res = await fetch(`${ENV.API_BASE_URL}/orders/${selectedOrder.id}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -666,7 +667,7 @@ export default function AdminOrdersPage() {
                                           const val = option.value;
                                           try {
                                             const token = localStorage.getItem("authToken");
-                                            const res = await fetch(`http://localhost:5000/api/orders/${selectedOrder.id}/status`, {
+                                            const res = await fetch(`${ENV.API_BASE_URL}/orders/${selectedOrder.id}/status`, {
                                               method: "PATCH",
                                               headers: {
                                                 "Content-Type": "application/json",

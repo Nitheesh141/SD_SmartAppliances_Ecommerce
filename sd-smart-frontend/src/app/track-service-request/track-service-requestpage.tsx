@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -59,7 +60,7 @@ function TrackServiceRequestContent() {
     setRequest(null);
 
     try {
-      const res = await fetch("http://localhost:5000/api/service-requests/track", {
+      const res = await fetch(`${ENV.API_BASE_URL}/service-requests/track`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

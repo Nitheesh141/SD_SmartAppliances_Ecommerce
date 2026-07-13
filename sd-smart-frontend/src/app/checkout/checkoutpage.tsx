@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useState, useEffect, useMemo } from "react";
 import Header from "@/components/layout/Header";
@@ -51,7 +52,7 @@ export default function CheckoutPage() {
   const [dbThreshold, setDbThreshold] = useState<number>(10000);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/settings")
+    fetch(`${ENV.API_BASE_URL}/settings`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.settings && data.settings.freeShippingThreshold) {
@@ -170,7 +171,7 @@ export default function CheckoutPage() {
           quantity: item.quantity
         }));
         
-        const response = await fetch("http://localhost:5000/api/offers/calculate", {
+        const response = await fetch(`${ENV.API_BASE_URL}/offers/calculate`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

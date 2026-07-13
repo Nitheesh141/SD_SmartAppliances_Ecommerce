@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -296,7 +297,7 @@ export default function AdminMarketingPage() {
     setIsSavingSettings(true);
     try {
       const token = localStorage.getItem("authToken");
-      const response = await fetch("http://localhost:5000/api/settings", {
+      const response = await fetch(`${ENV.API_BASE_URL}/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -352,20 +353,20 @@ export default function AdminMarketingPage() {
     setLoading(true);
     try {
       // 1. Fetch Offers
-      const offersRes = await fetch("http://localhost:5000/api/offers");
+      const offersRes = await fetch(`${ENV.API_BASE_URL}/offers`);
       if (!offersRes.ok) throw new Error("Failed to load marketing offers");
       const offersData = await offersRes.json();
       setOffers(offersData.offers || []);
 
       // 2. Fetch Catalog Products (For select dropdown mappings)
-      const productsRes = await fetch("http://localhost:5000/api/products");
+      const productsRes = await fetch(`${ENV.API_BASE_URL}/products`);
       if (productsRes.ok) {
         const productsData = await productsRes.json();
         setProducts(productsData.products || []);
       }
 
       // 3. Fetch Settings
-      const settingsRes = await fetch("http://localhost:5000/api/settings");
+      const settingsRes = await fetch(`${ENV.API_BASE_URL}/settings`);
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
         if (settingsData.settings && settingsData.settings.freeShippingThreshold) {
@@ -552,7 +553,7 @@ export default function AdminMarketingPage() {
     const token = localStorage.getItem("authToken");
 
     try {
-      const response = await fetch(`http://localhost:5000/api/offers/${id}`, {
+      const response = await fetch(`${ENV.API_BASE_URL}/offers/${id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -694,8 +695,8 @@ export default function AdminMarketingPage() {
 
     try {
       const url = editingOffer
-        ? `http://localhost:5000/api/offers/${editingOffer.id}`
-        : "http://localhost:5000/api/offers";
+        ? `${ENV.API_BASE_URL}/offers/${editingOffer.id}`
+        : `${ENV.API_BASE_URL}/offers`;
 
       const response = await fetch(url, {
         method: editingOffer ? "PUT" : "POST",

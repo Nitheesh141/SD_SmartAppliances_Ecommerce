@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -311,7 +312,7 @@ export default function ServiceRequestPage() {
 
     setUploading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/upload", {
+      const response = await fetch(`${ENV.API_BASE_URL}/upload`, {
         method: "POST",
         body: formData,
       });

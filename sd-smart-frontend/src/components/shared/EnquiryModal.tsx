@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import React, { useEffect, useState } from "react";
 import { X, Phone, Mail, MessageSquare } from "lucide-react";
@@ -39,7 +40,7 @@ export default function EnquiryModal({ isOpen, onClose }: EnquiryModalProps) {
           if (token) {
             headers["Authorization"] = `Bearer ${token}`;
           }
-          const res = await fetch("http://localhost:5000/api/settings", { headers });
+          const res = await fetch(`${ENV.API_BASE_URL}/settings`, { headers });
           const data = await res.json();
           if (data.success && data.settings) {
             setSettings({

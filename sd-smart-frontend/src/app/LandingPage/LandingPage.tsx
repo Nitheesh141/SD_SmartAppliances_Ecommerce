@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useAuth } from "@/providers/AuthProvider";
 import Link from "next/link";
@@ -29,7 +30,7 @@ export default function LandingPage() {
   const [threshold, setThreshold] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/settings")
+    fetch(`${ENV.API_BASE_URL}/settings`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.settings && data.settings.freeShippingThreshold) {

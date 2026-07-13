@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -83,7 +84,7 @@ export default function WarrantyRegistrationPage() {
         try {
           const token = localStorage.getItem("authToken");
           if (token) {
-            const res = await fetch("http://localhost:5000/api/addresses", {
+            const res = await fetch(`${ENV.API_BASE_URL}/addresses`, {
               headers: { "Authorization": `Bearer ${token}` }
             });
             if (res.ok) {
@@ -174,7 +175,7 @@ export default function WarrantyRegistrationPage() {
     uploadData.append("file", file);
 
     try {
-      const response = await fetch("http://localhost:5000/api/upload", {
+      const response = await fetch(`${ENV.API_BASE_URL}/upload`, {
         method: "POST",
         body: uploadData
       });

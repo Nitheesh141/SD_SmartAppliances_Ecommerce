@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -127,7 +128,7 @@ export default function AdminManagePage() {
 
   const fetchGroupVariants = async (vg: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/products?variantGroup=${vg}`);
+      const response = await fetch(`${ENV.API_BASE_URL}/products?variantGroup=${vg}`);
       if (response.ok) {
         const data = await response.json();
         setGroupVariants(data.products || []);
@@ -247,7 +248,7 @@ export default function AdminManagePage() {
     const fetchCategoryModels = async () => {
       try {
         // Fetch all products to extract dynamic models
-        const prodResponse = await fetch("http://localhost:5000/api/products");
+        const prodResponse = await fetch(`${ENV.API_BASE_URL}/products`);
         if (prodResponse.ok) {
           const data = await prodResponse.json();
           const list = data.products || [];
@@ -261,7 +262,7 @@ export default function AdminManagePage() {
         }
 
         // Fetch deleted models
-        const delResponse = await fetch("http://localhost:5000/api/products/deleted-models");
+        const delResponse = await fetch(`${ENV.API_BASE_URL}/products/deleted-models`);
         if (delResponse.ok) {
           const data = await delResponse.json();
           setDeletedPresetModels(data.deletedModels || []);
@@ -303,7 +304,7 @@ export default function AdminManagePage() {
 
     try {
       const token = localStorage.getItem("authToken");
-      const response = await fetch("http://localhost:5000/api/products/models", {
+      const response = await fetch(`${ENV.API_BASE_URL}/products/models`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -360,7 +361,7 @@ export default function AdminManagePage() {
 
     try {
       toast.info(`Uploading ${fileArray.length} image(s)...`);
-      const response = await fetch("http://localhost:5000/api/upload", {
+      const response = await fetch(`${ENV.API_BASE_URL}/upload`, {
         method: "POST",
         body: formData,
       });
@@ -464,7 +465,7 @@ export default function AdminManagePage() {
   const fetchProduct = async (id: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/products/${id}`);
+      const response = await fetch(`${ENV.API_BASE_URL}/products/${id}`);
       if (!response.ok) throw new Error("Product not found");
       const data = await response.json();
       const product = data.product;
@@ -665,8 +666,8 @@ export default function AdminManagePage() {
 
     try {
       const url = productId
-        ? `http://localhost:5000/api/products/${productId}`
-        : "http://localhost:5000/api/products";
+        ? `${ENV.API_BASE_URL}/products/${productId}`
+        : `${ENV.API_BASE_URL}/products`;
       const method = productId ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -702,7 +703,7 @@ export default function AdminManagePage() {
     const token = localStorage.getItem("authToken");
 
     try {
-      const response = await fetch(`http://localhost:5000/api/products/${productId}`, {
+      const response = await fetch(`${ENV.API_BASE_URL}/products/${productId}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`,

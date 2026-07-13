@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -145,7 +146,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     const fetchActiveOffers = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/offers?status=ACTIVE");
+        const response = await fetch(`${ENV.API_BASE_URL}/offers?status=ACTIVE`);
         if (response.ok) {
           const data = await response.json();
           setActiveOffers(data.offers || []);
@@ -484,7 +485,7 @@ export default function ProductDetailPage() {
     if (product) {
       const fetchVariants = async () => {
         try {
-          let url = `http://localhost:5000/api/products?category=${product.category}`;
+          let url = `${ENV.API_BASE_URL}/products?category=${product.category}`;
           if (product.variantGroup) {
             url += `&variantGroup=${product.variantGroup}`;
           }
@@ -520,7 +521,7 @@ export default function ProductDetailPage() {
       const fetchSimilar = async () => {
         setSimilarLoading(true);
         try {
-          const response = await fetch(`http://localhost:5000/api/products?category=${product.category}`);
+          const response = await fetch(`${ENV.API_BASE_URL}/products?category=${product.category}`);
           if (response.ok) {
             const data = await response.json();
             // Filter out current product

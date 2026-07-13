@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -191,7 +192,7 @@ function AccountPageContent() {
 
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch("http://localhost:5000/api/auth/convert-distributor", {
+      const res = await fetch(`${ENV.API_BASE_URL}/auth/convert-distributor`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

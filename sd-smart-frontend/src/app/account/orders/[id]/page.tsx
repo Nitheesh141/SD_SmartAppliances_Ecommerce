@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -53,7 +54,7 @@ export default function OrderDetailsPage() {
     const fetchSettings = async () => {
       try {
         const token = localStorage.getItem("authToken");
-        const res = await fetch("http://localhost:5000/api/settings", {
+        const res = await fetch(`${ENV.API_BASE_URL}/settings`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -93,7 +94,7 @@ export default function OrderDetailsPage() {
     if (!window.confirm("Are you sure you want to cancel this order?")) return;
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`http://localhost:5000/api/orders/${orderId}/cancel`, {
+      const res = await fetch(`${ENV.API_BASE_URL}/orders/${orderId}/cancel`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });

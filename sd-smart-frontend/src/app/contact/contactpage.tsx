@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import AnnouncementBar from "@/components/layout/AnnouncementBar";
 import Header from "@/components/layout/Header";
@@ -19,7 +20,7 @@ export default function ContactPage() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/settings");
+        const res = await fetch(`${ENV.API_BASE_URL}/settings`);
         const data = await res.json();
         if (data.success && data.settings) {
           setContactInfo({

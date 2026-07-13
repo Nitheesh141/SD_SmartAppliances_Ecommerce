@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -34,7 +35,7 @@ function TrackOrderContent() {
       setLoadingRecent(true);
       try {
         const token = localStorage.getItem("authToken");
-        const res = await fetch("http://localhost:5000/api/orders", {
+        const res = await fetch(`${ENV.API_BASE_URL}/orders`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -67,7 +68,7 @@ function TrackOrderContent() {
     setActiveOrder(null);
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`http://localhost:5000/api/orders/${idToSearch.trim()}`, {
+      const res = await fetch(`${ENV.API_BASE_URL}/orders/${idToSearch.trim()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();

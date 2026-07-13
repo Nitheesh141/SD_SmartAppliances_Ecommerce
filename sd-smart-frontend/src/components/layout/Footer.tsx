@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import Link from "next/link";
 import { MapPin, Phone, Mail, ArrowRight } from "lucide-react";
@@ -150,7 +151,7 @@ export default function Footer({ footerColumns, socialLinks }: FooterProps) {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/settings");
+        const res = await fetch(`${ENV.API_BASE_URL}/settings`);
         const data = await res.json();
         if (data.success && data.settings) {
           setContactInfo({
