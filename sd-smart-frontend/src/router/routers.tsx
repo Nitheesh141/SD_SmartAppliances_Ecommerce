@@ -166,6 +166,7 @@ const TrackServiceRequestPage = dynamic(() => import("../app/track-service-reque
 export const routes: Record<string, React.ComponentType<any>> = {
   "/": LandingPage,
   "/track-service-request": TrackServiceRequestPage,
+  "/service-request/track": TrackServiceRequestPage,
   "/auth/login": LoginPage,
   "/auth/signup": SignupPage,
   "/auth/distributor-signup": DistributorSignupPage,

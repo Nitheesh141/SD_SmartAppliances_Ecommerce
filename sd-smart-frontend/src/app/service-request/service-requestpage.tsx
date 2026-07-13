@@ -1002,9 +1002,11 @@ export default function ServiceRequestPage() {
                   <h2 className="text-lg sm:text-xl font-black text-neutral-900 dark:text-white uppercase tracking-wide">
                     ✅ Service Request Submitted Successfully
                   </h2>
-                  <div className="space-y-1 text-sm text-neutral-500 dark:text-neutral-400">
-                    <p className="font-semibold text-neutral-600 dark:text-neutral-350">Thank you for contacting SD Smart Appliances.</p>
-                    <p>Your request has been registered successfully.</p>
+                  <div className="space-y-2 text-sm text-neutral-500 dark:text-neutral-400">
+                    <p className="font-semibold text-neutral-600 dark:text-neutral-350">Your service request has been submitted successfully.</p>
+                    <p className="text-xs text-neutral-450 dark:text-neutral-400">
+                      If you do not receive the email within a few minutes, you can still track your request using your Ticket ID and Mobile Number.
+                    </p>
                   </div>
                 </div>
 
@@ -1036,7 +1038,7 @@ export default function ServiceRequestPage() {
                 {/* Action buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-neutral-100 dark:border-slate-800">
                   <Link
-                    href={`/track-service-request?ticketId=${submittedRequest.ticketId}&mobileNumber=${contactNumber}`}
+                    href={`/service-request/track?ticket=${submittedRequest.ticketId}&mobile=${contactNumber}`}
                     className="flex-1 py-3 bg-[#E11D2E] hover:bg-[#c11524] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md shadow-red-500/10 cursor-pointer text-center font-bold flex items-center justify-center"
                   >
                     Track My Request

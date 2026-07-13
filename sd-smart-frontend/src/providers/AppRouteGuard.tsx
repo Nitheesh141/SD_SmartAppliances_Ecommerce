@@ -120,11 +120,11 @@ export function AppRouteGuard({
           setShowAdminSplash(false);
           router.replace("/auth/login");
         } else {
-          // Keep the splash screen for at least 1.5 seconds to ensure smooth transition
+          // Keep the splash screen for at least 0.5 seconds to ensure smooth transition
           const timer = setTimeout(() => {
             setShowAdminSplash(false);
             setIsAuthorized(true);
-          }, 1500);
+          }, 500);
           return () => clearTimeout(timer);
         }
       }
