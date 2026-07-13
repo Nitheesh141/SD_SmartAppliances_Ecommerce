@@ -1,3 +1,4 @@
+import { ENV } from "@/config/env";
 /**
  * Order Service
  * Handles all order-related API calls
@@ -58,7 +59,7 @@ export const orderService = {
    */
   downloadInvoice: async (orderId: string): Promise<Blob> => {
     const token = localStorage.getItem("authToken");
-    const response = await fetch(`http://localhost:5000/api/orders/${orderId}/invoice`, {
+    const response = await fetch(`${ENV.API_BASE_URL}/orders/${orderId}/invoice`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -32,7 +33,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       try {
         const token = localStorage.getItem("authToken");
         if (!token) return;
-        const res = await fetch("http://localhost:5000/api/orders/unread-counts", {
+        const res = await fetch(`${ENV.API_BASE_URL}/orders/unread-counts`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
@@ -59,19 +60,19 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       
       try {
         if (currentPath === "/admin/orders") {
-          await fetch("http://localhost:5000/api/orders/mark-read", {
+          await fetch(`${ENV.API_BASE_URL}/orders/mark-read`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` }
           });
           setCounts(prev => ({ ...prev, orders: 0 }));
         } else if (currentPath === "/admin/distributors") {
-          await fetch("http://localhost:5000/api/auth/admin/distributors/mark-read", {
+          await fetch(`${ENV.API_BASE_URL}/auth/admin/distributors/mark-read`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` }
           });
           setCounts(prev => ({ ...prev, distributors: 0 }));
         } else if (currentPath === "/admin/service-requests") {
-          await fetch("http://localhost:5000/api/service-requests/mark-read", {
+          await fetch(`${ENV.API_BASE_URL}/service-requests/mark-read`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` }
           });

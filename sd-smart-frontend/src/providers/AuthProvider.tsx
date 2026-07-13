@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 
@@ -38,13 +39,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [didInit, setDidInit] = useState(false);
 
+  // Patch global fetch to log detailed error status and URLs across all files
+  useEffect(() => {
+    if (typeof window !== "undefined" && !(window as any).fetchPatched) {
+      const originalFetch = window.fetch;
+      window.fetch = async function (...args) {
+        try {
+          const response = await originalFetch(...args);
+          if (!response.ok) {
+            console.error(`API Error: Fetch failed with status ${response.status} (${response.statusText || "Error"}) for URL: ${response.url}`);
+          }
+          return response;
+        } catch (error: any) {
+          console.error(`API Network Error: Failed to fetch URL: ${args[0]}. Error: ${error.message || error}`);
+          throw error;
+        }
+      };
+      (window as any).fetchPatched = true;
+    }
+  }, []);
+
   // Check if user is logged in on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem("authToken");
         if (token) {
-          const response = await fetch("http://localhost:5000/api/auth/me", {
+          const response = await fetch(`${ENV.API_BASE_URL}/auth/me`, {
             method: "GET",
             headers: {
               "Authorization": `Bearer ${token}`,
@@ -56,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsAuthenticated(true);
             localStorage.setItem("userProfile", JSON.stringify(data.user));
           } else {
+            console.error(`Auth check failed: Server returned status ${response.status} (${response.statusText || "Error"})`);
             // Token is invalid/expired, clear auth state
             localStorage.removeItem("authToken");
             localStorage.removeItem("userProfile");
@@ -63,8 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsAuthenticated(false);
           }
         }
-      } catch (error) {
-        console.error("Auth check failed:", error);
+      } catch (error: any) {
+        console.error("Auth check failed (Network Error):", error.message);
       } finally {
         setLoading(false);
         setDidInit(true);
@@ -77,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (emailOrPhone: string, password: string) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: emailOrPhone, password }),
@@ -104,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async (email: string, password: string, firstName: string, lastName: string, phoneNumber?: string) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/signup", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, firstName, lastName, phoneNumber }),
@@ -131,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const adminSignup = async (email: string, password: string, firstName: string, lastName: string, phoneNumber?: string) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/admin/signup", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/admin/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, firstName, lastName, phoneNumber }),
@@ -158,7 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const distributorSignup = async (distributorData: any) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/distributor/signup", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/distributor/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(distributorData),
@@ -194,7 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetPassword = async (email: string, code: string, newPassword: string) => {
     try {
-      const response = await fetch("http://localhost:5000/api/auth/reset-password", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code, newPassword }),
@@ -210,7 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const sendOtp = async (phone: string) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/send-otp", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone }),
@@ -231,7 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithOtp = async (phone: string, code: string) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/verify-otp", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, code }),
@@ -259,7 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const token = localStorage.getItem("authToken");
-      const response = await fetch("http://localhost:5000/api/auth/update", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/update`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

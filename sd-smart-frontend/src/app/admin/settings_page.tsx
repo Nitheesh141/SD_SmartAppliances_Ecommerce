@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -73,7 +74,7 @@ export default function AdminSettingsPage() {
         const token = localStorage.getItem("authToken");
         if (!token) return;
         
-        const res = await fetch("http://localhost:5000/api/settings", {
+        const res = await fetch(`${ENV.API_BASE_URL}/settings`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -111,7 +112,7 @@ export default function AdminSettingsPage() {
 
     setUploading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/upload", {
+      const res = await fetch(`${ENV.API_BASE_URL}/upload`, {
         method: "POST",
         body: formData
       });
@@ -137,7 +138,7 @@ export default function AdminSettingsPage() {
 
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch("http://localhost:5000/api/settings", {
+      const res = await fetch(`${ENV.API_BASE_URL}/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

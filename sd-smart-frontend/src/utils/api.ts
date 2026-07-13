@@ -1,3 +1,4 @@
+import { ENV } from "@/config/env";
 /**
  * API Utilities
  * Handles common API operations like error handling, token management, etc.
@@ -5,7 +6,7 @@
 
 import { ApiResponse } from "@/types/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || ENV.API_BASE_URL;
 
 export class ApiError extends Error {
   constructor(

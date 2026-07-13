@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -127,7 +128,7 @@ export default function AdminDashboardPage() {
         return;
       }
       
-      const res = await fetch("http://localhost:5000/api/products/transactions", {
+      const res = await fetch(`${ENV.API_BASE_URL}/products/transactions`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

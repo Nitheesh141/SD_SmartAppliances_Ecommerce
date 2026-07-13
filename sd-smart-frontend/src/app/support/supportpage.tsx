@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -76,7 +77,7 @@ export default function SupportPage() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/settings");
+        const res = await fetch(`${ENV.API_BASE_URL}/settings`);
         const data = await res.json();
         if (data.success && data.settings) {
           setSupportInfo({

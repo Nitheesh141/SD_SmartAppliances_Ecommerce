@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -115,7 +116,7 @@ export default function DistributerDashboardPage() {
       const token = localStorage.getItem("authToken");
       if (!token) return;
 
-      const response = await fetch("http://localhost:5000/api/orders", {
+      const response = await fetch(`${ENV.API_BASE_URL}/orders`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }

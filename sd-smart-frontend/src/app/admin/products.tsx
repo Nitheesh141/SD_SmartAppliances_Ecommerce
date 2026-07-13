@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -132,7 +133,7 @@ export default function AdminProductsPage() {
     const stockOutDelta = tempStockOut - (selectedProduct.todayStockOut || 0);
 
     try {
-      const response = await fetch(`http://localhost:5000/api/products/${selectedProduct.id}`, {
+      const response = await fetch(`${ENV.API_BASE_URL}/products/${selectedProduct.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -202,7 +203,7 @@ export default function AdminProductsPage() {
   const fetchProducts = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/products");
+      const response = await fetch(`${ENV.API_BASE_URL}/products`);
       if (!response.ok) throw new Error("Failed to load products");
       const data = await response.json();
       setProducts(data.products || []);
@@ -222,7 +223,7 @@ export default function AdminProductsPage() {
     const token = localStorage.getItem("authToken");
 
     try {
-      const response = await fetch(`http://localhost:5000/api/products/${id}`, {
+      const response = await fetch(`${ENV.API_BASE_URL}/products/${id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`,

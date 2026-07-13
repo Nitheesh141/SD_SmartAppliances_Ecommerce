@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useState, useEffect } from "react";
 export function useDynamicProducts(category?: string) {
@@ -7,7 +8,7 @@ export function useDynamicProducts(category?: string) {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/products");
+        const response = await fetch(`${ENV.API_BASE_URL}/products`);
         if (!response.ok) throw new Error("Failed to fetch products");
         const data = await response.json();
         const apiProducts = data.products || [];

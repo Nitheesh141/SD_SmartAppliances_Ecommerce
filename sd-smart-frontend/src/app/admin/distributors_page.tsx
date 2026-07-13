@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -76,7 +77,7 @@ export default function AdminDistributorsPage() {
       const token = localStorage.getItem("authToken");
       if (!token) return;
 
-      const res = await fetch("http://localhost:5000/api/auth/admin/distributors", {
+      const res = await fetch(`${ENV.API_BASE_URL}/auth/admin/distributors`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -131,7 +132,7 @@ export default function AdminDistributorsPage() {
     setActionLoading(id);
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`http://localhost:5000/api/auth/admin/distributors/${id}/status`, {
+      const res = await fetch(`${ENV.API_BASE_URL}/auth/admin/distributors/${id}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -166,7 +167,7 @@ export default function AdminDistributorsPage() {
     setActionLoading(id);
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`http://localhost:5000/api/auth/admin/distributors/${id}`, {
+      const res = await fetch(`${ENV.API_BASE_URL}/auth/admin/distributors/${id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -195,7 +196,7 @@ export default function AdminDistributorsPage() {
     setDistributorOrders([]);
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch("http://localhost:5000/api/orders/all", {
+      const res = await fetch(`${ENV.API_BASE_URL}/orders/all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();

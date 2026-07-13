@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -51,7 +52,7 @@ export default function OrderDetailPage() {
       setError("");
       try {
         const token = localStorage.getItem("authToken");
-        const res = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+        const res = await fetch(`${ENV.API_BASE_URL}/orders/${orderId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -71,7 +72,7 @@ export default function OrderDetailPage() {
     const fetchSettings = async () => {
       try {
         const token = localStorage.getItem("authToken");
-        const res = await fetch("http://localhost:5000/api/settings", {
+        const res = await fetch(`${ENV.API_BASE_URL}/settings`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -106,7 +107,7 @@ export default function OrderDetailPage() {
     if (!order || !window.confirm("Are you sure you want to cancel this order?")) return;
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`http://localhost:5000/api/orders/${order.id}/cancel`, {
+      const res = await fetch(`${ENV.API_BASE_URL}/orders/${order.id}/cancel`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
