@@ -43,6 +43,9 @@ model User {
   orders          Order[]
   serviceRequests ServiceRequest[]
   warrantyRegistrations WarrantyRegistration[]
+  salesPersonId   String?
+  salesPerson     SalesPerson?     @relation(fields: [salesPersonId], references: [id], onDelete: SetNull)
+  enquiries       Enquiry[]
 }
 
 model OtpVerification {
@@ -393,4 +396,37 @@ model WarrantyAttachment {
   fileType               String // PURCHASE_INVOICE, WARRANTY_CARD, PRODUCT_IMAGE
   fileName               String
   createdAt              DateTime             @default(now())
+}
+
+model SalesPerson {
+  id               String      @id @default(uuid())
+  employeeId       String      @unique
+  fullName         String
+  email            String      @unique
+  mobileNumber     String      @unique
+  password         String
+  assignedRegion   String
+  assignedState    String
+  assignedDistrict String
+  status           String      @default("ACTIVE") // ACTIVE or INACTIVE
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  distributors     User[]
+  enquiries        Enquiry[]
+}
+
+model Enquiry {
+  id            String       @id @default(uuid())
+  name          String
+  email         String
+  phone         String
+  message       String
+  status        String       @default("PENDING") // PENDING, CONTACTED, QUOTATION_SENT, CLOSED
+  remarks       String?
+  salesPersonId String?
+  salesPerson   SalesPerson? @relation(fields: [salesPersonId], references: [id], onDelete: SetNull)
+  userId        String?
+  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }

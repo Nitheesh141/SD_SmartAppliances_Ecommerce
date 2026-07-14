@@ -183,16 +183,62 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     let user = null;
+    let salesPerson = null;
     const isEmail = loginInput.includes("@");
 
     if (isEmail) {
       user = await prisma.user.findUnique({
         where: { email: loginInput.toLowerCase() },
       });
+      if (!user) {
+        salesPerson = await prisma.salesPerson.findUnique({
+          where: { email: loginInput.toLowerCase() },
+        });
+      }
     } else {
       user = await prisma.user.findUnique({
         where: { phoneNumber: loginInput },
       });
+      if (!user) {
+        salesPerson = await prisma.salesPerson.findUnique({
+          where: { mobileNumber: loginInput },
+        });
+      }
+    }
+
+    if (salesPerson) {
+      if (salesPerson.status === "INACTIVE" || salesPerson.status === "Inactive") {
+        res.status(400).json({ success: false, message: "Your account is deactivated. Please contact administrator." });
+        return;
+      }
+
+      const isMatch = await bcrypt.compare(password, salesPerson.password);
+      if (!isMatch) {
+        res.status(400).json({ success: false, message: "Invalid login credentials" });
+        return;
+      }
+
+      const token = jwt.sign(
+        { id: salesPerson.id, email: salesPerson.email, role: "SALESPERSON" },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRES_IN }
+      );
+
+      res.json({
+        success: true,
+        token,
+        user: {
+          id: salesPerson.id,
+          name: salesPerson.fullName,
+          email: salesPerson.email,
+          phoneNumber: salesPerson.mobileNumber,
+          firstName: salesPerson.fullName.split(" ")[0] || "",
+          lastName: salesPerson.fullName.split(" ").slice(1).join(" ") || "",
+          role: "SALESPERSON",
+          approvalStatus: "APPROVED",
+        },
+      });
+      return;
     }
 
     if (!user) {
@@ -239,8 +285,35 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 export const getMe = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as AuthenticatedRequest).user?.id;
+    const userRole = (req as AuthenticatedRequest).user?.role;
     if (!userId) {
       res.status(401).json({ success: false, message: "Not authenticated" });
+      return;
+    }
+
+    if (userRole === "SALESPERSON") {
+      const salesPerson = await prisma.salesPerson.findUnique({
+        where: { id: userId },
+      });
+
+      if (!salesPerson) {
+        res.status(404).json({ success: false, message: "Sales Person not found" });
+        return;
+      }
+
+      res.json({
+        success: true,
+        user: {
+          id: salesPerson.id,
+          name: salesPerson.fullName,
+          email: salesPerson.email,
+          phoneNumber: salesPerson.mobileNumber,
+          firstName: salesPerson.fullName.split(" ")[0] || "",
+          lastName: salesPerson.fullName.split(" ").slice(1).join(" ") || "",
+          role: "SALESPERSON",
+          approvalStatus: "APPROVED",
+        },
+      });
       return;
     }
 

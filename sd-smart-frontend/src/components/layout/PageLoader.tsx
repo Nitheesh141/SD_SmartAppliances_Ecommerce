@@ -5,6 +5,9 @@ import React from "react";
 export default function PageLoader() {
   const [isDark, setIsDark] = React.useState(() => {
     if (typeof window !== "undefined") {
+      if (window.location.pathname.includes("/sales")) {
+        return false;
+      }
       const saved = localStorage.getItem("admin-theme");
       return saved !== "light"; // default to dark (true) unless explicitly saved as light
     }
@@ -13,6 +16,10 @@ export default function PageLoader() {
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
+      if (window.location.pathname.includes("/sales")) {
+        setIsDark(false);
+        return;
+      }
       const saved = localStorage.getItem("admin-theme");
       setIsDark(saved !== "light");
     }

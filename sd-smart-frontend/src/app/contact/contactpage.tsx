@@ -10,8 +10,9 @@ import { Phone, Mail, MapPin, Send } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function ContactPage() {
-  const [formData, setFormData] = useState({ name: "", email: "", message: "" });
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [contactInfo, setContactInfo] = useState({
     phone: "+91 80000 00000",
     email: "support@sdsmart.in"
@@ -35,9 +36,27 @@ export default function ContactPage() {
     fetchSettings();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${ENV.API_BASE_URL}/sales-persons/public/enquiry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSubmitted(true);
+      } else {
+        alert(data.message || "Failed to submit message");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while sending your message. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -124,6 +143,17 @@ export default function ContactPage() {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-4 py-3 text-sm bg-white border border-neutral-200 rounded-xl outline-none focus:border-[#D71920]"
                     placeholder="Enter your email"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-600 uppercase mb-2">Phone Number</label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-4 py-3 text-sm bg-white border border-neutral-200 rounded-xl outline-none focus:border-[#D71920]"
+                    placeholder="Enter your phone number"
                   />
                 </div>
                 <div>

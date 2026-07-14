@@ -4,9 +4,29 @@ import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 
-function AdminSplashScreen() {
+function AdminSplashScreen({ label = "Admin Panel", isSales = false }: { label?: string; isSales?: boolean }) {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      if (isSales) return false;
+      const saved = localStorage.getItem("admin-theme");
+      return saved !== "light";
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (isSales) {
+        setIsDark(false);
+      } else {
+        const saved = localStorage.getItem("admin-theme");
+        setIsDark(saved !== "light");
+      }
+    }
+  }, [isSales]);
+
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#0d0d0d] text-white select-none font-sans">
+    <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none font-sans transition-colors duration-300 ${isDark ? "bg-[#0d0d0d] text-white" : "bg-white text-slate-900"}`}>
       <div className="flex flex-col items-center max-w-sm px-6 text-center animate-fade-in">
         {/* Logo */}
         <div className="mb-8 flex items-center justify-center">
@@ -20,16 +40,16 @@ function AdminSplashScreen() {
         
         {/* Spinner */}
         <div className="relative w-12 h-12 mb-6">
-          <div className="absolute inset-0 rounded-full border-4 border-neutral-800"></div>
+          <div className={`absolute inset-0 rounded-full border-4 ${isDark ? "border-neutral-800" : "border-neutral-200"}`}></div>
           <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#D71920] border-r-[#D71920] animate-spin"></div>
         </div>
 
         {/* Loading Text */}
-        <h3 className="text-base font-extrabold tracking-wider text-neutral-100 uppercase mb-1">
+        <h3 className={`text-base font-extrabold tracking-wider uppercase mb-1 ${isDark ? "text-neutral-100" : "text-[#1C1C1C]"}`}>
           SD SMART APPLIANCES
         </h3>
         <p className="text-[10px] text-[#D71920] font-black tracking-widest uppercase animate-pulse">
-          Loading Admin Panel...
+          Loading {label}...
         </p>
       </div>
     </div>
@@ -48,6 +68,7 @@ export function AppRouteGuard({
   const { user, isAuthenticated, loading: authLoading } = useAuth();
 
   const isAdminRoute = pathname?.startsWith("/admin");
+  const isSalesRoute = pathname?.startsWith("/sales");
   const isRootRoute = pathname === "/";
 
   // Check if server-side user is an admin
@@ -58,9 +79,17 @@ export function AppRouteGuard({
     serverUser.role === "superadmin"
   );
 
+  const isServerSales = serverUser && (
+    serverUser.role?.toUpperCase() === "SALESPERSON" || 
+    serverUser.role === "salesperson"
+  );
+
   // Initialize state based on server-side check to prevent hydration mismatch and flash
   const [showAdminSplash, setShowAdminSplash] = useState(() => {
     if (isAdminRoute && isServerAdmin) {
+      return true;
+    }
+    if (isSalesRoute && isServerSales) {
       return true;
     }
     return false;
@@ -69,7 +98,7 @@ export function AppRouteGuard({
 
   // Synchronous checks on mount or pathname change
   useEffect(() => {
-    if (!isAdminRoute && !isRootRoute) {
+    if (!isAdminRoute && !isSalesRoute && !isRootRoute) {
       setShowAdminSplash(false);
       setIsAuthorized(true);
       return;
@@ -80,6 +109,7 @@ export function AppRouteGuard({
       const loggedUser = cachedProfile ? JSON.parse(cachedProfile) : null;
       const role = loggedUser?.role?.toUpperCase();
       const isAdmin = loggedUser && (role === "ADMIN" || role === "SUPERADMIN" || loggedUser.role === "admin" || loggedUser.role === "superadmin");
+      const isSales = loggedUser && (role === "SALESPERSON" || loggedUser.role === "salesperson");
       
       const isBypassUrl = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("bypass") === "true";
       const hasBypassed = typeof window !== "undefined" && document.cookie.includes("adminLandingBypass=true");
@@ -88,6 +118,9 @@ export function AppRouteGuard({
         if (isAdmin && !isBypassUrl && !hasBypassed) {
           setShowAdminSplash(true);
           router.replace("/admin/dashboard");
+        } else if (isSales && !isBypassUrl && !hasBypassed) {
+          setShowAdminSplash(true);
+          router.replace("/sales/dashboard");
         } else {
           setShowAdminSplash(false);
           setIsAuthorized(true);
@@ -100,19 +133,27 @@ export function AppRouteGuard({
         } else {
           setShowAdminSplash(true);
         }
+      } else if (isSalesRoute) {
+        if (loggedUser && !isSales) {
+          setIsAuthorized(false);
+          router.replace("/auth/login");
+        } else {
+          setShowAdminSplash(true);
+        }
       }
     };
 
     checkRedirectAndSplash();
-  }, [pathname, router, isAdminRoute, isRootRoute]);
+  }, [pathname, router, isAdminRoute, isSalesRoute, isRootRoute]);
 
   // Reactive authentication checks and splash timer
   useEffect(() => {
-    if (!isAdminRoute && !isRootRoute) return;
+    if (!isAdminRoute && !isSalesRoute && !isRootRoute) return;
 
     if (!authLoading) {
       const role = user?.role?.toUpperCase();
       const isAdmin = user && (role === "ADMIN" || role === "SUPERADMIN" || user.role === "admin" || user.role === "superadmin");
+      const isSales = user && (role === "SALESPERSON" || user.role === "salesperson");
 
       if (isAdminRoute) {
         if (!isAuthenticated || !isAdmin) {
@@ -128,34 +169,54 @@ export function AppRouteGuard({
           return () => clearTimeout(timer);
         }
       }
+
+      if (isSalesRoute) {
+        if (!isAuthenticated || !isSales) {
+          setIsAuthorized(false);
+          setShowAdminSplash(false);
+          router.replace("/auth/login");
+        } else {
+          const timer = setTimeout(() => {
+            setShowAdminSplash(false);
+            setIsAuthorized(true);
+          }, 500);
+          return () => clearTimeout(timer);
+        }
+      }
       
-      if (isRootRoute && isAdmin) {
+      if (isRootRoute) {
         const isBypassUrl = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("bypass") === "true";
         const hasBypassed = typeof window !== "undefined" && document.cookie.includes("adminLandingBypass=true");
         
-        if (!isBypassUrl && !hasBypassed) {
+        if (isAdmin && !isBypassUrl && !hasBypassed) {
           setShowAdminSplash(true);
           router.replace("/admin/dashboard");
+        } else if (isSales && !isBypassUrl && !hasBypassed) {
+          setShowAdminSplash(true);
+          router.replace("/sales/dashboard");
         }
       }
     } else {
-      if (isAdminRoute) {
+      if (isAdminRoute || isSalesRoute) {
         setShowAdminSplash(true);
       }
     }
-  }, [user, isAuthenticated, authLoading, pathname, router, isAdminRoute, isRootRoute]);
+  }, [user, isAuthenticated, authLoading, pathname, router, isAdminRoute, isSalesRoute, isRootRoute]);
 
-  if (isAdminRoute) {
+  if (isAdminRoute || isSalesRoute) {
     if (!isAuthorized) {
       return null;
     }
     if (showAdminSplash) {
-      return <AdminSplashScreen />;
+      const label = isSalesRoute ? "Sales Panel" : "Admin Panel";
+      return <AdminSplashScreen label={label} isSales={isSalesRoute} />;
     }
   }
 
   if (isRootRoute && showAdminSplash) {
-    return <AdminSplashScreen />;
+    const role = user?.role?.toUpperCase();
+    const label = role === "SALESPERSON" ? "Sales Panel" : "Admin Panel";
+    return <AdminSplashScreen label={label} isSales={role === "SALESPERSON"} />;
   }
 
   return <>{children}</>;
