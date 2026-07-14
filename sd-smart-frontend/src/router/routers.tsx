@@ -76,6 +76,31 @@ const AdminDistributorsPage = dynamic(() => import("../app/admin/distributors_pa
   ssr: true,
 });
 
+const AdminSalesPersonsPage = dynamic(() => import("../app/admin/sales_persons_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesDashboardPage = dynamic(() => import("../app/sales/dashboard_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesDistributorsPage = dynamic(() => import("../app/sales/distributors_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesEnquiriesPage = dynamic(() => import("../app/sales/enquiries_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesProductsPage = dynamic(() => import("../app/sales/products_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 // Other pages
 const LandingPage = dynamic(() => import("../app/LandingPage/LandingPage"), {
   loading: PageLoader,
@@ -172,6 +197,11 @@ export const routes: Record<string, React.ComponentType<any>> = {
   "/auth/distributor-signup": DistributorSignupPage,
   "/distributor/dashboard": DistributerDashboardPage,
   "/admin/distributors": AdminDistributorsPage,
+  "/admin/sales-persons": AdminSalesPersonsPage,
+  "/sales/dashboard": SalesDashboardPage,
+  "/sales/distributors": SalesDistributorsPage,
+  "/sales/enquiries": SalesEnquiriesPage,
+  "/sales/products": SalesProductsPage,
   "/admin/dashboard": AdminDashboardPage,
   "/admin/products": AdminProductsPage,
   "/admin/orders": AdminOrdersPage,

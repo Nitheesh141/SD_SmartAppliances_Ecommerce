@@ -53,6 +53,8 @@ export default function LoginPage() {
           router.push("/admin/dashboard");
         } else if (loggedUser && (role === "DISTRIBUTOR" || loggedUser.role === "distributor")) {
           router.push("/distributor/dashboard");
+        } else if (loggedUser && (role === "SALESPERSON" || loggedUser.role === "salesperson")) {
+          router.push("/sales/dashboard");
         } else {
           router.push("/");
         }
