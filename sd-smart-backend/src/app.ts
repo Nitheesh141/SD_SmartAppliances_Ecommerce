@@ -12,6 +12,7 @@ import settingRoutes from "./routes/setting.routes";
 import serviceRequestRoutes from "./routes/serviceRequest.routes";
 import warrantyRegistrationRoutes from "./routes/warrantyRegistration.routes";
 import salesPersonRoutes from "./routes/salesPerson.routes";
+import distributorEnquiryRoutes from "./routes/distributorEnquiry.routes";
 import path from "path";
 
 const app = express();
@@ -41,6 +42,7 @@ app.use("/api/settings", settingRoutes);
 app.use("/api/service-requests", serviceRequestRoutes);
 app.use("/api/warranty-registrations", warrantyRegistrationRoutes);
 app.use("/api/sales-persons", salesPersonRoutes);
+app.use("/api/distributor-enquiries", distributorEnquiryRoutes);
 
 // Serve static files from the uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));

@@ -1505,8 +1505,8 @@ export default function ProductDetailPage() {
 
       </main>
 
-      {isEnquiryOpen && (
-        <EnquiryModal isOpen={isEnquiryOpen} onClose={() => setIsEnquiryOpen(false)} />
+      {isEnquiryOpen && product && (
+        <EnquiryModal isOpen={isEnquiryOpen} onClose={() => setIsEnquiryOpen(false)} productId={product.id} productName={product.name} />
       )}
 
       <Footer footerColumns={footerColumns} socialLinks={socialLinks} />

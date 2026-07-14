@@ -10,6 +10,19 @@ export const getWishlist = async (req: AuthenticatedRequest, res: Response): Pro
       return;
     }
 
+    const role = req.user?.role?.toUpperCase();
+    if (role !== "CUSTOMER" && role !== "DISTRIBUTOR") {
+      res.json({
+        success: true,
+        data: {
+          id: `temp-wishlist-${userId}`,
+          userId,
+          items: []
+        }
+      });
+      return;
+    }
+
     let wishlist = await prisma.wishlist.findUnique({
       where: { userId },
       include: {
@@ -41,6 +54,12 @@ export const addToWishlist = async (req: AuthenticatedRequest, res: Response): P
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    const role = req.user?.role?.toUpperCase();
+    if (role !== "CUSTOMER" && role !== "DISTRIBUTOR") {
+      res.status(403).json({ success: false, message: "Only customers and distributors can manage wishlists" });
       return;
     }
 
@@ -97,6 +116,12 @@ export const removeFromWishlist = async (req: AuthenticatedRequest, res: Respons
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    const role = req.user?.role?.toUpperCase();
+    if (role !== "CUSTOMER" && role !== "DISTRIBUTOR") {
+      res.status(403).json({ success: false, message: "Only customers and distributors can manage wishlists" });
       return;
     }
 

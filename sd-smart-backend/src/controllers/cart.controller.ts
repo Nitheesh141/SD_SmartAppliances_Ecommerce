@@ -22,6 +22,19 @@ export const getCart = async (req: AuthenticatedRequest, res: Response): Promise
       return;
     }
 
+    const role = req.user?.role?.toUpperCase();
+    if (role !== "CUSTOMER" && role !== "DISTRIBUTOR") {
+      res.json({
+        success: true,
+        data: {
+          id: `temp-cart-${userId}`,
+          userId,
+          items: []
+        }
+      });
+      return;
+    }
+
     let cart = await prisma.cart.findUnique({
       where: { userId },
       include: {
@@ -54,6 +67,12 @@ export const addToCart = async (req: AuthenticatedRequest, res: Response): Promi
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    const role = req.user?.role?.toUpperCase();
+    if (role !== "CUSTOMER" && role !== "DISTRIBUTOR") {
+      res.status(403).json({ success: false, message: "Only customers and distributors can manage carts" });
       return;
     }
 
@@ -120,6 +139,12 @@ export const updateCartItem = async (req: AuthenticatedRequest, res: Response): 
       return;
     }
 
+    const role = req.user?.role?.toUpperCase();
+    if (role !== "CUSTOMER" && role !== "DISTRIBUTOR") {
+      res.status(403).json({ success: false, message: "Only customers and distributors can manage carts" });
+      return;
+    }
+
     const id = req.params.id as string;
     const { quantity } = req.body;
 
@@ -170,6 +195,12 @@ export const removeFromCart = async (req: AuthenticatedRequest, res: Response): 
       return;
     }
 
+    const role = req.user?.role?.toUpperCase();
+    if (role !== "CUSTOMER" && role !== "DISTRIBUTOR") {
+      res.status(403).json({ success: false, message: "Only customers and distributors can manage carts" });
+      return;
+    }
+
     const id = req.params.id as string;
 
     const item = await prisma.cartItem.findUnique({
@@ -215,6 +246,12 @@ export const clearCart = async (req: AuthenticatedRequest, res: Response): Promi
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    const role = req.user?.role?.toUpperCase();
+    if (role !== "CUSTOMER" && role !== "DISTRIBUTOR") {
+      res.status(403).json({ success: false, message: "Only customers and distributors can manage carts" });
       return;
     }
 

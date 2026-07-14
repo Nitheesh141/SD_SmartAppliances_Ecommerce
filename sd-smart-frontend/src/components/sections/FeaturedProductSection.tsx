@@ -179,7 +179,7 @@ export default function FeaturedProductSection({ product }: FeaturedProductSecti
         </ScrollReveal>
       </div>
       {isEnquiryOpen && (
-        <EnquiryModal isOpen={isEnquiryOpen} onClose={() => setIsEnquiryOpen(false)} />
+        <EnquiryModal isOpen={isEnquiryOpen} onClose={() => setIsEnquiryOpen(false)} productId={product.id} productName={product.name} />
       )}
     </SectionContainer>
   );

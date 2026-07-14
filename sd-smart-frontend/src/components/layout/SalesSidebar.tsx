@@ -1,13 +1,15 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { 
-  LayoutDashboard, LogOut, Home, Shield, Menu, X, ArrowLeftRight, Package, Headphones
+  LayoutDashboard, LogOut, Home, Shield, Menu, X, ArrowLeftRight, Package, Headphones,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ENV } from "@/config/env";
 
 interface SalesSidebarProps {
   currentPath: string;
@@ -17,6 +19,7 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const menuItems = [
     {
@@ -30,9 +33,9 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
       href: "/sales/distributors",
     },
     {
-      label: "Customer Enquiries",
-      icon: Headphones,
-      href: "/sales/enquiries",
+      label: "Distributor Enquiries",
+      icon: MessageSquare,
+      href: "/sales/distributor-enquiries",
     },
     {
       label: "Product Catalog",
@@ -40,6 +43,56 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
       href: "/sales/products",
     }
   ];
+
+  // Fetch salesperson unread notifications count
+  const fetchUnreadCount = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) return;
+
+      const res = await fetch(`${ENV.API_BASE_URL}/distributor-enquiries/notifications/list`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setUnreadCount(data.unreadCount || 0);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch salesperson unread count:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (user && user.role?.toUpperCase() === "SALESPERSON") {
+      fetchUnreadCount();
+      const interval = setInterval(fetchUnreadCount, 20000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  // Mark salesperson notifications as read when visiting enquiries page or when new counts appear while on that page
+  useEffect(() => {
+    const markAsRead = async () => {
+      const token = localStorage.getItem("authToken");
+      if (!token) return;
+
+      if (currentPath === "/sales/distributor-enquiries" && unreadCount > 0) {
+        try {
+          await fetch(`${ENV.API_BASE_URL}/distributor-enquiries/notifications/read`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setUnreadCount(0);
+        } catch (err) {
+          console.error("Failed to mark notifications as read:", err);
+        }
+      }
+    };
+
+    markAsRead();
+  }, [currentPath, unreadCount]);
 
   const handleLogout = () => {
     logout();
@@ -59,63 +112,41 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
               className="h-8 w-auto object-contain cursor-pointer"
             />
           </Link>
-          <span className="h-4 w-[1px] bg-neutral-200"></span>
-          <span className="text-xs font-extrabold uppercase tracking-wider text-[#D71920] flex items-center gap-1">
-            <LayoutDashboard size={12} />
-            <span>Sales Portal</span>
-          </span>
         </div>
-        
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="p-2 rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-all"
+          className="p-2 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer text-slate-700"
+          aria-label="Toggle Menu"
         >
-          {isOpen ? <X size={20} /> : <Menu size={20} />}
+          {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
-      {/* Sidebar Navigation */}
-      <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 flex flex-col w-64 border-r bg-white border-neutral-200 text-slate-900 transition-all duration-300 transform lg:translate-x-0",
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        {/* Brand Header */}
-        <div className="px-6 py-5 border-b border-neutral-200 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/?bypass=true" onClick={() => setIsOpen(false)}>
-              <img
-                src="/sd-smart-ecommerce/SD-logo.png"
-                alt="SD Smart Appliances"
-                className="h-10 w-auto object-contain cursor-pointer"
-              />
-            </Link>
-            <span className="h-6 w-[1px] bg-neutral-200"></span>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">Sales Rep</span>
-              <span className="text-xs font-bold text-[#D71920] flex items-center gap-0.5">
-                <LayoutDashboard size={10} />
-                <span>Portal</span>
-              </span>
-            </div>
-          </div>
-          
-          {/* Close button on mobile */}
-          <button 
-            onClick={() => setIsOpen(false)} 
-            className="lg:hidden p-1.5 rounded-lg border border-neutral-200"
-          >
-            <X size={16} />
-          </button>
+      {/* Sidebar Container */}
+      <aside
+        className={cn(
+          "fixed top-0 bottom-0 left-0 z-40 flex flex-col w-64 border-r bg-white border-neutral-200 transition-transform duration-300 lg:translate-x-0",
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
+        {/* Logo Branding */}
+        <div className="h-20 flex items-center px-6 border-b border-neutral-200 bg-white">
+          <Link href="/?bypass=true" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+            <img
+              src="/sd-smart-ecommerce/SD-logo.png"
+              alt="SD Smart Appliances"
+              className="h-10 w-auto object-contain"
+            />
+          </Link>
         </div>
 
-        {/* Profile Card */}
-        <div className="px-6 py-5 border-b border-neutral-200 flex flex-col gap-1">
-          <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Signed in as</p>
-          <div className="flex items-center gap-3 mt-1">
-            <div className="w-9 h-9 rounded-full bg-[#D71920]/15 text-[#D71920] border border-[#D71920]/30 flex items-center justify-center font-bold text-sm">
-              {user?.name?.charAt(0).toUpperCase() || "S"}
+        {/* Profile Card Summary */}
+        <div className="p-4 border-b border-neutral-200 bg-white">
+          <div className="flex items-center gap-3 p-2 rounded-xl bg-neutral-50/80 border border-neutral-200/50">
+            <div className="h-9 w-9 rounded-full bg-[#D71920]/10 flex items-center justify-center font-bold text-[#D71920]">
+              {user?.name?.slice(0, 2).toUpperCase() || "SR"}
             </div>
-            <div className="min-w-0">
+            <div className="flex-1 min-w-0 text-left">
               <h4 className="text-sm font-bold truncate">{user?.name || "Sales Representative"}</h4>
               <p className="text-xs text-neutral-500 truncate">{user?.email}</p>
             </div>
@@ -147,6 +178,14 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
                   )} />
                   <span>{item.label}</span>
                 </div>
+                {item.label === "Distributor Enquiries" && unreadCount > 0 && (
+                  <span className={cn(
+                    "text-[10px] font-black px-2 py-0.5 rounded-full inline-block animate-pulse",
+                    isActive ? "bg-white text-[#D71920]" : "bg-[#D71920] text-white"
+                  )}>
+                    {unreadCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -178,9 +217,9 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
 
       {/* Sidebar Backdrop on mobile */}
       {isOpen && (
-        <div 
+        <div
+          className="fixed inset-0 z-30 bg-neutral-900/40 backdrop-blur-sm lg:hidden"
           onClick={() => setIsOpen(false)}
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
         />
       )}
     </>

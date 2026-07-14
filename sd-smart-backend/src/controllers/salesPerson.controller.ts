@@ -23,6 +23,16 @@ export const listSalesPersons = async (req: Request, res: Response): Promise<voi
   try {
     if (!verifyAdmin(req, res)) return;
 
+    const startOfCurrentMonth = new Date();
+    startOfCurrentMonth.setDate(1);
+    startOfCurrentMonth.setHours(0, 0, 0, 0);
+
+    const endOfCurrentMonth = new Date(startOfCurrentMonth);
+    endOfCurrentMonth.setMonth(endOfCurrentMonth.getMonth() + 1);
+
+    const currentMonth = startOfCurrentMonth.getMonth() + 1;
+    const currentYear = startOfCurrentMonth.getFullYear();
+
     const salesPersons = await prisma.salesPerson.findMany({
       orderBy: { createdAt: "desc" },
       include: {
@@ -33,11 +43,98 @@ export const listSalesPersons = async (req: Request, res: Response): Promise<voi
             firstName: true,
             lastName: true
           }
+        },
+        targets: {
+          where: {
+            month: currentMonth,
+            year: currentYear
+          }
         }
       }
     });
 
-    res.json({ success: true, salesPersons });
+    // Collect all distributor IDs
+    const allDistributorIds: string[] = [];
+    salesPersons.forEach(sp => {
+      sp.distributors.forEach(d => {
+        allDistributorIds.push(d.id);
+      });
+    });
+
+    // Fetch all current month orders for these distributors
+    const orders = allDistributorIds.length > 0 ? await prisma.order.findMany({
+      where: {
+        userId: { in: allDistributorIds },
+        createdAt: { gte: startOfCurrentMonth, lt: endOfCurrentMonth },
+        status: { notIn: ["CANCELLED", "REJECTED"] }
+      },
+      include: {
+        items: true
+      }
+    }) : [];
+
+    // Map orders by distributor ID for fast lookup
+    const ordersByDistributor: Record<string, typeof orders> = {};
+    orders.forEach(order => {
+      let list = ordersByDistributor[order.userId];
+      if (!list) {
+        list = [];
+        ordersByDistributor[order.userId] = list;
+      }
+      list.push(order);
+    });
+
+    const salesPersonsWithStats = salesPersons.map(sp => {
+      const currentTarget = sp.targets[0] || null;
+      const targetType = currentTarget?.targetType || "REVENUE";
+      const targetValue = currentTarget?.targetValue || 0;
+
+      // Collect all orders for this salesperson's distributors
+      const spOrders: typeof orders = [];
+      sp.distributors.forEach(d => {
+        const distOrders = ordersByDistributor[d.id] || [];
+        spOrders.push(...distOrders);
+      });
+
+      // Calculate achievements
+      let achievement = 0;
+      if (targetType === "REVENUE") {
+        achievement = spOrders.reduce((sum, order) => sum + order.grandTotal, 0);
+      } else if (targetType === "UNITS_SOLD") {
+        achievement = spOrders.reduce((sum, order) => {
+          const itemsCount = order.items.reduce((itemSum, item) => itemSum + item.quantity, 0);
+          return sum + itemsCount;
+        }, 0);
+      }
+
+      const progressPercent = targetValue > 0 ? Math.min(Math.round((achievement / targetValue) * 100), 100) : 0;
+
+      return {
+        id: sp.id,
+        employeeId: sp.employeeId,
+        fullName: sp.fullName,
+        email: sp.email,
+        mobileNumber: sp.mobileNumber,
+        assignedRegion: sp.assignedRegion,
+        assignedState: sp.assignedState,
+        assignedDistrict: sp.assignedDistrict,
+        status: sp.status,
+        remarks: sp.remarks,
+        createdAt: sp.createdAt,
+        updatedAt: sp.updatedAt,
+        distributors: sp.distributors,
+        currentTarget: currentTarget ? {
+          targetType,
+          targetValue,
+          month: currentMonth,
+          year: currentYear
+        } : null,
+        achievement,
+        progressPercent
+      };
+    });
+
+    res.json({ success: true, salesPersons: salesPersonsWithStats });
   } catch (error: any) {
     console.error("List sales persons error:", error);
     res.status(500).json({ success: false, message: "Failed to retrieve sales persons" });
@@ -257,10 +354,10 @@ export const deleteSalesPerson = async (req: Request, res: Response): Promise<vo
         data: { salesPersonId: null }
       });
 
-      // Disassociate enquiries
-      await tx.enquiry.updateMany({
+      // Disassociate distributor enquiries
+      await tx.distributorEnquiry.updateMany({
         where: { salesPersonId: id },
-        data: { salesPersonId: null }
+        data: { salesPersonId: null, status: "New" }
       });
 
       // Delete sales person
@@ -274,8 +371,213 @@ export const deleteSalesPerson = async (req: Request, res: Response): Promise<vo
   }
 };
 
+// Get Sales Person performance details for a specific month and year
+export const getSalesPersonPerformance = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!verifyAdmin(req, res)) return;
+
+    const id = req.params.id as string;
+    const month = parseInt(req.query.month as string) || (new Date().getMonth() + 1);
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+
+    const salesPerson = await prisma.salesPerson.findUnique({
+      where: { id },
+      include: {
+        distributors: {
+          select: { id: true, companyName: true, firstName: true, lastName: true }
+        }
+      }
+    });
+
+    if (!salesPerson) {
+      res.status(404).json({ success: false, message: "Sales Person not found" });
+      return;
+    }
+
+    // Find target for that month/year
+    const target = await prisma.salesTarget.findUnique({
+      where: {
+        salesPersonId_month_year: {
+          salesPersonId: id,
+          month,
+          year
+        }
+      }
+    });
+
+    // Calculate orders & achievements in that month/year
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth = new Date(year, month, 1);
+
+    const distIds = salesPerson.distributors.map(d => d.id);
+
+    const orders = distIds.length > 0 ? await prisma.order.findMany({
+      where: {
+        userId: { in: distIds },
+        createdAt: { gte: startOfMonth, lt: endOfMonth },
+        status: { notIn: ["CANCELLED", "REJECTED"] }
+      },
+      include: {
+        items: true
+      }
+    }) : [];
+
+    const ordersCount = orders.length;
+    const revenueAchieved = orders.reduce((sum, o) => sum + o.grandTotal, 0);
+    const unitsSold = orders.reduce((sum, o) => sum + o.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
+
+    const targetType = target?.targetType || "REVENUE";
+    const targetValue = target?.targetValue || 0;
+
+    let achievement = 0;
+    if (targetType === "REVENUE") {
+      achievement = revenueAchieved;
+    } else if (targetType === "UNITS_SOLD") {
+      achievement = unitsSold;
+    }
+
+    const progressPercent = targetValue > 0 ? Math.min(Math.round((achievement / targetValue) * 100), 100) : 0;
+    const remainingTarget = Math.max(targetValue - achievement, 0);
+
+    res.json({
+      success: true,
+      performance: {
+        totalDistributors: salesPerson.distributors.length,
+        ordersCount,
+        revenueAchieved,
+        unitsSold,
+        targetType,
+        targetValue,
+        achievement,
+        progressPercent,
+        remainingTarget,
+        remarks: salesPerson.remarks || ""
+      }
+    });
+  } catch (error: any) {
+    console.error("Get performance stats error:", error);
+    res.status(500).json({ success: false, message: "Failed to load performance statistics" });
+  }
+};
+
+// Save Monthly Sales Target
+export const saveSalesPersonTarget = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!verifyAdmin(req, res)) return;
+
+    const id = req.params.id as string;
+    const { targetType, targetValue, month, year } = req.body;
+
+    if (!targetType || targetValue === undefined || !month || !year) {
+      res.status(400).json({ success: false, message: "Missing target fields" });
+      return;
+    }
+
+    const salesPerson = await prisma.salesPerson.findUnique({ where: { id } });
+    if (!salesPerson) {
+      res.status(404).json({ success: false, message: "Sales Person not found" });
+      return;
+    }
+
+    const target = await prisma.salesTarget.upsert({
+      where: {
+        salesPersonId_month_year: {
+          salesPersonId: id,
+          month,
+          year
+        }
+      },
+      update: {
+        targetType,
+        targetValue: parseFloat(targetValue)
+      },
+      create: {
+        salesPersonId: id,
+        targetType,
+        targetValue: parseFloat(targetValue),
+        month,
+        year
+      }
+    });
+
+    res.json({ success: true, message: "Sales Target saved successfully", target });
+  } catch (error: any) {
+    console.error("Save sales target error:", error);
+    res.status(500).json({ success: false, message: "Failed to save sales target" });
+  }
+};
+
+// Update Admin Remarks
+export const updateSalesPersonRemarks = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!verifyAdmin(req, res)) return;
+
+    const id = req.params.id as string;
+    const { remarks } = req.body;
+
+    const salesPerson = await prisma.salesPerson.findUnique({ where: { id } });
+    if (!salesPerson) {
+      res.status(404).json({ success: false, message: "Sales Person not found" });
+      return;
+    }
+
+    const updated = await prisma.salesPerson.update({
+      where: { id },
+      data: { remarks: remarks !== undefined ? remarks : null }
+    });
+
+    res.json({ success: true, message: "Admin remarks updated successfully", remarks: updated.remarks || "" });
+  } catch (error: any) {
+    console.error("Update remarks error:", error);
+    res.status(500).json({ success: false, message: "Failed to update remarks" });
+  }
+};
+
+// Assign Distributors
+export const assignSalesPersonDistributors = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!verifyAdmin(req, res)) return;
+
+    const id = req.params.id as string;
+    const { distributorIds } = req.body;
+
+    if (!Array.isArray(distributorIds)) {
+      res.status(400).json({ success: false, message: "distributorIds must be an array" });
+      return;
+    }
+
+    const salesPerson = await prisma.salesPerson.findUnique({ where: { id } });
+    if (!salesPerson) {
+      res.status(404).json({ success: false, message: "Sales Person not found" });
+      return;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Clear all previously assigned distributors
+      await tx.user.updateMany({
+        where: { salesPersonId: id },
+        data: { salesPersonId: null }
+      });
+
+      // Set new distributors
+      if (distributorIds.length > 0) {
+        await tx.user.updateMany({
+          where: { id: { in: distributorIds }, role: "DISTRIBUTOR" },
+          data: { salesPersonId: id }
+        });
+      }
+    });
+
+    res.json({ success: true, message: "Distributors assigned successfully" });
+  } catch (error: any) {
+    console.error("Assign distributors error:", error);
+    res.status(500).json({ success: false, message: "Failed to assign distributors" });
+  }
+};
+
 // ==========================================
 // SALES PERSON CONTROLLERS (Sales Person only)
+
 // ==========================================
 
 // Helper to check and get Sales Person details
@@ -365,66 +667,6 @@ export const getDistributorOrders = async (req: Request, res: Response): Promise
   }
 };
 
-// View customer & distributor enquiries assigned to them
-export const getMyEnquiries = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const salesPersonId = verifySalesPerson(req, res);
-    if (!salesPersonId) return;
-
-    const enquiries = await prisma.enquiry.findMany({
-      where: { salesPersonId },
-      orderBy: { createdAt: "desc" }
-    });
-
-    res.json({ success: true, enquiries });
-  } catch (error: any) {
-    console.error("Get my enquiries error:", error);
-    res.status(500).json({ success: false, message: "Failed to retrieve enquiries" });
-  }
-};
-
-// Add follow-up remarks & update enquiry status
-export const updateEnquiry = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const salesPersonId = verifySalesPerson(req, res);
-    if (!salesPersonId) return;
-
-    const id = req.params.id as string;
-    const { status, remarks } = req.body;
-
-    const enquiry = await prisma.enquiry.findUnique({ where: { id } });
-
-    if (!enquiry) {
-      res.status(404).json({ success: false, message: "Enquiry not found" });
-      return;
-    }
-
-    if (enquiry.salesPersonId !== salesPersonId) {
-      res.status(403).json({ success: false, message: "Access denied. This enquiry is not assigned to you." });
-      return;
-    }
-
-    const validStatuses = ["PENDING", "CONTACTED", "QUOTATION_SENT", "CLOSED"];
-    if (status && !validStatuses.includes(status)) {
-      res.status(400).json({ success: false, message: "Invalid status value" });
-      return;
-    }
-
-    const updated = await prisma.enquiry.update({
-      where: { id },
-      data: {
-        status: status || enquiry.status,
-        remarks: remarks !== undefined ? remarks : enquiry.remarks
-      }
-    });
-
-    res.json({ success: true, message: "Enquiry updated successfully", enquiry: updated });
-  } catch (error: any) {
-    console.error("Update enquiry error:", error);
-    res.status(500).json({ success: false, message: "Failed to update enquiry" });
-  }
-};
-
 // Get Dashboard Stats for Sales Person
 export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -438,29 +680,83 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const distIds = distributors.map(d => d.id);
 
     // Compute calendar month details
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    const month = parseInt(req.query.month as string) || (new Date().getMonth() + 1);
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
 
-    // Compute orders this month
-    const ordersThisMonth = await prisma.order.findMany({
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth = new Date(year, month, 1);
+
+    // Fetch the salesperson's current month target
+    const target = await prisma.salesTarget.findUnique({
       where: {
-        userId: { in: distIds },
-        createdAt: { gte: startOfMonth },
-        status: { notIn: ["CANCELLED", "REJECTED"] }
+        salesPersonId_month_year: {
+          salesPersonId,
+          month,
+          year
+        }
       }
     });
 
-    const salesValue = ordersThisMonth.reduce((sum, order) => sum + order.grandTotal, 0);
-    const ordersCount = ordersThisMonth.length;
+    const salesPerson = await prisma.salesPerson.findUnique({
+      where: { id: salesPersonId },
+      select: { remarks: true }
+    });
 
-    // Pending enquiries assigned to them
-    const pendingEnquiriesCount = await prisma.enquiry.count({
-      where: { salesPersonId, status: "PENDING" }
+    // Compute orders and items this month
+    const ordersWithItems = distIds.length > 0 ? await prisma.order.findMany({
+      where: {
+        userId: { in: distIds },
+        createdAt: { gte: startOfMonth, lt: endOfMonth },
+        status: { notIn: ["CANCELLED", "REJECTED"] }
+      },
+      include: {
+        items: true
+      }
+    }) : [];
+
+    const salesValue = ordersWithItems.reduce((sum, order) => sum + order.grandTotal, 0);
+    const ordersCount = ordersWithItems.length;
+    const unitsSold = ordersWithItems.reduce((sum, order) => {
+      const itemsCount = order.items.reduce((itemSum, item) => itemSum + item.quantity, 0);
+      return sum + itemsCount;
+    }, 0);
+
+    const targetType = target?.targetType || "REVENUE";
+    const targetValue = target?.targetValue || 0;
+
+    let achievement = 0;
+    if (targetType === "REVENUE") {
+      achievement = salesValue;
+    } else if (targetType === "UNITS_SOLD") {
+      achievement = unitsSold;
+    }
+
+    const progressPercent = targetValue > 0 ? Math.min(Math.round((achievement / targetValue) * 100), 100) : 0;
+    const remainingTarget = Math.max(targetValue - achievement, 0);
+
+    // Dynamic Distributor Enquiry Counts
+    const assignedEnquiriesCount = await prisma.distributorEnquiry.count({
+      where: { salesPersonId }
+    });
+
+    const activeEnquiriesCount = await prisma.distributorEnquiry.count({
+      where: { salesPersonId, status: { in: ["Assigned", "Contacted", "Negotiation"] } }
+    });
+
+    const quotationSentCount = await prisma.distributorEnquiry.count({
+      where: { salesPersonId, status: "Quotation Sent" }
+    });
+
+    const convertedOrdersCount = await prisma.distributorEnquiry.count({
+      where: { salesPersonId, status: "Converted to Order" }
+    });
+
+    const closedEnquiriesCount = await prisma.distributorEnquiry.count({
+      where: { salesPersonId, status: "Closed" }
     });
 
     // Recent orders
-    const recentOrders = await prisma.order.findMany({
+    const recentOrders = distIds.length > 0 ? await prisma.order.findMany({
       where: { userId: { in: distIds } },
       orderBy: { createdAt: "desc" },
       take: 5,
@@ -474,13 +770,27 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
           }
         }
       }
-    });
+    }) : [];
 
-    // Recent Enquiries
-    const recentEnquiries = await prisma.enquiry.findMany({
+    // Recent Distributor Enquiries
+    const recentEnquiries = await prisma.distributorEnquiry.findMany({
       where: { salesPersonId },
       orderBy: { updatedAt: "desc" },
-      take: 5
+      take: 5,
+      include: {
+        distributor: {
+          select: {
+            companyName: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        product: {
+          select: {
+            name: true
+          }
+        }
+      }
     });
 
     res.json({
@@ -489,7 +799,22 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
         assignedDistributorsCount: distributors.length,
         ordersThisMonthCount: ordersCount,
         salesValueThisMonth: salesValue,
-        pendingEnquiriesCount
+        unitsSoldThisMonth: unitsSold,
+        assignedEnquiriesCount,
+        activeEnquiriesCount,
+        quotationSentCount,
+        convertedOrdersCount,
+        closedEnquiriesCount,
+        currentTarget: target ? {
+          targetType,
+          targetValue,
+          month,
+          year
+        } : null,
+        achievement,
+        progressPercent,
+        remainingTarget,
+        remarks: salesPerson?.remarks || ""
       },
       recentOrders,
       recentEnquiries
@@ -497,60 +822,5 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
   } catch (error: any) {
     console.error("Get dashboard stats error:", error);
     res.status(500).json({ success: false, message: "Failed to compute stats" });
-  }
-};
-
-// ==========================================
-// PUBLIC CONTROLLERS (Unauthenticated)
-// ==========================================
-
-// Create a new contact/price enquiry
-export const createPublicEnquiry = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { name, email, phone, message, userId } = req.body;
-
-    if (!name || !email || !phone || !message) {
-      res.status(400).json({ success: false, message: "All fields are required" });
-      return;
-    }
-
-    // Try to auto-assign a sales person
-    // If userId (distributor/customer) is provided, see if they are assigned to a SalesPerson.
-    let assignedSalesPersonId: string | null = null;
-
-    if (userId) {
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (user && user.salesPersonId) {
-        assignedSalesPersonId = user.salesPersonId;
-      }
-    }
-
-    // Fallback: assign to the first active sales person, or null
-    if (!assignedSalesPersonId) {
-      const salesPersons = await prisma.salesPerson.findMany({
-        where: { status: "ACTIVE" },
-        take: 1
-      });
-      const firstSalesPerson = salesPersons[0];
-      if (firstSalesPerson) {
-        assignedSalesPersonId = firstSalesPerson.id;
-      }
-    }
-
-    const enquiry = await prisma.enquiry.create({
-      data: {
-        name,
-        email,
-        phone,
-        message,
-        userId: userId || null,
-        salesPersonId: assignedSalesPersonId
-      }
-    });
-
-    res.status(201).json({ success: true, message: "Enquiry submitted successfully", enquiry });
-  } catch (error: any) {
-    console.error("Create public enquiry error:", error);
-    res.status(500).json({ success: false, message: "Failed to submit enquiry" });
   }
 };

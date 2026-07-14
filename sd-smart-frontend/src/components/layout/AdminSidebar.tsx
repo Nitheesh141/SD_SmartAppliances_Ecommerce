@@ -7,7 +7,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { 
   LayoutDashboard, PlusCircle, LogOut, Sun, Moon, 
-  Home, Shield, Menu, X, ArrowLeftRight, Package, Percent, Settings, Headphones, ShieldCheck, Users
+  Home, Shield, Menu, X, ArrowLeftRight, Package, Percent, Settings, Headphones, ShieldCheck, Users,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -25,7 +26,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [marketingOpen, setMarketingOpen] = useState(currentPath.startsWith("/admin/marketing"));
-  const [counts, setCounts] = useState({ orders: 0, distributors: 0, serviceRequests: 0, warranties: 0 });
+  const [counts, setCounts] = useState({ orders: 0, distributors: 0, serviceRequests: 0, warranties: 0, distributorEnquiries: 0 });
 
   // Fetch counts periodically
   useEffect(() => {
@@ -52,31 +53,37 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
     return () => clearInterval(interval);
   }, []);
 
-  // Mark as read when navigating to admin sections
+  // Mark as read when navigating to admin sections or when new counts appear while on that section
   useEffect(() => {
     const markAsRead = async () => {
       const token = localStorage.getItem("authToken");
       if (!token) return;
       
       try {
-        if (currentPath === "/admin/orders") {
+        if (currentPath === "/admin/orders" && counts.orders > 0) {
           await fetch(`${ENV.API_BASE_URL}/orders/mark-read`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` }
           });
           setCounts(prev => ({ ...prev, orders: 0 }));
-        } else if (currentPath === "/admin/distributors") {
+        } else if (currentPath === "/admin/distributors" && counts.distributors > 0) {
           await fetch(`${ENV.API_BASE_URL}/auth/admin/distributors/mark-read`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` }
           });
           setCounts(prev => ({ ...prev, distributors: 0 }));
-        } else if (currentPath === "/admin/service-requests") {
+        } else if (currentPath === "/admin/service-requests" && counts.serviceRequests > 0) {
           await fetch(`${ENV.API_BASE_URL}/service-requests/mark-read`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` }
           });
           setCounts(prev => ({ ...prev, serviceRequests: 0 }));
+        } else if (currentPath === "/admin/distributor-enquiries" && counts.distributorEnquiries > 0) {
+          await fetch(`${ENV.API_BASE_URL}/distributor-enquiries/admin/mark-read`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setCounts(prev => ({ ...prev, distributorEnquiries: 0 }));
         }
       } catch (err) {
         console.error("Failed to mark notification as read:", err);
@@ -84,7 +91,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
     };
 
     markAsRead();
-  }, [currentPath]);
+  }, [currentPath, counts.orders, counts.distributors, counts.serviceRequests, counts.distributorEnquiries]);
 
   const menuItems = [
     {
@@ -111,6 +118,11 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       label: "Sales Persons",
       icon: Users,
       href: "/admin/sales-persons",
+    },
+    {
+      label: "Distributor Enquiries",
+      icon: MessageSquare,
+      href: "/admin/distributor-enquiries",
     },
     {
       label: "Service Requests",
@@ -154,6 +166,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
     if (label === "Distributors") return counts.distributors;
     if (label === "Service Requests") return counts.serviceRequests;
     if (label === "Warranty Registrations") return counts.warranties || 0;
+    if (label === "Distributor Enquiries") return counts.distributorEnquiries || 0;
     return 0;
   };
 
@@ -375,7 +388,15 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
         )}>
           {/* Theme Switcher Button */}
           <button
-            onClick={toggleTheme}
+            onClick={() => {
+              toggleTheme();
+              const nextTheme = theme === "dark" ? "light" : "dark";
+              if (nextTheme === "dark") {
+                document.documentElement.classList.add("dark");
+              } else {
+                document.documentElement.classList.remove("dark");
+              }
+            }}
             className={cn(
               "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm font-semibold transition-all cursor-pointer",
               isDark

@@ -5,28 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 
 function AdminSplashScreen({ label = "Admin Panel", isSales = false }: { label?: string; isSales?: boolean }) {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== "undefined") {
-      if (isSales) return false;
-      const saved = localStorage.getItem("admin-theme");
-      return saved !== "light";
-    }
-    return true;
-  });
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (isSales) {
-        setIsDark(false);
-      } else {
-        const saved = localStorage.getItem("admin-theme");
-        setIsDark(saved !== "light");
-      }
-    }
-  }, [isSales]);
-
   return (
-    <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none font-sans transition-colors duration-300 ${isDark ? "bg-[#0d0d0d] text-white" : "bg-white text-slate-900"}`}>
+    <div 
+      suppressHydrationWarning={true}
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none font-sans transition-colors duration-300 ${isSales ? "bg-white text-slate-900" : "bg-white dark:bg-[#0d0d0d] text-slate-900 dark:text-white"}`}
+    >
       <div className="flex flex-col items-center max-w-sm px-6 text-center animate-fade-in">
         {/* Logo */}
         <div className="mb-8 flex items-center justify-center">
@@ -40,12 +23,12 @@ function AdminSplashScreen({ label = "Admin Panel", isSales = false }: { label?:
         
         {/* Spinner */}
         <div className="relative w-12 h-12 mb-6">
-          <div className={`absolute inset-0 rounded-full border-4 ${isDark ? "border-neutral-800" : "border-neutral-200"}`}></div>
+          <div className={`absolute inset-0 rounded-full border-4 ${isSales ? "border-neutral-200" : "border-neutral-200 dark:border-neutral-800"}`}></div>
           <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#D71920] border-r-[#D71920] animate-spin"></div>
         </div>
 
         {/* Loading Text */}
-        <h3 className={`text-base font-extrabold tracking-wider uppercase mb-1 ${isDark ? "text-neutral-100" : "text-[#1C1C1C]"}`}>
+        <h3 className={`text-base font-extrabold tracking-wider uppercase mb-1 ${isSales ? "text-[#1C1C1C]" : "text-[#1C1C1C] dark:text-neutral-100"}`}>
           SD SMART APPLIANCES
         </h3>
         <p className="text-[10px] text-[#D71920] font-black tracking-widest uppercase animate-pulse">
@@ -66,6 +49,25 @@ export function AppRouteGuard({
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+
+  // Synchronize document theme class to avoid loading flashes during dynamic page load transitions
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isSales = pathname?.startsWith("/sales");
+      const isDistributor = pathname?.startsWith("/distributor") && !pathname?.startsWith("/admin");
+      
+      if (isSales || isDistributor) {
+        document.documentElement.classList.remove("dark");
+      } else if (pathname?.startsWith("/admin")) {
+        const saved = localStorage.getItem("admin-theme");
+        if (saved === "light") {
+          document.documentElement.classList.remove("dark");
+        } else {
+          document.documentElement.classList.add("dark");
+        }
+      }
+    }
+  }, [pathname]);
 
   const isAdminRoute = pathname?.startsWith("/admin");
   const isSalesRoute = pathname?.startsWith("/sales");
@@ -130,21 +132,21 @@ export function AppRouteGuard({
           // Cached user is definitely not admin, redirect immediately
           setIsAuthorized(false);
           router.replace("/auth/login");
-        } else {
+        } else if (authLoading || !isAuthenticated) {
           setShowAdminSplash(true);
         }
       } else if (isSalesRoute) {
         if (loggedUser && !isSales) {
           setIsAuthorized(false);
           router.replace("/auth/login");
-        } else {
+        } else if (authLoading || !isAuthenticated) {
           setShowAdminSplash(true);
         }
       }
     };
 
     checkRedirectAndSplash();
-  }, [pathname, router, isAdminRoute, isSalesRoute, isRootRoute]);
+  }, [pathname, router, isAdminRoute, isSalesRoute, isRootRoute, isAuthenticated, authLoading]);
 
   // Reactive authentication checks and splash timer
   useEffect(() => {

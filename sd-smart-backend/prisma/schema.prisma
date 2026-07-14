@@ -45,7 +45,7 @@ model User {
   warrantyRegistrations WarrantyRegistration[]
   salesPersonId   String?
   salesPerson     SalesPerson?     @relation(fields: [salesPersonId], references: [id], onDelete: SetNull)
-  enquiries       Enquiry[]
+  distributorEnquiries DistributorEnquiry[] @relation("DistributorToEnquiry")
 }
 
 model OtpVerification {
@@ -107,6 +107,7 @@ model Product {
   wishlistItems      WishlistItem[]
   orderItems         OrderItem[]
   serviceRequests    ServiceRequest[]
+  distributorEnquiries DistributorEnquiry[]
 }
 
 model InventoryTransaction {
@@ -399,34 +400,76 @@ model WarrantyAttachment {
 }
 
 model SalesPerson {
-  id               String      @id @default(uuid())
-  employeeId       String      @unique
+  id               String        @id @default(uuid())
+  employeeId       String        @unique
   fullName         String
-  email            String      @unique
-  mobileNumber     String      @unique
+  email            String        @unique
+  mobileNumber     String        @unique
   password         String
   assignedRegion   String
   assignedState    String
   assignedDistrict String
-  status           String      @default("ACTIVE") // ACTIVE or INACTIVE
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  status           String        @default("ACTIVE") // ACTIVE or INACTIVE
+  remarks          String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
   distributors     User[]
-  enquiries        Enquiry[]
+  targets          SalesTarget[]
+  distributorEnquiries DistributorEnquiry[] @relation("SalesPersonToDistributorEnquiry")
+  followUps            EnquiryFollowUp[]
 }
 
-model Enquiry {
-  id            String       @id @default(uuid())
-  name          String
-  email         String
-  phone         String
-  message       String
-  status        String       @default("PENDING") // PENDING, CONTACTED, QUOTATION_SENT, CLOSED
-  remarks       String?
-  salesPersonId String?
-  salesPerson   SalesPerson? @relation(fields: [salesPersonId], references: [id], onDelete: SetNull)
-  userId        String?
-  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+
+
+model SalesTarget {
+  id            String      @id @default(uuid())
+  salesPersonId String
+  salesPerson   SalesPerson @relation(fields: [salesPersonId], references: [id], onDelete: Cascade)
+  targetType    String      // "REVENUE" or "UNITS_SOLD"
+  targetValue   Float
+  month         Int         // 1 to 12
+  year          Int
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([salesPersonId, month, year])
 }
+
+model DistributorEnquiry {
+  id            String             @id @default(uuid())
+  distributorId String
+  distributor   User               @relation("DistributorToEnquiry", fields: [distributorId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity      Int                @default(1)
+  message       String?
+  status        String             @default("New") // "New", "Assigned", "Contacted", "Quotation Sent", "Negotiation", "Converted to Order", "Closed"
+  salesPersonId String?
+  salesPerson   SalesPerson?       @relation("SalesPersonToDistributorEnquiry", fields: [salesPersonId], references: [id], onDelete: SetNull)
+  viewedByAdmin Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  followUps     EnquiryFollowUp[]
+}
+
+model EnquiryFollowUp {
+  id                   String             @id @default(uuid())
+  distributorEnquiryId String
+  distributorEnquiry   DistributorEnquiry @relation(fields: [distributorEnquiryId], references: [id], onDelete: Cascade)
+  actionType           String             // "CALL", "EMAIL", "REMARK", "STATUS_CHANGE"
+  remarks              String
+  performedById        String             // SalesPerson ID
+  performedBy          SalesPerson        @relation(fields: [performedById], references: [id], onDelete: Cascade)
+  createdAt            DateTime           @default(now())
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  recipientId String   // User ID (for admin) or SalesPerson ID
+  userType    String   // "ADMIN" or "SALESPERSON"
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
