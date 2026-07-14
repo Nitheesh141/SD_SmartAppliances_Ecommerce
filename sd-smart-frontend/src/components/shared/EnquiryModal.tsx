@@ -8,9 +8,11 @@ import { toast } from "sonner";
 interface EnquiryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  productId?: string;
+  productName?: string;
 }
 
-export default function EnquiryModal({ isOpen, onClose }: EnquiryModalProps) {
+export default function EnquiryModal({ isOpen, onClose, productId, productName }: EnquiryModalProps) {
   const { user } = useAuth();
   const [settings, setSettings] = useState({
     seller_phone: "+91 80 4455 6677",
@@ -22,8 +24,11 @@ export default function EnquiryModal({ isOpen, onClose }: EnquiryModalProps) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const isDistributor = user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
 
   // Prepopulate form if user is authenticated
   useEffect(() => {
@@ -31,15 +36,20 @@ export default function EnquiryModal({ isOpen, onClose }: EnquiryModalProps) {
       setName(user.name || `${user.firstName} ${user.lastName}` || "");
       setEmail(user.email || "");
       setPhone(user.phoneNumber || "");
-      setMessage("I would like to enquire about pricing and distributor discounts for your products.");
+      if (isDistributor) {
+        setMessage(`I would like to enquire about pricing and distributor discounts for ${productName || "this product"}.`);
+      } else {
+        setMessage("I would like to enquire about pricing and distributor discounts for your products.");
+      }
     } else if (isOpen) {
       setName("");
       setEmail("");
       setPhone("");
       setMessage("I would like to enquire about pricing for bulk appliances.");
     }
+    setQuantity(1);
     setSubmitted(false);
-  }, [isOpen, user]);
+  }, [isOpen, user, isDistributor, productName]);
 
   // Handle escape key press to close modal
   useEffect(() => {
@@ -56,7 +66,7 @@ export default function EnquiryModal({ isOpen, onClose }: EnquiryModalProps) {
     };
   }, [isOpen, onClose]);
 
-  // Fetch settings dynamically from the existing billing seller configurations
+  // Fetch settings dynamically
   useEffect(() => {
     if (isOpen) {
       const fetchSettings = async () => {
@@ -86,7 +96,14 @@ export default function EnquiryModal({ isOpen, onClose }: EnquiryModalProps) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const body = {
+      const token = localStorage.getItem("authToken");
+      const headers: any = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      let url = `${ENV.API_BASE_URL}/sales-persons/public/enquiry`;
+      let body: any = {
         name,
         email,
         phone,
@@ -94,9 +111,18 @@ export default function EnquiryModal({ isOpen, onClose }: EnquiryModalProps) {
         userId: user?.id || undefined
       };
 
-      const res = await fetch(`${ENV.API_BASE_URL}/sales-persons/public/enquiry`, {
+      if (isDistributor && productId) {
+        url = `${ENV.API_BASE_URL}/distributor-enquiries/create`;
+        body = {
+          productId,
+          quantity,
+          message
+        };
+      }
+
+      const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(body)
       });
       const data = await res.json();
@@ -145,7 +171,7 @@ export default function EnquiryModal({ isOpen, onClose }: EnquiryModalProps) {
               Enquiry for Price
             </h3>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-              Bulk quotations and corporate queries
+              {isDistributor ? "Distributor bulk quotation request" : "Bulk quotations and corporate queries"}
             </p>
           </div>
         </div>
@@ -169,41 +195,70 @@ export default function EnquiryModal({ isOpen, onClose }: EnquiryModalProps) {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Your Name *</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs bg-neutral-50 dark:bg-slate-950 border border-neutral-200 dark:border-slate-800 rounded-xl outline-none focus:border-[#D71920] dark:text-white"
-                placeholder="Enter your name"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3.5">
-              <div>
-                <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Email *</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-neutral-50 dark:bg-slate-950 border border-neutral-200 dark:border-slate-800 rounded-xl outline-none focus:border-[#D71920] dark:text-white"
-                  placeholder="name@company.com"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Mobile *</label>
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs bg-neutral-50 dark:bg-slate-950 border border-neutral-200 dark:border-slate-800 rounded-xl outline-none focus:border-[#D71920] dark:text-white"
-                  placeholder="Phone number"
-                />
-              </div>
-            </div>
+            {isDistributor ? (
+              // Distributor Specific Short Form
+              <>
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Product</label>
+                  <div className="w-full px-3.5 py-2 text-xs bg-neutral-50 dark:bg-slate-950 border border-neutral-200 dark:border-slate-800 rounded-xl text-neutral-600 dark:text-neutral-300 font-semibold select-none font-sans">
+                    {productName || "Product Name"}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Quantity Required *</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                    className="w-full px-3.5 py-2 text-xs bg-neutral-50 dark:bg-slate-950 border border-neutral-200 dark:border-slate-800 rounded-xl outline-none focus:border-[#D71920] dark:text-white"
+                    placeholder="Enter quantity"
+                  />
+                </div>
+              </>
+            ) : (
+              // Public Standard Form
+              <>
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Your Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-neutral-50 dark:bg-slate-950 border border-neutral-200 dark:border-slate-800 rounded-xl outline-none focus:border-[#D71920] dark:text-white"
+                    placeholder="Enter your name"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Email *</label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs bg-neutral-50 dark:bg-slate-950 border border-neutral-200 dark:border-slate-800 rounded-xl outline-none focus:border-[#D71920] dark:text-white"
+                      placeholder="name@company.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Mobile *</label>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs bg-neutral-50 dark:bg-slate-950 border border-neutral-200 dark:border-slate-800 rounded-xl outline-none focus:border-[#D71920] dark:text-white"
+                      placeholder="Phone number"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
             <div>
               <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Your Message *</label>
               <textarea

@@ -773,13 +773,18 @@ export const getUnreadCounts = async (req: Request, res: Response): Promise<void
       where: { status: "PENDING_VERIFICATION" }
     });
 
+    const distributorEnquiriesCount = await prisma.distributorEnquiry.count({
+      where: { viewedByAdmin: false }
+    });
+
     res.json({
       success: true,
       counts: {
         orders: ordersCount,
         distributors: distributorsCount,
         serviceRequests: serviceRequestsCount,
-        warranties: warrantiesCount
+        warranties: warrantiesCount,
+        distributorEnquiries: distributorEnquiriesCount
       }
     });
   } catch (error: any) {

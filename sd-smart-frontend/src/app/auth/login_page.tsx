@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, LogIn } from "lucide-react";
-import { THEME_CLASSES } from "@/config/themes";
+import { Eye, EyeOff, LogIn, Sun, Moon } from "lucide-react";
 import AuthBackground from "@/components/animations/AuthBackground";
 import { useAuth } from "@/providers/AuthProvider";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,6 +20,36 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [focusPos, setFocusPos] = useState<{ x: number; y: number } | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  // Sync theme on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("admin-theme") || localStorage.getItem("theme");
+    const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const shouldBeDark = savedTheme === "dark" || (!savedTheme && systemDark);
+    
+    if (shouldBeDark) {
+      document.documentElement.classList.add("dark");
+      setIsDark(true);
+    } else {
+      document.documentElement.classList.remove("dark");
+      setIsDark(false);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newDark = !isDark;
+    setIsDark(newDark);
+    if (newDark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("admin-theme", "dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("admin-theme", "light");
+      localStorage.setItem("theme", "light");
+    }
+  };
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     const rect = e.target.getBoundingClientRect();
@@ -40,12 +71,14 @@ export default function LoginPage() {
     try {
       await login(identifier, password);
       setIsSuccess(true);
+      toast.success("Successfully logged in!");
 
-      // Redirect to admin, distributor, or home after success animation completes
+      // Redirect based on user role after animation
       setTimeout(() => {
         const cachedProfile = localStorage.getItem("userProfile");
         const loggedUser = cachedProfile ? JSON.parse(cachedProfile) : null;
         const role = loggedUser?.role?.toUpperCase();
+        
         if (loggedUser && (role === "ADMIN" || role === "SUPERADMIN" || loggedUser.role === "admin" || loggedUser.role === "superadmin")) {
           if (typeof window !== "undefined") {
             document.cookie = "adminLandingBypass=true; path=/; SameSite=Lax";
@@ -58,9 +91,10 @@ export default function LoginPage() {
         } else {
           router.push("/");
         }
-      }, 1000);
+      }, 800);
     } catch (err: any) {
       setError(err.message || "Login failed. Please check your credentials.");
+      toast.error(err.message || "Login failed.");
     } finally {
       setLoading(false);
     }
@@ -68,33 +102,49 @@ export default function LoginPage() {
 
   return (
     <AuthBackground focusPos={focusPos} isSuccess={isSuccess}>
-      <div className="w-full max-w-md bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/20 dark:border-slate-800/40 rounded-2xl p-6 sm:p-8 shadow-2xl transition-all duration-500">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <Link href="/" className="inline-block mb-4">
+      {/* Floating Theme Toggle */}
+      <div className="absolute top-6 right-6 z-50">
+        <button
+          onClick={toggleTheme}
+          className="p-3 rounded-full bg-white/80 dark:bg-neutral-900/80 border border-neutral-200/50 dark:border-neutral-800/50 text-slate-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-300 shadow-md cursor-pointer hover:scale-105"
+          aria-label="Toggle Theme"
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </div>
+
+      {/* Main Login Card */}
+      <div className="w-full max-w-md bg-white/80 dark:bg-neutral-900/85 backdrop-blur-xl border border-neutral-200/50 dark:border-neutral-800/50 rounded-3xl p-6 xs:p-8 sm:p-10 shadow-2xl transition-all duration-500 hover:shadow-[#D71920]/5 text-slate-800 dark:text-white">
+        {/* Header / Logo */}
+        <div className="text-center mb-6 sm:mb-8">
+          <Link href="/" className="inline-block mb-4 sm:mb-6 hover:scale-105 transition-transform duration-300">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/sd-smart-ecommerce/SD-logo.png"
               alt="SD Smart Appliances"
-              className="h-10 w-auto object-contain"
+              className="h-10 sm:h-12 w-auto object-contain mx-auto"
             />
           </Link>
-          <h1 className="text-2xl font-bold text-[#1C1C1C] mb-1">Welcome Back</h1>
-          <p className="text-neutral-600 text-sm">Sign in to your account</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-neutral-900 dark:text-white mb-1.5 sm:mb-2 uppercase">
+            Welcome Back
+          </h1>
+          <p className="text-neutral-500 dark:text-neutral-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider">
+            Sign in to your account
+          </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 text-left animate-fade-in">
+            <div className="p-3 sm:p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-xs sm:text-sm font-semibold text-red-500 text-left animate-fade-in animate-duration-200">
               {error}
             </div>
           )}
 
           {/* Email or Phone Number Field */}
-          <div>
-            <label htmlFor="identifier" className="block text-sm font-medium text-[#1C1C1C] mb-1 text-left">
-              Email Address or Phone Number
+          <div className="space-y-1.5">
+            <label htmlFor="identifier" className="block text-xs sm:text-sm font-black text-neutral-700 dark:text-neutral-300 uppercase tracking-wider text-left">
+              Email or Phone Number
             </label>
             <input
               id="identifier"
@@ -104,19 +154,20 @@ export default function LoginPage() {
               onFocus={handleFocus}
               onBlur={handleBlur}
               required
-              className="w-full px-4 py-2 bg-white dark:bg-slate-950/80 border border-neutral-300 dark:border-slate-700 text-[#1C1C1C] dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all"
+              className="w-full px-4 py-3 bg-white/50 dark:bg-neutral-950/45 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all text-sm font-medium"
+              placeholder="Enter your email or phone"
             />
           </div>
 
           {/* Password Field */}
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label htmlFor="password" className="block text-sm font-medium text-[#1C1C1C]">
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center">
+              <label htmlFor="password" className="block text-xs sm:text-sm font-black text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
                 Password
               </label>
               <Link
                 href="/auth/forgot-password"
-                className="text-xs text-[#D71920] hover:text-[#D71920]/80 transition-colors font-medium"
+                className="text-xs text-[#D71920] hover:text-[#D71920]/80 transition-colors font-bold uppercase tracking-wider"
               >
                 Forgot password?
               </Link>
@@ -130,12 +181,13 @@ export default function LoginPage() {
                 onFocus={handleFocus}
                 onBlur={handleBlur}
                 required
-                className="w-full px-4 py-2 bg-white dark:bg-slate-950/80 border border-neutral-300 dark:border-slate-700 text-[#1C1C1C] dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all"
+                className="w-full px-4 py-3 bg-white/50 dark:bg-neutral-950/45 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all text-sm font-medium pr-12"
+                placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors cursor-pointer"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -146,7 +198,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading || isSuccess}
-            className="w-full py-2 bg-[#D71920] text-white font-semibold rounded-lg hover:bg-[#B91520] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3 bg-[#D71920] text-white font-black uppercase tracking-wider text-xs sm:text-sm rounded-xl hover:bg-[#B91520] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:shadow-[#D71920]/20 transform active:scale-95"
           >
             {loading || isSuccess ? (
               <>
@@ -166,11 +218,11 @@ export default function LoginPage() {
         </form>
 
         {/* Signup Link */}
-        <p className="text-center mt-6 text-neutral-600 text-sm">
+        <p className="text-center mt-8 text-neutral-500 dark:text-neutral-400 text-xs sm:text-sm font-bold uppercase tracking-wider">
           Don't have an account?{" "}
           <Link
             href="/auth/signup"
-            className="text-[#D71920] font-semibold hover:text-[#D71920]/80 transition-colors"
+            className="text-[#D71920] font-black hover:text-[#D71920]/80 transition-colors underline decoration-2 underline-offset-4"
           >
             Sign up
           </Link>
