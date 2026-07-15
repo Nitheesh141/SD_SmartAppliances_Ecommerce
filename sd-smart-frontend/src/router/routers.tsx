@@ -31,6 +31,11 @@ const AdminProductsPage = dynamic(() => import("../app/admin/products"), {
   ssr: true,
 });
 
+const AdminDistributorPricingPage = dynamic(() => import("../app/admin/distributor_pricing_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 const AdminMarketingPage = dynamic(() => import("../app/admin/marketing"), {
   loading: PageLoader,
   ssr: true,
@@ -213,6 +218,7 @@ export const routes: Record<string, React.ComponentType<any>> = {
   "/sales/distributor-enquiries": SalesDistributorEnquiriesPage,
   "/admin/dashboard": AdminDashboardPage,
   "/admin/products": AdminProductsPage,
+  "/admin/distributor-pricing": AdminDistributorPricingPage,
   "/admin/orders": AdminOrdersPage,
   "/admin/service-requests": AdminServiceRequestsPage,
   "/admin/warranties": AdminWarrantiesPage,

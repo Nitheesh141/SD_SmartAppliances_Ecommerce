@@ -194,7 +194,7 @@ export default function DistributerDashboardPage() {
       <div className="p-6 border-b border-neutral-100 dark:border-slate-800 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
           <img
-            src="/sd-smart-ecommerce/SD-logo.png"
+            src="/SD-logo.png"
             alt="SD Smart Appliances"
             className="h-10 w-auto object-contain mix-blend-multiply dark:mix-blend-normal"
           />

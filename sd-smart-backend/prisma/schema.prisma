@@ -108,6 +108,7 @@ model Product {
   orderItems         OrderItem[]
   serviceRequests    ServiceRequest[]
   distributorEnquiries DistributorEnquiry[]
+  distributorPricing DistributorPricing?
 }
 
 model InventoryTransaction {
@@ -471,5 +472,25 @@ model Notification {
   message     String
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
+}
+
+model DistributorPricing {
+  id               String   @id @default(uuid())
+  productId        String   @unique
+  skuCode          String
+  basePrice        Float
+  marginPercentage Float
+  marginAmount     Float
+  netPrice         Float
+  gstPercentage    Float
+  gstAmount        Float
+  dealerPrice      Float
+  mrp              Float
+  packageQuantity  String
+  scheme           String
+  status           String   @default("ACTIVE") // "ACTIVE" or "INACTIVE"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 

@@ -59,7 +59,8 @@ interface SalesPersonType {
 
 export default function AdminDistributorEnquiriesPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   const [enquiries, setEnquiries] = useState<EnquiryType[]>([]);
@@ -78,6 +79,7 @@ export default function AdminDistributorEnquiriesPage() {
 
   // Sync theme
   useEffect(() => {
+    setMounted(true);
     if (typeof window !== "undefined") {
       const savedTheme = (localStorage.getItem("admin-theme") as "light" | "dark") || "dark";
       setTheme(savedTheme);
@@ -227,6 +229,14 @@ export default function AdminDistributorEnquiriesPage() {
         return "bg-neutral-500/10 text-neutral-400 border border-neutral-500/20";
     }
   };
+
+  if (authLoading || !mounted) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center font-sans bg-neutral-50 dark:bg-[#080808] text-slate-900 dark:text-white transition-colors duration-300">
+        <Loader2 className="w-10 h-10 text-[#D71920] animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className={cn(

@@ -131,14 +131,16 @@ export function calculateProductPrice(product: any, activeOffers: any[]) {
 /**
  * High-level utility to attach dynamic pricing to product list or single product.
  */
-export async function applyDynamicPricesToProducts(products: any | any[]) {
+export async function applyDynamicPricesToProducts(products: any | any[], user?: any) {
   const isArray = Array.isArray(products);
   const productList = isArray ? products : [products];
   if (productList.length === 0) return products;
 
-  // Fetch active offers
+  const isDistUser = user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
+
+  // Fetch active offers (Distributors are not eligible for dynamic category/product/brand offers)
   const now = new Date();
-  const activeOffers = await prisma.offer.findMany({
+  const activeOffers = isDistUser ? [] : await prisma.offer.findMany({
     where: {
       status: "ACTIVE",
       startDate: { lte: now },
@@ -147,8 +149,24 @@ export async function applyDynamicPricesToProducts(products: any | any[]) {
     orderBy: { createdAt: "asc" },
   });
 
-  const updatedList = productList.map(product => {
-    const calc = calculateProductPrice(product, activeOffers);
+  const updatedList = await Promise.all(productList.map(async product => {
+    let baseProduct = { ...product };
+
+    if (isDistUser) {
+      let distPricing = product.distributorPricing;
+      if (!distPricing) {
+        distPricing = await prisma.distributorPricing.findFirst({
+          where: { productId: product.id, status: "ACTIVE" }
+        });
+      }
+
+      if (distPricing && distPricing.status === "ACTIVE") {
+        baseProduct.originalPrice = distPricing.mrp;
+        baseProduct.price = distPricing.dealerPrice;
+      }
+    }
+
+    const calc = calculateProductPrice(baseProduct, activeOffers);
     return {
       ...product,
       price: calc.finalPrice,
@@ -164,7 +182,7 @@ export async function applyDynamicPricesToProducts(products: any | any[]) {
         badgeColor: calc.appliedOffer.badgeColor,
       } : null
     };
-  });
+  }));
 
   return isArray ? updatedList : updatedList[0];
 }

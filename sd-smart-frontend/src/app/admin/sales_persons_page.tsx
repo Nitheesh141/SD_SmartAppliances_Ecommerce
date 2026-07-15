@@ -99,10 +99,12 @@ export default function AdminSalesPersonsPage() {
   const [assignedDistrict, setAssignedDistrict] = useState("");
   const [status, setStatus] = useState("ACTIVE");
 
+  const [mounted, setMounted] = useState(false);
   // Theme state
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
+    setMounted(true);
     if (typeof window !== "undefined") {
       const savedTheme = (localStorage.getItem("admin-theme") as "light" | "dark") || "dark";
       setTheme(savedTheme);
@@ -518,6 +520,14 @@ export default function AdminSalesPersonsPage() {
     const startY = new Date().getFullYear() - 1;
     return Array.from({ length: 5 }, (_, i) => startY + i);
   }, []);
+
+  if (authLoading || !mounted) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center font-sans bg-neutral-50 dark:bg-[#080808] text-slate-900 dark:text-white transition-colors duration-300">
+        <Loader2 className="w-10 h-10 text-[#D71920] animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className={cn(

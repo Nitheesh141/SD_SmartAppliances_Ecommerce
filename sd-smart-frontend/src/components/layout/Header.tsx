@@ -100,7 +100,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const isHomePage = pathname === "/" || pathname === "/sd-smart-ecommerce" || pathname === "";
+    const isHomePage = pathname === "/" || pathname === "";
     if (!isHomePage) {
       setActiveSection("");
       return;
@@ -160,7 +160,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
 
   const isLinkActive = (href: string) => {
     const currentPath = pathname;
-    const isHomePage = currentPath === "/" || currentPath === "/sd-smart-ecommerce" || currentPath === "";
+    const isHomePage = currentPath === "/" || currentPath === "";
 
     if (isHomePage) {
       if (href === "/") {
@@ -186,9 +186,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
       const targetPath = hPath === "" ? "/" : hPath;
       const cleanCurrentPath = currentPath === "" ? "/" : currentPath;
 
-      const pathMatches =
-        cleanCurrentPath === targetPath ||
-        (targetPath === "/" && cleanCurrentPath === "/sd-smart-ecommerce");
+      const pathMatches = cleanCurrentPath === targetPath;
 
       return pathMatches && currentHash === `#${hHash}`;
     }
@@ -199,8 +197,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
 
     return (
       currentPath === href ||
-      (href === "/" &&
-        (currentPath === "/" || currentPath === "/sd-smart-ecommerce"))
+      (href === "/" && currentPath === "/")
     );
   };
 
@@ -269,7 +266,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
           <Link href="/" className="flex items-center flex-shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/sd-smart-ecommerce/SD-logo.png"
+              src="/SD-logo.png"
               alt="SD Smart Appliances"
               className="h-10 sm:h-12 md:h-14 w-auto object-contain mix-blend-multiply"
             />
@@ -505,7 +502,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
           <div className="flex-grow flex items-center justify-center">
             <Link href="/" onClick={() => setMobileOpen(false)}>
               <img
-                src="/sd-smart-ecommerce/SD-logo.png"
+                src="/SD-logo.png"
                 alt="SD Smart Appliances"
                 className="h-10 w-auto object-contain scale-x-[1.12] origin-center mix-blend-multiply"
               />
@@ -611,7 +608,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
               <div className="px-5 py-4 border-b border-neutral-100 dark:border-neutral-900/60 flex items-center justify-between">
                 <Link href="/" onClick={() => setMobileOpen(false)}>
                   <img
-                    src="/sd-smart-ecommerce/SD-logo.png"
+                    src="/SD-logo.png"
                     alt="SD Smart Appliances"
                     className="h-10 w-auto object-contain mix-blend-multiply"
                   />

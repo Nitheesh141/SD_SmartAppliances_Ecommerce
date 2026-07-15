@@ -3,11 +3,11 @@ import { prisma } from "../utils/db";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { applyDynamicPricesToProducts } from "../utils/pricing";
 
-const mapCartPrices = async (cart: any) => {
+const mapCartPrices = async (cart: any, user?: any) => {
   if (cart && cart.items) {
     for (const item of cart.items) {
       if (item.product) {
-        item.product = await applyDynamicPricesToProducts(item.product);
+        item.product = await applyDynamicPricesToProducts(item.product, user);
       }
     }
   }
@@ -40,7 +40,11 @@ export const getCart = async (req: AuthenticatedRequest, res: Response): Promise
       include: {
         items: {
           include: {
-            product: true
+            product: {
+              include: {
+                distributorPricing: true
+              }
+            }
           },
           orderBy: { createdAt: 'asc' }
         }
@@ -50,11 +54,11 @@ export const getCart = async (req: AuthenticatedRequest, res: Response): Promise
     if (!cart) {
       cart = await prisma.cart.create({
         data: { userId },
-        include: { items: { include: { product: true } } }
+        include: { items: { include: { product: { include: { distributorPricing: true } } } } }
       });
     }
 
-    const finalCart = await mapCartPrices(cart);
+    const finalCart = await mapCartPrices(cart, req.user);
     res.json({ success: true, data: finalCart });
   } catch (error) {
     console.error(error);
@@ -116,14 +120,18 @@ export const addToCart = async (req: AuthenticatedRequest, res: Response): Promi
       include: {
         items: {
           include: {
-            product: true
+            product: {
+              include: {
+                distributorPricing: true
+              }
+            }
           },
           orderBy: { createdAt: 'asc' }
         }
       }
     });
 
-    const finalCart = await mapCartPrices(updatedCart);
+    const finalCart = await mapCartPrices(updatedCart, req.user);
     res.json({ success: true, data: finalCart });
   } catch (error) {
     console.error(error);
@@ -172,14 +180,18 @@ export const updateCartItem = async (req: AuthenticatedRequest, res: Response): 
       include: {
         items: {
           include: {
-            product: true
+            product: {
+              include: {
+                distributorPricing: true
+              }
+            }
           },
           orderBy: { createdAt: 'asc' }
         }
       }
     });
 
-    const finalCart = await mapCartPrices(updatedCart);
+    const finalCart = await mapCartPrices(updatedCart, req.user);
     res.json({ success: true, data: finalCart });
   } catch (error) {
     console.error(error);
@@ -226,14 +238,18 @@ export const removeFromCart = async (req: AuthenticatedRequest, res: Response): 
       include: {
         items: {
           include: {
-            product: true
+            product: {
+              include: {
+                distributorPricing: true
+              }
+            }
           },
           orderBy: { createdAt: 'asc' }
         }
       }
     });
 
-    const finalCart = await mapCartPrices(updatedCart);
+    const finalCart = await mapCartPrices(updatedCart, req.user);
     res.json({ success: true, data: finalCart });
   } catch (error) {
     console.error(error);

@@ -10,18 +10,18 @@ import {
   getDeletedModels,
   getBestsellerProducts,
 } from "../controllers/product.controller";
-import { authenticateToken } from "../middleware/auth.middleware";
+import { authenticateToken, optionalAuthenticateToken } from "../middleware/auth.middleware";
 
 const router = Router();
 
 // Protected analytics route
 router.get("/transactions", authenticateToken, getInventoryTransactions);
 
-// Public routes
-router.get("/", getProducts);
+// Public routes (with optional auth token for distributor pricing calculations)
+router.get("/", optionalAuthenticateToken, getProducts);
 router.get("/deleted-models", getDeletedModels);
-router.get("/bestsellers", getBestsellerProducts);
-router.get("/:id", getProductById);
+router.get("/bestsellers", optionalAuthenticateToken, getBestsellerProducts);
+router.get("/:id", optionalAuthenticateToken, getProductById);
 
 // Protected routes (controllers check for admin role)
 router.post("/", authenticateToken, createProduct);
