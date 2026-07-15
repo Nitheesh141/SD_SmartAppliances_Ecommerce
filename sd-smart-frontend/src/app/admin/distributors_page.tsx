@@ -41,16 +41,13 @@ export default function AdminDistributorsPage() {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<any | null>(null);
 
+  const [mounted, setMounted] = useState(false);
   // Theme state
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("admin-theme") as "light" | "dark") || "dark";
-    }
-    return "dark";
-  });
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("admin-theme") as "light" | "dark" || "dark";
+    setMounted(true);
+    const savedTheme = (localStorage.getItem("admin-theme") as "light" | "dark") || "dark";
     setTheme(savedTheme);
   }, []);
 
@@ -58,6 +55,11 @@ export default function AdminDistributorsPage() {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
     localStorage.setItem("admin-theme", nextTheme);
+    if (nextTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   };
 
   // Route protection
@@ -286,12 +288,9 @@ export default function AdminDistributorsPage() {
 
   const isDark = theme === "dark";
 
-  if (authLoading) {
+  if (authLoading || !mounted) {
     return (
-      <div className={cn(
-        "min-h-screen flex flex-col items-center justify-center font-sans",
-        isDark ? "bg-[#0d0d0d] text-white" : "bg-[#fafafa] text-slate-950"
-      )}>
+      <div className="min-h-screen flex flex-col items-center justify-center font-sans bg-neutral-50 dark:bg-[#080808] text-slate-900 dark:text-white transition-colors duration-300">
         <Loader2 className="w-10 h-10 text-[#D71920] animate-spin" />
       </div>
     );
@@ -853,7 +852,7 @@ export default function AdminDistributorsPage() {
                     <div>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src="/sd-smart-ecommerce/SD-logo.png"
+                        src="/SD-logo.png"
                         alt="SD Smart Appliances"
                         className="h-10 w-auto object-contain mix-blend-multiply"
                       />

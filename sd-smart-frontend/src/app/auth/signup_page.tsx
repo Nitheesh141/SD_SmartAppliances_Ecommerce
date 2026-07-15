@@ -99,7 +99,7 @@ export default function SignupPage() {
           <div className="mb-6">
             <Link href="/" className="inline-block mb-4">
               <img
-                src="/sd-smart-ecommerce/SD-logo.png"
+                src="/SD-logo.png"
                 alt="SD Smart Appliances"
                 className="h-10 w-auto object-contain"
               />
@@ -180,7 +180,7 @@ export default function SignupPage() {
             <Link href="/" className="inline-block">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/sd-smart-ecommerce/SD-logo.png"
+                src="/SD-logo.png"
                 alt="SD Smart Appliances"
                 className="h-8 w-auto object-contain"
               />

@@ -117,7 +117,7 @@ export default function ProductCard({ product, className }: ProductCardProps) {
           alt={product.name}
           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = "/sd-smart-ecommerce/SD-logo.png";
+            (e.target as HTMLImageElement).src = "/SD-logo.png";
           }}
         />
 
@@ -165,18 +165,39 @@ export default function ProductCard({ product, className }: ProductCardProps) {
         {/* <RatingStars rating={product.rating} reviewCount={product.reviewCount} className="mb-3" /> */}
 
         {isDistributor ? (
-          <div className="mb-2">
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsEnquiryOpen(true);
-              }}
-              className="relative z-20 w-full text-center py-2 px-3 border-2 border-[#D71920] hover:bg-red-50 dark:hover:bg-slate-800 text-[#D71920] hover:text-[#b8141a] text-sm font-bold rounded-xl transition-all duration-200"
-            >
-              Enquiry for Price
-            </button>
-          </div>
+          (product as any).distributorPricing && (product as any).distributorPricing.status === "ACTIVE" ? (
+            <div className="mb-3 space-y-1.5 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-neutral-850 text-xs text-left relative z-20">
+              <div className="flex justify-between items-center">
+                <span className="text-neutral-500 font-semibold">Dealer Price:</span>
+                <span className="text-sm sm:text-base font-extrabold text-[#D71920]">₹{(product as any).distributorPricing.dealerPrice}</span>
+              </div>
+              <div className="flex justify-between items-center text-neutral-450 dark:text-neutral-500">
+                <span>MRP:</span>
+                <span className="font-semibold line-through">₹{(product as any).distributorPricing.mrp}</span>
+              </div>
+              <div className="flex justify-between items-center text-neutral-450 dark:text-neutral-500">
+                <span>Package:</span>
+                <span className="font-semibold">{(product as any).distributorPricing.packageQuantity}</span>
+              </div>
+              <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-500">
+                <span>Scheme:</span>
+                <span className="font-extrabold text-[11px]">{(product as any).distributorPricing.scheme}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-2">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsEnquiryOpen(true);
+                }}
+                className="relative z-20 w-full text-center py-2 px-3 border-2 border-[#D71920] hover:bg-red-50 dark:hover:bg-slate-800 text-[#D71920] hover:text-[#b8141a] text-sm font-bold rounded-xl transition-all duration-200"
+              >
+                Enquiry for Price
+              </button>
+            </div>
+          )
         ) : (
            <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mb-2">
           <ProductPrice

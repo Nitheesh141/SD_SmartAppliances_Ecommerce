@@ -112,7 +112,7 @@ export default function DistributorSignupPage() {
         <div className="text-center mb-6">
           <Link href="/" className="inline-block mb-3">
             <img
-              src="/sd-smart-ecommerce/SD-logo.png"
+              src="/SD-logo.png"
               alt="SD Smart Appliances"
               className="h-10 w-auto object-contain"
             />

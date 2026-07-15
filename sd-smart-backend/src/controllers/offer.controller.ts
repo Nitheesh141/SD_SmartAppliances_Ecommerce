@@ -265,6 +265,7 @@ export const runPricingEngine = async (
   const productIds = items.map((i: any) => i.productId);
   const dbProducts = await prisma.product.findMany({
     where: { id: { in: productIds } },
+    include: { distributorPricing: true }
   });
 
   if (dbProducts.length === 0) {
@@ -297,7 +298,8 @@ export const runPricingEngine = async (
 
   // B. Fetch active offers in order of priority (lower number = runs first)
   const now = new Date();
-  const activeOffers = await prisma.offer.findMany({
+  const isDist = user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
+  const activeOffers = isDist ? [] : await prisma.offer.findMany({
     where: {
       status: "ACTIVE",
       startDate: { lte: now },
@@ -308,12 +310,15 @@ export const runPricingEngine = async (
 
   // C. Initialize item states
   const calculatedItems = items.map((cartItem: any) => {
-    const product = dbProducts.find((p) => p.id === cartItem.productId);
+    const product = dbProducts.find((p) => p.id === cartItem.productId) as any;
     if (!product) {
       throw new Error(`Product ID ${cartItem.productId} not found in catalog`);
     }
-    const mrpPrice = product.originalPrice || product.price;
-    const baseSellingPrice = product.price;
+    const isDistUser = user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
+    const distPricing = isDistUser && product.distributorPricing && product.distributorPricing.status === "ACTIVE" ? product.distributorPricing : null;
+
+    const mrpPrice = distPricing ? distPricing.mrp : (product.originalPrice || product.price);
+    const baseSellingPrice = distPricing ? distPricing.dealerPrice : product.price;
     return {
       productId: product.id,
       name: product.name,

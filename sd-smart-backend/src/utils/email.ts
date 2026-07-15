@@ -114,7 +114,7 @@ export const sendServiceRequestConfirmationEmail = async (
                 <!-- Header -->
                 <tr>
                   <td style="background:linear-gradient(135deg,#D71920,#b8141a);padding:32px 40px;text-align:center;">
-                    <img src="http://localhost:3000/sd-smart-ecommerce/SD-logo.png" alt="SD SMART" style="height:50px;width:auto;margin-bottom:12px;display:inline-block;" />
+                    <img src="http://localhost:3000/SD-logo.png" alt="SD SMART" style="height:50px;width:auto;margin-bottom:12px;display:inline-block;" />
                     <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:800;letter-spacing:-0.5px;">SD Smart Appliances</h1>
                     <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Service Request Submitted</p>
                   </td>

@@ -14,7 +14,7 @@ function AdminSplashScreen({ label = "Admin Panel", isSales = false }: { label?:
         {/* Logo */}
         <div className="mb-8 flex items-center justify-center">
           <img
-            src="/sd-smart-ecommerce/SD-logo.png"
+            src="/SD-logo.png"
             alt="SD SMART"
             className="h-16 w-auto object-contain animate-pulse"
             style={{ animationDuration: "2.5s" }}

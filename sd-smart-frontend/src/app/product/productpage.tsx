@@ -474,7 +474,7 @@ export default function ProductDetailPage() {
     if (product) {
       const list = product.images && product.images.length > 0
         ? product.images
-        : (product.image ? [product.image] : ["/sd-smart-ecommerce/SD-logo.png"]);
+        : (product.image ? [product.image] : ["/SD-logo.png"]);
       setImagesList(list);
       setActiveImage(list[0]);
     }
@@ -929,35 +929,46 @@ export default function ProductDetailPage() {
                 </div>
 
                 {/* Flipkart-Style Action Buttons */}
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={!product.inStock || product.availableStock === 0}
-                    className={cn(
-                      "flex items-center justify-center gap-2 py-4 px-6 text-sm font-extrabold uppercase tracking-wide rounded-xl shadow-lg transition-all transform active:scale-98 cursor-pointer select-none",
-                      product.inStock && product.availableStock !== 0
-                        ? "bg-[#ff9f00] hover:bg-[#e68f00] text-white"
-                        : "bg-slate-200 dark:bg-neutral-800 text-slate-400 cursor-not-allowed"
-                    )}
-                  >
-                    <ShoppingCart size={18} />
-                    <span>Add to Cart</span>
-                  </button>
+                {isDistributor && (!product.distributorPricing || product.distributorPricing.status !== "ACTIVE") ? (
+                  <div className="pt-2">
+                    <button
+                      onClick={() => setIsEnquiryOpen(true)}
+                      className="w-full flex items-center justify-center gap-2 py-4 px-6 text-sm font-extrabold uppercase tracking-wide rounded-xl shadow-lg bg-[#D71920] hover:bg-[#b8141a] text-white transition-all transform active:scale-98 cursor-pointer select-none"
+                    >
+                      Enquiry for Price
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={!product.inStock || product.availableStock === 0}
+                      className={cn(
+                        "flex items-center justify-center gap-2 py-4 px-6 text-sm font-extrabold uppercase tracking-wide rounded-xl shadow-lg transition-all transform active:scale-98 cursor-pointer select-none",
+                        product.inStock && product.availableStock !== 0
+                          ? "bg-[#ff9f00] hover:bg-[#e68f00] text-white"
+                          : "bg-slate-200 dark:bg-neutral-800 text-slate-400 cursor-not-allowed"
+                      )}
+                    >
+                      <ShoppingCart size={18} />
+                      <span>Add to Cart</span>
+                    </button>
 
-                  <button
-                    onClick={handleBuyNow}
-                    disabled={!product.inStock || product.availableStock === 0}
-                    className={cn(
-                      "flex items-center justify-center gap-2 py-4 px-6 text-sm font-extrabold uppercase tracking-wide rounded-xl shadow-lg transition-all transform active:scale-98 cursor-pointer select-none",
-                      product.inStock && product.availableStock !== 0
-                        ? "bg-[#fb641b] hover:bg-[#df5615] text-white"
-                        : "bg-slate-300 dark:bg-neutral-850 text-slate-500 cursor-not-allowed"
-                    )}
-                  >
-                    <Zap size={18} className="fill-current" />
-                    <span>Buy Now</span>
-                  </button>
-                </div>
+                    <button
+                      onClick={handleBuyNow}
+                      disabled={!product.inStock || product.availableStock === 0}
+                      className={cn(
+                        "flex items-center justify-center gap-2 py-4 px-6 text-sm font-extrabold uppercase tracking-wide rounded-xl shadow-lg transition-all transform active:scale-98 cursor-pointer select-none",
+                        product.inStock && product.availableStock !== 0
+                          ? "bg-[#fb641b] hover:bg-[#df5615] text-white"
+                          : "bg-slate-300 dark:bg-neutral-850 text-slate-500 cursor-not-allowed"
+                      )}
+                    >
+                      <Zap size={18} className="fill-current" />
+                      <span>Buy Now</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Stock Warning details */}
                 {(!product.inStock || product.availableStock === 0) ? (
@@ -1037,14 +1048,48 @@ export default function ProductDetailPage() {
 
               {/* Pricing Panel */}
               {isDistributor ? (
-                <div className="mb-6 mt-2">
-                  <button
-                    onClick={() => setIsEnquiryOpen(true)}
-                    className="w-full sm:w-auto px-8 py-4 bg-[#D71920] hover:bg-[#b8141a] text-white text-base font-bold rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative z-20"
-                  >
-                    Enquiry for Price
-                  </button>
-                </div>
+                product.distributorPricing && product.distributorPricing.status === "ACTIVE" ? (
+                  <div className="mb-6 mt-2 p-5 rounded-2xl border border-slate-150 dark:border-neutral-800 bg-white dark:bg-slate-900 shadow-md">
+                    <div className="grid grid-cols-2 gap-4 text-sm text-left">
+                      <div className="flex flex-col">
+                        <span className="text-neutral-500 font-bold uppercase tracking-wider text-[10px]">Dealer Price</span>
+                        <span className="text-2xl sm:text-3xl font-extrabold text-[#D71920] mt-1">
+                          ₹{product.distributorPricing.dealerPrice.toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-[10px] text-emerald-600 font-extrabold mt-0.5 uppercase tracking-wider">GST Included</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-neutral-500 font-bold uppercase tracking-wider text-[10px]">MRP (Maximum Retail Price)</span>
+                        <span className="text-lg font-bold text-neutral-450 dark:text-neutral-500 line-through mt-1">
+                          ₹{product.distributorPricing.mrp.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                      <div className="flex flex-col col-span-2 border-t pt-3 mt-1 border-slate-100 dark:border-neutral-800">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-neutral-500 font-semibold">Package Quantity:</span>
+                          <span className="font-extrabold text-slate-800 dark:text-neutral-250 bg-slate-100 dark:bg-neutral-800 px-2 py-0.5 rounded">
+                            {product.distributorPricing.packageQuantity}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs mt-2 bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20 text-emerald-600 dark:text-emerald-450">
+                          <span className="font-semibold">B2B Scheme:</span>
+                          <span className="font-black uppercase tracking-wider">
+                            {product.distributorPricing.scheme}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-6 mt-2">
+                    <button
+                      onClick={() => setIsEnquiryOpen(true)}
+                      className="w-full sm:w-auto px-8 py-4 bg-[#D71920] hover:bg-[#b8141a] text-white text-base font-bold rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative z-20"
+                    >
+                      Enquiry for Price
+                    </button>
+                  </div>
+                )
               ) : (
                 <div className="mb-4 mt-2">
                   <div className="flex items-baseline gap-3">
@@ -1073,40 +1118,42 @@ export default function ProductDetailPage() {
               )}
 
               {/* Flipkart Offers List */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-neutral-400 flex items-center gap-1.5">
-                  <Tag size={12} className="text-[#D71920] rotate-90" />
-                  <span>Available Offers</span>
-                </h3>
-                {applicableOffers.length > 0 ? (
-                  <ul className="space-y-2.5">
-                    {applicableOffers.map((offer, idx) => {
-                      const displayMsg = getOfferDisplay(offer);
-                      const isCoupon = offer.offerType === "COUPON";
-                      return (
-                        <li key={offer.id || idx} className="flex items-start gap-2.5 text-xs text-slate-650 dark:text-neutral-350 bg-slate-50/45 dark:bg-neutral-900/10 p-3 rounded-xl border border-slate-100/50 dark:border-neutral-900/30">
-                          <Tag size={14} className={cn("shrink-0 mt-0.5", isCoupon ? "text-[#D71920]" : "text-emerald-600")} />
-                          <div className="flex-1">
-                            <strong className="text-slate-800 dark:text-white">
-                              {offer.offerType.replace(/_/g, " ")}:{" "}
-                            </strong>
-                            <span>{displayMsg}</span>
-                            {offer.termsConditions && (
-                              <span className="text-[#D71920] dark:text-red-400 font-bold hover:underline cursor-pointer ml-1.5" title={offer.termsConditions}>
-                                T&C
-                              </span>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-slate-450 dark:text-neutral-500 italic p-3 border border-dashed border-slate-200 dark:border-neutral-800 rounded-xl text-center">
-                    No special promotions are currently running on this product.
-                  </p>
-                )}
-              </div>
+              {!isDistributor && (
+                <div className="space-y-3">
+                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-neutral-400 flex items-center gap-1.5">
+                    <Tag size={12} className="text-[#D71920] rotate-90" />
+                    <span>Available Offers</span>
+                  </h3>
+                  {applicableOffers.length > 0 ? (
+                    <ul className="space-y-2.5">
+                      {applicableOffers.map((offer, idx) => {
+                        const displayMsg = getOfferDisplay(offer);
+                        const isCoupon = offer.offerType === "COUPON";
+                        return (
+                          <li key={offer.id || idx} className="flex items-start gap-2.5 text-xs text-slate-650 dark:text-neutral-350 bg-slate-50/45 dark:bg-neutral-900/10 p-3 rounded-xl border border-slate-100/50 dark:border-neutral-900/30">
+                            <Tag size={14} className={cn("shrink-0 mt-0.5", isCoupon ? "text-[#D71920]" : "text-emerald-600")} />
+                            <div className="flex-1">
+                              <strong className="text-slate-800 dark:text-white">
+                                {offer.offerType.replace(/_/g, " ")}:{" "}
+                              </strong>
+                              <span>{displayMsg}</span>
+                              {offer.termsConditions && (
+                                <span className="text-[#D71920] dark:text-red-400 font-bold hover:underline cursor-pointer ml-1.5" title={offer.termsConditions}>
+                                  T&C
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-slate-450 dark:text-neutral-500 italic p-3 border border-dashed border-slate-200 dark:border-neutral-800 rounded-xl text-center">
+                      No special promotions are currently running on this product.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Variant Selector Attributes */}
               {Object.keys(variantAttributes).length > 0 ? (

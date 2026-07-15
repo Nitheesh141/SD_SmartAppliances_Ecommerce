@@ -268,7 +268,7 @@ export default function OrderDetailPage() {
           <div className="flex justify-between items-start border-b-2 border-neutral-900 pb-6">
             <div className="flex items-center gap-4">
               <img
-                src="/sd-smart-ecommerce/SD-logo.png"
+                src="/SD-logo.png"
                 alt="SD Smart Appliances"
                 className="h-16 w-auto object-contain"
               />
@@ -413,7 +413,7 @@ export default function OrderDetailPage() {
             <div className="flex items-center gap-3">
               <div className="w-16 h-16 border border-neutral-350 rounded flex items-center justify-center bg-white flex-shrink-0 relative overflow-hidden p-1 shadow-sm">
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`http://localhost:3000/sd-smart-ecommerce/account/orders/${order.id}?invoice=true`)}`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`http://localhost:3000/account/orders/${order.id}?invoice=true`)}`}
                   alt="Verification QR Code"
                   className="w-full h-full object-contain"
                 />
@@ -424,7 +424,7 @@ export default function OrderDetailPage() {
                 </p>
                 <p className="text-[9px] text-neutral-500 mt-0.5">Scan or click link to verify:</p>
                 <a
-                  href={`/sd-smart-ecommerce/account/orders/${order.id}?invoice=true`}
+                  href={`/account/orders/${order.id}?invoice=true`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[9px] text-[#D71920] hover:underline block font-mono font-semibold"
@@ -744,7 +744,7 @@ export default function OrderDetailPage() {
               <div className="flex justify-between items-start border-b-2 border-neutral-900 pb-6">
                 <div className="flex items-center gap-4">
                   <img
-                    src="/sd-smart-ecommerce/SD-logo.png"
+                    src="/SD-logo.png"
                     alt="SD Smart Appliances"
                     className="h-16 w-auto object-contain"
                   />
@@ -890,7 +890,7 @@ export default function OrderDetailPage() {
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-16 border border-neutral-350 rounded flex items-center justify-center bg-white flex-shrink-0 relative overflow-hidden p-1 shadow-sm">
                     <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`http://localhost:3000/sd-smart-ecommerce/account/orders/${order.id}?invoice=true`)}`}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`http://localhost:3000/account/orders/${order.id}?invoice=true`)}`}
                       alt="Verification QR Code"
                       className="w-full h-full object-contain"
                     />
@@ -901,7 +901,7 @@ export default function OrderDetailPage() {
                     </p>
                     <p className="text-[9px] text-neutral-500 mt-0.5">Scan or click link to verify:</p>
                     <a
-                      href={`/sd-smart-ecommerce/account/orders/${order.id}?invoice=true`}
+                      href={`/account/orders/${order.id}?invoice=true`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[9px] text-[#D71920] hover:underline block font-mono font-semibold"

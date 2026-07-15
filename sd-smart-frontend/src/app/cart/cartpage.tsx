@@ -164,6 +164,7 @@ export default function CartPage() {
               <div className="space-y-4">
                 {cartItems.map((item) => {
                   const product = item.product || {};
+                  const distPricing = (product as any).distributorPricing;
                   const isOutOfStock = isItemOutOfStock(item);
                   const matchedCalcItem = calculationResult?.items?.find((ci: any) => ci.productId === product.id);
                   const isDiscounted = matchedCalcItem && matchedCalcItem.unitPrice < matchedCalcItem.originalPrice;
@@ -175,7 +176,7 @@ export default function CartPage() {
                       {/* Product Image */}
                       <Link href={`/product/${product.id || '#'}`} className="w-24 h-24 sm:w-32 sm:h-32 bg-neutral-50 rounded-xl flex items-center justify-center p-2 flex-shrink-0 relative z-10 hover:opacity-90 transition-opacity">
                         <img 
-                          src={product.image || product.images?.[0] || "/sd-smart-ecommerce/SD-logo.png"} 
+                          src={product.image || product.images?.[0] || "/SD-logo.png"} 
                           alt={product.name || "Product"} 
                           className="w-full h-full object-contain mix-blend-multiply" 
                         />
@@ -235,23 +236,56 @@ export default function CartPage() {
                         </div>
 
                         <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-4 gap-3 pointer-events-auto">
-                          <div className="flex flex-col">
-                            <span className="text-xs text-neutral-500 font-medium mb-0.5">Price</span>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-[#1C1C1C] text-base">
-                                ₹{(matchedCalcItem ? matchedCalcItem.unitPrice : (product.price || 0)).toLocaleString('en-IN')}
-                              </span>
-                              {isDiscounted && !isOutOfStock && (
-                                <>
-                                  <span className="text-xs text-neutral-400 line-through">
-                                    ₹{matchedCalcItem.originalPrice.toLocaleString('en-IN')}
+                          <div className="flex flex-col w-full sm:max-w-xs">
+                            {isDistributor ? (
+                              distPricing && distPricing.status === "ACTIVE" ? (
+                                <div className="space-y-1 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-100 dark:border-neutral-800 text-xs w-full">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-neutral-500 font-semibold">Dealer Price:</span>
+                                    <span className="text-sm sm:text-base font-extrabold text-[#D71920]">
+                                      ₹{(matchedCalcItem ? matchedCalcItem.unitPrice : distPricing.dealerPrice).toLocaleString('en-IN')}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-neutral-450 dark:text-neutral-500">
+                                    <span>MRP:</span>
+                                    <span className="font-semibold line-through">
+                                      ₹{distPricing.mrp.toLocaleString('en-IN')}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-neutral-450 dark:text-neutral-500">
+                                    <span>Package:</span>
+                                    <span className="font-semibold">{distPricing.packageQuantity}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-500">
+                                    <span>Scheme:</span>
+                                    <span className="font-extrabold text-[11px]">{distPricing.scheme}</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="py-2 px-3 bg-red-50 dark:bg-red-950/20 text-[#D71920] rounded-xl border border-red-150 text-xs font-bold text-center">
+                                  Enquiry for Price
+                                </div>
+                              )
+                            ) : (
+                              <>
+                                <span className="text-xs text-neutral-500 font-medium mb-0.5">Price</span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-[#1C1C1C] text-base">
+                                    ₹{(matchedCalcItem ? matchedCalcItem.unitPrice : (product.price || 0)).toLocaleString('en-IN')}
                                   </span>
-                                  <span className="text-[10px] font-extrabold text-[#388e3c] bg-green-50 dark:bg-green-950/20 px-1.5 py-0.5 rounded border border-green-150 shrink-0">
-                                    {Math.round(((matchedCalcItem.originalPrice - matchedCalcItem.unitPrice) / matchedCalcItem.originalPrice) * 100)}% OFF
-                                  </span>
-                                </>
-                              )}
-                            </div>
+                                  {isDiscounted && !isOutOfStock && (
+                                    <>
+                                      <span className="text-xs text-neutral-400 line-through">
+                                        ₹{matchedCalcItem.originalPrice.toLocaleString('en-IN')}
+                                      </span>
+                                      <span className="text-[10px] font-extrabold text-[#388e3c] bg-green-50 dark:bg-green-950/20 px-1.5 py-0.5 rounded border border-green-150 shrink-0">
+                                        {Math.round(((matchedCalcItem.originalPrice - matchedCalcItem.unitPrice) / matchedCalcItem.originalPrice) * 100)}% OFF
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </>
+                            )}
                           </div>
                           
                           <div className="flex items-center gap-4">

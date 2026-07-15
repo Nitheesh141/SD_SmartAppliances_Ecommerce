@@ -400,7 +400,7 @@ export default function AdminProductsPage() {
                               alt={product.name}
                               className="w-full h-full object-contain"
                               onError={(e) => {
-                                (e.target as HTMLImageElement).src = "/sd-smart-ecommerce/SD-logo.png";
+                                (e.target as HTMLImageElement).src = "/SD-logo.png";
                               }}
                             />
                           </div>

@@ -26,6 +26,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [marketingOpen, setMarketingOpen] = useState(currentPath.startsWith("/admin/marketing"));
+  const [productsOpen, setProductsOpen] = useState(currentPath.startsWith("/admin/products") || currentPath.startsWith("/admin/distributor-pricing") || currentPath.startsWith("/admin/manage-product"));
   const [counts, setCounts] = useState({ orders: 0, distributors: 0, serviceRequests: 0, warranties: 0, distributorEnquiries: 0 });
 
   // Fetch counts periodically
@@ -103,6 +104,12 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       label: "Products",
       icon: Package,
       href: "/admin/products",
+      children: [
+        { label: "Product Management", href: "/admin/products", tabId: "management" },
+        { label: "Categories", href: "/admin/products", tabId: "categories" },
+        { label: "Inventory", href: "/admin/products", tabId: "inventory" },
+        { label: "Distributor Pricing (NEW)", href: "/admin/distributor-pricing", tabId: "distributor-pricing" },
+      ]
     },
     {
       label: "Orders",
@@ -180,7 +187,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
         <div className="flex items-center gap-3">
           <Link href="/?bypass=true">
             <img
-              src="/sd-smart-ecommerce/SD-logo.png"
+              src="/SD-logo.png"
               alt="SD Smart Appliances"
               className="h-8 w-auto object-contain cursor-pointer"
             />
@@ -217,7 +224,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
           <div className="flex items-center gap-3">
             <Link href="/?bypass=true" onClick={() => setIsOpen(false)}>
               <img
-                src="/sd-smart-ecommerce/SD-logo.png"
+                src="/SD-logo.png"
                 alt="SD Smart Appliances"
                 className="h-10 w-auto object-contain cursor-pointer"
               />
@@ -270,10 +277,16 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
             const isActive = currentPath === item.href || isChildActive;
 
             if (item.children) {
+              const isOpenDropdown = item.label === "Marketing" ? marketingOpen : (item.label === "Products" ? productsOpen : false);
+              const toggleDropdown = () => {
+                if (item.label === "Marketing") setMarketingOpen(!marketingOpen);
+                if (item.label === "Products") setProductsOpen(!productsOpen);
+              };
+
               return (
                 <div key={item.label} className="space-y-1">
                   <button
-                    onClick={() => setMarketingOpen(!marketingOpen)}
+                    onClick={toggleDropdown}
                     className={cn(
                       "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group cursor-pointer text-left",
                       isChildActive
@@ -290,18 +303,31 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
                       )} />
                       <span>{item.label}</span>
                     </div>
-                    <span className={cn("text-[10px] transition-transform duration-200 text-neutral-500", marketingOpen && "rotate-90")}>
+                    <span className={cn("text-[10px] transition-transform duration-200 text-neutral-500", isOpenDropdown && "rotate-90")}>
                       ▶
                     </span>
                   </button>
 
-                  {marketingOpen && (
+                  {isOpenDropdown && (
                     <div className={cn(
                       "pl-6 space-y-1 mt-1 border-l ml-5",
                       isDark ? "border-neutral-800" : "border-neutral-200"
                     )}>
                       {item.children.map((child) => {
-                        const isSubActive = currentPath.startsWith("/admin/marketing") && currentTab === child.tabId;
+                        let isSubActive = false;
+                        if (item.label === "Marketing") {
+                          isSubActive = currentPath.startsWith("/admin/marketing") && currentTab === child.tabId;
+                        } else if (item.label === "Products") {
+                          if (child.tabId === "management") {
+                            isSubActive = currentPath === "/admin/products" && (!currentTab || currentTab === "management" || !["categories", "inventory"].includes(currentTab));
+                          } else if (child.tabId === "categories") {
+                            isSubActive = currentPath === "/admin/products" && currentTab === "categories";
+                          } else if (child.tabId === "inventory") {
+                            isSubActive = currentPath === "/admin/products" && currentTab === "inventory";
+                          } else if (child.tabId === "distributor-pricing") {
+                            isSubActive = currentPath === "/admin/distributor-pricing";
+                          }
+                        }
                         return (
                           <Link
                             key={child.label}

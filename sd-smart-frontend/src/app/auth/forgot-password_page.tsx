@@ -120,7 +120,7 @@ export default function ForgotPasswordPage() {
           <Link href="/" className="inline-block mb-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/sd-smart-ecommerce/SD-logo.png"
+              src="/SD-logo.png"
               alt="SD Smart Appliances"
               className="h-10 w-auto object-contain"
             />

@@ -31,6 +31,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       where: whereClause,
       orderBy: { createdAt: "desc" },
       include: {
+        distributorPricing: true,
         transactions: {
           where: {
             createdAt: {
@@ -53,7 +54,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       formattedProducts = formattedProducts.filter((p: any) => matchProduct(p, queryStr));
     }
 
-    const updatedProducts = await applyDynamicPricesToProducts(formattedProducts);
+    const updatedProducts = await applyDynamicPricesToProducts(formattedProducts, (req as AuthenticatedRequest).user);
 
     res.json({ success: true, products: updatedProducts });
   } catch (error: any) {
@@ -72,6 +73,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
     const product: any = await prisma.product.findUnique({
       where: { id },
       include: {
+        distributorPricing: true,
         transactions: {
           where: {
             createdAt: {
@@ -91,7 +93,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
     const todayStockOut = product.transactions.filter((t: any) => t.type === "OUT").reduce((sum: number, t: any) => sum + t.quantity, 0);
     const { transactions, ...rest } = product;
 
-    const updatedProduct = await applyDynamicPricesToProducts({ ...rest, todayStockIn, todayStockOut });
+    const updatedProduct = await applyDynamicPricesToProducts({ ...rest, todayStockIn, todayStockOut }, (req as AuthenticatedRequest).user);
 
     res.json({ success: true, product: updatedProduct });
   } catch (error: any) {
@@ -544,7 +546,7 @@ export const getBestsellerProducts = async (req: Request, res: Response): Promis
       return { ...rest, todayStockIn, todayStockOut };
     });
 
-    const updatedProducts = await applyDynamicPricesToProducts(formattedProducts);
+    const updatedProducts = await applyDynamicPricesToProducts(formattedProducts, (req as AuthenticatedRequest).user);
 
     res.json({ success: true, products: updatedProducts });
   } catch (error: any) {

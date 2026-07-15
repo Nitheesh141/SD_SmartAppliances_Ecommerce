@@ -120,7 +120,7 @@ export default function LoginPage() {
           <Link href="/" className="inline-block mb-4 sm:mb-6 hover:scale-105 transition-transform duration-300">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/sd-smart-ecommerce/SD-logo.png"
+              src="/SD-logo.png"
               alt="SD Smart Appliances"
               className="h-10 sm:h-12 w-auto object-contain mx-auto"
             />

@@ -107,7 +107,7 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
         <div className="flex items-center gap-3">
           <Link href="/?bypass=true">
             <img
-              src="/sd-smart-ecommerce/SD-logo.png"
+              src="/SD-logo.png"
               alt="SD Smart Appliances"
               className="h-8 w-auto object-contain cursor-pointer"
             />
@@ -133,7 +133,7 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
         <div className="h-20 flex items-center px-6 border-b border-neutral-200 bg-white">
           <Link href="/?bypass=true" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
             <img
-              src="/sd-smart-ecommerce/SD-logo.png"
+              src="/SD-logo.png"
               alt="SD Smart Appliances"
               className="h-10 w-auto object-contain"
             />
