@@ -32,7 +32,8 @@ router.post("/", upload.any(), (req: Request, res: Response): void => {
     }
 
     // Return the URLs for the uploaded files
-    const urls = files.map((file) => `http://localhost:5000/uploads/${file.filename}`);
+    const port = process.env.PORT || 5001;
+    const urls = files.map((file) => `http://localhost:${port}/uploads/${file.filename}`);
 
     res.status(200).json({
       success: true,
