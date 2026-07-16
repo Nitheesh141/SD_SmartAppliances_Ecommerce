@@ -5,8 +5,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
-import { 
-  LayoutDashboard, PlusCircle, LogOut, Sun, Moon, 
+import {
+  LayoutDashboard, PlusCircle, LogOut, Sun, Moon,
   Home, Shield, Menu, X, ArrowLeftRight, Package, Percent, Settings, Headphones, ShieldCheck, Users,
   MessageSquare
 } from "lucide-react";
@@ -59,7 +59,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
     const markAsRead = async () => {
       const token = localStorage.getItem("authToken");
       if (!token) return;
-      
+
       try {
         if (currentPath === "/admin/orders" && counts.orders > 0) {
           await fetch(`${ENV.API_BASE_URL}/orders/mark-read`, {
@@ -106,9 +106,8 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       href: "/admin/products",
       children: [
         { label: "Product Management", href: "/admin/products", tabId: "management" },
-        { label: "Categories", href: "/admin/products", tabId: "categories" },
-        { label: "Inventory", href: "/admin/products", tabId: "inventory" },
-        { label: "Distributor Pricing (NEW)", href: "/admin/distributor-pricing", tabId: "distributor-pricing" },
+        { label: "Categories", href: "/admin/products?tab=categories", tabId: "categories" },
+        { label: "Distributor Pricing", href: "/admin/distributor-pricing", tabId: "distributor-pricing" },
       ]
     },
     {
@@ -198,7 +197,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
             <span>Admin</span>
           </span>
         </div>
-        
+
         <button
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
@@ -238,10 +237,10 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
               </span>
             </div>
           </div>
-          
+
           {/* Close button on mobile */}
-          <button 
-            onClick={() => setIsOpen(false)} 
+          <button
+            onClick={() => setIsOpen(false)}
             className={cn(
               "lg:hidden p-1.5 rounded-lg border",
               isDark ? "border-neutral-800" : "border-neutral-200"
@@ -379,8 +378,8 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
                 {count > 0 && (
                   <span className={cn(
                     "flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[9px] font-black uppercase tracking-wider",
-                    isActive 
-                      ? "bg-white text-[#D71920]" 
+                    isActive
+                      ? "bg-white text-[#D71920]"
                       : "bg-red-600 text-white"
                   )}>
                     {displayCount}
@@ -391,14 +390,14 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
           })}
 
           <p className="px-3 pt-6 text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-3">Actions</p>
-          
+
           {/* Storefront Link */}
           <Link
             href="/?bypass=true"
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group cursor-pointer",
-              isDark 
-                ? "text-neutral-400 hover:text-white hover:bg-neutral-900" 
+              isDark
+                ? "text-neutral-400 hover:text-white hover:bg-neutral-900"
                 : "text-neutral-600 hover:text-[#D71920] hover:bg-red-50/50"
             )}
           >
@@ -461,7 +460,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
 
       {/* Sidebar Backdrop on mobile */}
       {isOpen && (
-        <div 
+        <div
           onClick={() => setIsOpen(false)}
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
         />

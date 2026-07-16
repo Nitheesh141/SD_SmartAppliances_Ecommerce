@@ -53,7 +53,7 @@ const categoryModels: Record<string, string[]> = {
   "non-stick": ["Yummy"]
 };
 
-const categoryOptions = [
+const presetCategoryOptions = [
   { value: "pressure-cookers", label: "Pressure Cookers" },
   { value: "non-stick", label: "Non-Stick Cookware" },
 
@@ -82,6 +82,28 @@ export default function AdminManagePage() {
   const [productId, setProductId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSubmitLoading, setIsSubmitLoading] = useState(false);
+
+  const [dynamicCategories, setDynamicCategories] = useState<{ value: string; label: string }[]>(presetCategoryOptions);
+
+  // Load dynamic categories from backend
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch(`${ENV.API_BASE_URL}/categories`);
+        const data = await res.json();
+        if (data.success && data.categories && data.categories.length > 0) {
+          const formatted = data.categories.map((c: any) => ({
+            value: c.slug,
+            label: c.name
+          }));
+          setDynamicCategories(formatted);
+        }
+      } catch (err) {
+        console.error("Error loading categories in edit form:", err);
+      }
+    };
+    fetchCategories();
+  }, []);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
 
   // Theme state
@@ -561,25 +583,12 @@ export default function AdminManagePage() {
     setCategory(cat);
     setModelNumber("");
     setIsCustomModel(false);
-    switch (cat) {
-      case "pressure-cookers":
-        setCategoryLabel("Pressure Cookers");
-        break;
-      case "wet-grinders":
-        setCategoryLabel("Wet Grinders");
-        break;
-      case "gas-stoves":
-        setCategoryLabel("LPG Stoves");
-        break;
-
-      case "non-stick":
-        setCategoryLabel("Non-Stick Cookware");
-        break;
-      case "commercial":
-        setCategoryLabel("Commercial Wet Grinders");
-        break;
-      default:
-        setCategoryLabel("Appliances");
+    
+    const matched = dynamicCategories.find(o => o.value === cat);
+    if (matched) {
+      setCategoryLabel(matched.label);
+    } else {
+      setCategoryLabel("Appliances");
     }
   };
 
@@ -824,7 +833,7 @@ export default function AdminManagePage() {
                           )}
                         >
                           <span className="truncate">
-                            {categoryOptions.find(o => o.value === category)?.label || "Select Category"}
+                            {dynamicCategories.find(o => o.value === category)?.label || "Select Category"}
                           </span>
                           <span className={cn("transition-transform duration-200 shrink-0 ml-2 text-xs", isCategoryDropdownOpen ? "rotate-180" : "")}>
                             ▼
@@ -840,7 +849,7 @@ export default function AdminManagePage() {
                                 : "bg-white border-slate-300 text-slate-900"
                             )}
                           >
-                            {categoryOptions.map((opt) => (
+                            {dynamicCategories.map((opt) => (
                               <div
                                 key={opt.value}
                                 onClick={() => {

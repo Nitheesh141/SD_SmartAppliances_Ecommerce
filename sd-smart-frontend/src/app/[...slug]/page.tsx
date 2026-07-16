@@ -35,6 +35,7 @@ export default async function CatchAllPage({ params }: PageProps) {
   }
 
   const PageComponent = getRouteComponent(path);
+  console.log(`[CatchAllPage] Path resolved: "${path}", PageComponent found: ${PageComponent ? "YES" : "NO"}`);
 
   if (!PageComponent) {
     notFound();

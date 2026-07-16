@@ -2,7 +2,7 @@
 import { ENV } from "@/config/env";
 
 import { useEffect, useState, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
 import { 
@@ -42,11 +42,115 @@ interface ProductType {
 
 export default function AdminProductsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get("tab") || "management";
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   
   const [products, setProducts] = useState<ProductType[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleteLoading, setIsDeleteLoading] = useState<string | null>(null);
+
+  // Categories state
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatSlug, setNewCatSlug] = useState("");
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [categoryValidationError, setCategoryValidationError] = useState<string | null>(null);
+
+  // Fetch categories
+  const fetchCategories = async () => {
+    setLoadingCategories(true);
+    try {
+      const res = await fetch(`${ENV.API_BASE_URL}/categories`);
+      const data = await res.json();
+      if (data.success) {
+        setCategories(data.categories || []);
+      } else {
+        toast.error(data.message || "Failed to load categories");
+      }
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+      toast.error("Failed to connect to backend server");
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // Trigger categories fetch when switching to categories tab
+  useEffect(() => {
+    if (currentTab === "categories") {
+      fetchCategories();
+    }
+  }, [currentTab]);
+
+  // Handle auto slug generation
+  const handleCatNameChange = (name: string) => {
+    setNewCatName(name);
+    const slug = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    setNewCatSlug(slug);
+  };
+
+  // Save new category
+  const handleSaveCategory = async () => {
+    if (!newCatName.trim()) {
+      setCategoryValidationError("Category name is required");
+      return;
+    }
+    if (!newCatSlug.trim()) {
+      setCategoryValidationError("Category slug is required");
+      return;
+    }
+
+    setIsSavingCategory(true);
+    setCategoryValidationError(null);
+    try {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(`${ENV.API_BASE_URL}/categories`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newCatName.trim(),
+          slug: newCatSlug.trim()
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Category added successfully");
+        setIsAddCategoryOpen(false);
+        setNewCatName("");
+        setNewCatSlug("");
+        fetchCategories();
+      } else {
+        setCategoryValidationError(data.message || "Failed to create category");
+      }
+    } catch (err) {
+      console.error("Error saving category:", err);
+      setCategoryValidationError("Failed to connect to backend server");
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
+  // Memoized product count map by category slug
+  const productCountMap = useMemo(() => {
+    const counts: Record<string, number> = {};
+    products.forEach((p) => {
+      const cat = p.category;
+      if (cat) {
+        counts[cat] = (counts[cat] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [products]);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -277,46 +381,157 @@ export default function AdminProductsPage() {
           "px-6 py-6 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-colors duration-300",
           isDark ? "border-neutral-800 bg-[#0d0d0d]/80" : "border-neutral-200 bg-white"
         )}>
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-[#D71920] uppercase tracking-wider mb-1">
-              <Layers size={14} />
-              <span>Smart Catalog</span>
+          {currentTab === "categories" ? (
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#D71920] uppercase tracking-wider mb-1">
+                <Layers size={14} />
+                <span>Categories</span>
+              </div>
+              <h1 className="text-2xl font-extrabold tracking-tight">Category Management</h1>
+              <p className={cn("text-xs mt-0.5", isDark ? "text-neutral-500" : "text-neutral-400")}>
+                View available appliance categories and configure dynamic catalog categories.
+              </p>
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight">Appliance Management</h1>
-            <p className={cn("text-xs mt-0.5", isDark ? "text-neutral-500" : "text-neutral-400")}>
-              Add, update, or remove smart appliances across customer category catalogs.
-            </p>
-          </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#D71920] uppercase tracking-wider mb-1">
+                <Layers size={14} />
+                <span>Smart Catalog</span>
+              </div>
+              <h1 className="text-2xl font-extrabold tracking-tight">Appliance Management</h1>
+              <p className={cn("text-xs mt-0.5", isDark ? "text-neutral-500" : "text-neutral-400")}>
+                Add, update, or remove smart appliances across customer category catalogs.
+              </p>
+            </div>
+          )}
           
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => fetchProducts(false)}
-              className={cn(
-                "p-2.5 border rounded-lg transition-all cursor-pointer",
-                isDark 
-                  ? "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800" 
-                  : "bg-white border-neutral-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-              )}
-              title="Reload Products"
-            >
-              <RefreshCw size={18} className={loading ? "animate-spin text-[#D71920]" : ""} />
-            </button>
-            <button
-              onClick={() => router.push("/admin/manage-product")}
-              className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B91520] rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2 shadow-lg shadow-[#D71920]/20 hover:shadow-[#D71920]/30 cursor-pointer"
-            >
-              <Plus size={18} />
-              <span>Add New Appliance</span>
-            </button>
+            {currentTab === "categories" ? (
+              <>
+                <button
+                  onClick={fetchCategories}
+                  className={cn(
+                    "p-2.5 border rounded-lg transition-all cursor-pointer",
+                    isDark 
+                      ? "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800" 
+                      : "bg-white border-neutral-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                  )}
+                  title="Reload Categories"
+                >
+                  <RefreshCw size={18} className={loadingCategories ? "animate-spin text-[#D71920]" : ""} />
+                </button>
+                <button
+                  onClick={() => {
+                    setCategoryValidationError(null);
+                    setNewCatName("");
+                    setNewCatSlug("");
+                    setIsAddCategoryOpen(true);
+                  }}
+                  className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B91520] rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2 shadow-lg shadow-[#D71920]/20 hover:shadow-[#D71920]/30 cursor-pointer"
+                >
+                  <Plus size={18} />
+                  <span>Add Category</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => fetchProducts(false)}
+                  className={cn(
+                    "p-2.5 border rounded-lg transition-all cursor-pointer",
+                    isDark 
+                      ? "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800" 
+                      : "bg-white border-neutral-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                  )}
+                  title="Reload Products"
+                >
+                  <RefreshCw size={18} className={loading ? "animate-spin text-[#D71920]" : ""} />
+                </button>
+                <button
+                  onClick={() => router.push("/admin/manage-product")}
+                  className="px-4 py-2.5 bg-[#D71920] hover:bg-[#B91520] rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2 shadow-lg shadow-[#D71920]/20 hover:shadow-[#D71920]/30 cursor-pointer"
+                >
+                  <Plus size={18} />
+                  <span>Add New Appliance</span>
+                </button>
+              </>
+            )}
           </div>
         </header>
 
         {/* Dashboard Grid & List */}
         <main className="flex-grow p-6">
-          <div className={cn(
-            "border rounded-2xl overflow-hidden shadow-xl backdrop-blur-md transition-all",
-            isDark ? "bg-neutral-950/60 border-neutral-800/80" : "bg-white border-neutral-200"
-          )}>
+          {currentTab === "categories" ? (
+            <div className={cn(
+              "border rounded-2xl overflow-hidden shadow-xl backdrop-blur-md transition-all p-6",
+              isDark ? "bg-neutral-950/60 border-neutral-800/80" : "bg-white border-neutral-200"
+            )}>
+              <h2 className="text-lg font-bold mb-4">Available Categories</h2>
+              
+              {loadingCategories && categories.length === 0 ? (
+                <div className="py-24 text-center">
+                  <Loader2 className="w-10 h-10 mx-auto text-[#D71920] animate-spin" />
+                  <p className="mt-2 text-sm text-neutral-500">Loading categories...</p>
+                </div>
+              ) : categories.length === 0 ? (
+                <div className="py-24 text-center">
+                  <Package className="w-16 h-16 mx-auto mb-4 text-neutral-350" />
+                  <p className="text-lg font-bold">No categories found</p>
+                  <p className="text-sm text-neutral-500">Click Add Category above to create one.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className={cn(
+                        "border-b text-xs font-bold uppercase tracking-wider transition-colors",
+                        isDark ? "border-neutral-800 bg-neutral-900/30 text-neutral-400" : "border-neutral-200 bg-neutral-50/70 text-slate-500"
+                      )}>
+                        <th className="py-4 px-6">Category Name</th>
+                        <th className="py-4 px-6">URL Slug</th>
+                        <th className="py-4 px-6 text-center">Products Count</th>
+                        <th className="py-4 px-6 text-right">Created Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className={cn(
+                      "divide-y transition-colors",
+                      isDark ? "divide-neutral-900" : "divide-neutral-100"
+                    )}>
+                      {categories.map((cat) => (
+                        <tr
+                          key={cat.id}
+                          className={cn(
+                            "group transition-all",
+                            isDark ? "hover:bg-neutral-900/10" : "hover:bg-slate-50/50"
+                          )}
+                        >
+                          <td className="py-4 px-6 font-bold">{cat.name}</td>
+                          <td className="py-4 px-6 font-mono text-xs text-neutral-500">{cat.slug}</td>
+                          <td className="py-4 px-6 text-center">
+                            <span className={cn(
+                              "px-2.5 py-1 border rounded-full text-xs font-semibold",
+                              isDark 
+                                ? "bg-neutral-900 border-neutral-800 text-neutral-300" 
+                                : "bg-slate-100 border-slate-200 text-slate-700"
+                            )}>
+                              {productCountMap[cat.slug] || 0} Products
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 text-right text-xs text-neutral-500">
+                            {new Date(cat.createdAt).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className={cn(
+              "border rounded-2xl overflow-hidden shadow-xl backdrop-blur-md transition-all",
+              isDark ? "bg-neutral-950/60 border-neutral-800/80" : "bg-white border-neutral-200"
+            )}>
             {/* Filter / Search Bar */}
             {products.length > 0 && (
               <div className={cn(
@@ -383,9 +598,8 @@ export default function AdminProductsPage() {
                     {filteredProducts.map((product) => (
                       <tr
                         key={product.id}
-                        onClick={() => handleOpenInventory(product)}
                         className={cn(
-                          "group transition-all cursor-pointer",
+                          "group transition-all",
                           isDark ? "hover:bg-neutral-900/10" : "hover:bg-slate-50/50"
                         )}
                       >
@@ -522,6 +736,7 @@ export default function AdminProductsPage() {
               </div>
             )}
           </div>
+          )}
         </main>
       </div>
 
@@ -682,6 +897,102 @@ export default function AdminProductsPage() {
                   </>
                 ) : (
                   <span>Save Changes</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Category Modal Overlay */}
+      {isAddCategoryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className={cn(
+            "w-full max-w-md p-6 rounded-2xl border shadow-2xl transition-all",
+            isDark ? "bg-[#141414] border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
+          )}>
+            <div className="flex items-center justify-between border-b pb-4 mb-4 border-neutral-200 dark:border-neutral-800">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <Plus size={18} className="text-[#D71920]" />
+                <span>Add Category</span>
+              </h3>
+              <button 
+                onClick={() => setIsAddCategoryOpen(false)}
+                className="text-2xl font-semibold hover:text-neutral-500 transition-colors"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="flex flex-col">
+                <label className={cn("text-xs font-bold uppercase tracking-wider mb-1.5", isDark ? "text-neutral-400" : "text-slate-600")}>
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  value={newCatName}
+                  onChange={(e) => handleCatNameChange(e.target.value)}
+                  placeholder="e.g. Induction Cooktops"
+                  className={cn(
+                    "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-all",
+                    isDark 
+                      ? "bg-neutral-900 border-neutral-800 text-white focus:border-[#D71920]" 
+                      : "bg-white border-slate-200 text-slate-900 focus:border-[#D71920]"
+                  )}
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label className={cn("text-xs font-bold uppercase tracking-wider mb-1.5", isDark ? "text-neutral-400" : "text-slate-600")}>
+                  URL Slug *
+                </label>
+                <input
+                  type="text"
+                  value={newCatSlug}
+                  onChange={(e) => setNewCatSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-"))}
+                  placeholder="e.g. induction-cooktops"
+                  className={cn(
+                    "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-all font-mono text-xs",
+                    isDark 
+                      ? "bg-neutral-900 border-neutral-800 text-white focus:border-[#D71920]" 
+                      : "bg-white border-slate-200 text-slate-900 focus:border-[#D71920]"
+                  )}
+                />
+              </div>
+            </div>
+
+            {categoryValidationError && (
+              <div className="p-3 mb-6 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-xs font-medium text-center">
+                {categoryValidationError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 border-t pt-4 border-neutral-200 dark:border-neutral-800">
+              <button
+                onClick={() => setIsAddCategoryOpen(false)}
+                className={cn(
+                  "px-4 py-2 border rounded-lg text-sm font-bold transition-all cursor-pointer",
+                  isDark
+                    ? "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800"
+                    : "bg-white border-neutral-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                )}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCategory}
+                disabled={isSavingCategory}
+                className="px-4 py-2 bg-[#D71920] hover:bg-[#B91520] rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2 shadow-lg shadow-[#D71920]/20 hover:shadow-[#D71920]/30 cursor-pointer disabled:opacity-50"
+              >
+                {isSavingCategory ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Create Category</span>
                 )}
               </button>
             </div>
