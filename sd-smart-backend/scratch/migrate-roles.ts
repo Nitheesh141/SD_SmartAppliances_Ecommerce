@@ -5,12 +5,18 @@ import path from "path";
 // Load environment variables from .env
 dotenv.config({ path: path.join(__dirname, "../.env") });
 
-const connectionString = process.env.DATABASE_URL;
+const dbHost = process.env.DB_HOST;
+const dbPort = process.env.DB_PORT;
+const dbUser = process.env.DB_USER;
+const dbPassword = process.env.DB_PASSWORD;
+const dbName = process.env.DB_NAME;
 
-if (!connectionString) {
-  console.error("❌ DATABASE_URL is not set in .env");
+if (!dbHost || !dbPort || !dbUser || !dbPassword || !dbName) {
+  console.error("❌ Database configuration environment variables (DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME) are missing in .env");
   process.exit(1);
 }
+
+const connectionString = `postgresql://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${dbName}`;
 
 async function run() {
   console.log("Connecting to database to migrate role values...");
