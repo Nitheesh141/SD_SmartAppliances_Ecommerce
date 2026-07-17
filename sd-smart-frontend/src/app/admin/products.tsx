@@ -59,6 +59,11 @@ export default function AdminProductsPage() {
   const [isSavingCategory, setIsSavingCategory] = useState(false);
   const [categoryValidationError, setCategoryValidationError] = useState<string | null>(null);
 
+  // Delete Category states
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<{ id: string; name: string; productCount: number } | null>(null);
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false);
+
   // Fetch categories
   const fetchCategories = async () => {
     setLoadingCategories(true);
@@ -137,6 +142,36 @@ export default function AdminProductsPage() {
       setCategoryValidationError("Failed to connect to backend server");
     } finally {
       setIsSavingCategory(false);
+    }
+  };
+
+  // Delete category
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+    setIsDeletingCategory(true);
+    try {
+      const token = localStorage.getItem("authToken");
+      const res = await fetch(`${ENV.API_BASE_URL}/categories/${categoryToDelete.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || "Category deleted successfully");
+        setDeleteConfirmOpen(false);
+        setCategoryToDelete(null);
+        fetchCategories();
+        fetchProducts(false);
+      } else {
+        toast.error(data.message || "Failed to delete category");
+      }
+    } catch (err) {
+      console.error("Error deleting category:", err);
+      toast.error("Failed to connect to backend server");
+    } finally {
+      setIsDeletingCategory(false);
     }
   };
 
@@ -491,6 +526,7 @@ export default function AdminProductsPage() {
                         <th className="py-4 px-6">URL Slug</th>
                         <th className="py-4 px-6 text-center">Products Count</th>
                         <th className="py-4 px-6 text-right">Created Date</th>
+                        <th className="py-4 px-6 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className={cn(
@@ -519,6 +555,22 @@ export default function AdminProductsPage() {
                           </td>
                           <td className="py-4 px-6 text-right text-xs text-neutral-500">
                             {new Date(cat.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <button
+                              onClick={() => {
+                                setCategoryToDelete({
+                                  id: cat.id,
+                                  name: cat.name,
+                                  productCount: productCountMap[cat.slug] || 0
+                                });
+                                setDeleteConfirmOpen(true);
+                              }}
+                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer inline-flex items-center justify-center"
+                              title="Delete Category"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -598,8 +650,9 @@ export default function AdminProductsPage() {
                     {filteredProducts.map((product) => (
                       <tr
                         key={product.id}
+                        onClick={() => handleOpenInventory(product)}
                         className={cn(
-                          "group transition-all",
+                          "group transition-all cursor-pointer",
                           isDark ? "hover:bg-neutral-900/10" : "hover:bg-slate-50/50"
                         )}
                       >
@@ -993,6 +1046,81 @@ export default function AdminProductsPage() {
                   </>
                 ) : (
                   <span>Create Category</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Category Confirmation Modal Overlay */}
+      {deleteConfirmOpen && categoryToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className={cn(
+            "w-full max-w-md p-6 rounded-2xl border shadow-2xl transition-all",
+            isDark ? "bg-[#141414] border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
+          )}>
+            <div className="flex items-center justify-between border-b pb-4 mb-4 border-neutral-200 dark:border-neutral-800">
+              <h3 className="text-lg font-bold flex items-center gap-2 text-red-500">
+                <Trash2 size={18} />
+                <span>Delete Category</span>
+              </h3>
+              <button 
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setCategoryToDelete(null);
+                }}
+                className="text-2xl font-semibold hover:text-neutral-500 transition-colors cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="mb-6 space-y-3">
+              <p className="text-sm">
+                Are you sure you want to delete the category <span className="font-bold text-[#D71920]">"{categoryToDelete.name}"</span>?
+              </p>
+              
+              <div className="p-3.5 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-xs flex flex-col gap-1.5 font-medium">
+                <span className="font-bold flex items-center gap-1">⚠️ WARNING: Cascading Deletion</span>
+                <span>
+                  This category contains <span className="font-bold">{categoryToDelete.productCount} product(s)</span>.
+                </span>
+                <span>
+                  Confirming this action will <strong>permanently delete the category and all products</strong> it contains. This action cannot be undone.
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t pt-4 border-neutral-200 dark:border-neutral-800">
+              <button
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setCategoryToDelete(null);
+                }}
+                disabled={isDeletingCategory}
+                className={cn(
+                  "px-4 py-2 border rounded-lg text-sm font-bold transition-all cursor-pointer disabled:opacity-50",
+                  isDark
+                    ? "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800"
+                    : "bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                )}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCategory}
+                disabled={isDeletingCategory}
+                className="px-4 py-2 bg-[#D71920] hover:bg-[#B91520] rounded-lg text-sm font-bold text-white transition-all flex items-center gap-2 shadow-lg shadow-[#D71920]/20 hover:shadow-[#D71920]/30 cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingCategory ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Delete Category & Products</span>
                 )}
               </button>
             </div>

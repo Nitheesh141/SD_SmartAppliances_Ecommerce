@@ -217,7 +217,7 @@ export default function SalesDistributorEnquiriesPage() {
       <SalesSidebar currentPath="/sales/distributor-enquiries" />
 
       {/* Main Area */}
-      <main className="flex-1 px-6 lg:pl-72 py-8 overflow-y-auto text-left">
+      <main className="flex-1 lg:ml-64 p-4 sm:p-6 md:p-8 overflow-y-auto text-left">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5 mb-8 border-neutral-200">
           <div>

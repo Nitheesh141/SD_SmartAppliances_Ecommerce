@@ -27,7 +27,8 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
   const [isOpen, setIsOpen] = useState(false);
   const [marketingOpen, setMarketingOpen] = useState(currentPath.startsWith("/admin/marketing"));
   const [productsOpen, setProductsOpen] = useState(currentPath.startsWith("/admin/products") || currentPath.startsWith("/admin/distributor-pricing") || currentPath.startsWith("/admin/manage-product"));
-  const [counts, setCounts] = useState({ orders: 0, distributors: 0, serviceRequests: 0, warranties: 0, distributorEnquiries: 0 });
+  const [salesOpen, setSalesOpen] = useState(currentPath.startsWith("/admin/sales-persons") || currentPath.startsWith("/admin/daily-activities"));
+  const [counts, setCounts] = useState({ orders: 0, distributors: 0, serviceRequests: 0, warranties: 0, distributorEnquiries: 0, pendingActivities: 0 });
 
   // Fetch counts periodically
   useEffect(() => {
@@ -85,6 +86,12 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
             headers: { Authorization: `Bearer ${token}` }
           });
           setCounts(prev => ({ ...prev, distributorEnquiries: 0 }));
+        } else if (currentPath === "/admin/daily-activities" && counts.pendingActivities > 0) {
+          await fetch(`${ENV.API_BASE_URL}/sales-activities/admin/mark-read`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setCounts(prev => ({ ...prev, pendingActivities: 0 }));
         }
       } catch (err) {
         console.error("Failed to mark notification as read:", err);
@@ -92,7 +99,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
     };
 
     markAsRead();
-  }, [currentPath, counts.orders, counts.distributors, counts.serviceRequests, counts.distributorEnquiries]);
+  }, [currentPath, counts.orders, counts.distributors, counts.serviceRequests, counts.distributorEnquiries, counts.pendingActivities]);
 
   const menuItems = [
     {
@@ -121,9 +128,13 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       href: "/admin/distributors",
     },
     {
-      label: "Sales Persons",
+      label: "Sales Management",
       icon: Users,
       href: "/admin/sales-persons",
+      children: [
+        { label: "Sales Persons", href: "/admin/sales-persons", tabId: "sales-persons" },
+        { label: "Daily Sales Activities", href: "/admin/daily-activities", tabId: "daily-activities" }
+      ]
     },
     {
       label: "Distributor Enquiries",
@@ -276,10 +287,11 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
             const isActive = currentPath === item.href || isChildActive;
 
             if (item.children) {
-              const isOpenDropdown = item.label === "Marketing" ? marketingOpen : (item.label === "Products" ? productsOpen : false);
+              const isOpenDropdown = item.label === "Marketing" ? marketingOpen : (item.label === "Products" ? productsOpen : (item.label === "Sales Management" ? salesOpen : false));
               const toggleDropdown = () => {
                 if (item.label === "Marketing") setMarketingOpen(!marketingOpen);
                 if (item.label === "Products") setProductsOpen(!productsOpen);
+                if (item.label === "Sales Management") setSalesOpen(!salesOpen);
               };
 
               return (
@@ -301,6 +313,11 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
                         isChildActive ? "text-[#D71920]" : "text-neutral-500 group-hover:text-[#D71920]"
                       )} />
                       <span>{item.label}</span>
+                      {item.label === "Sales Management" && counts.pendingActivities > 0 && (
+                        <span className="flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[9px] font-black bg-red-600 text-white animate-pulse">
+                          {counts.pendingActivities}
+                        </span>
+                      )}
                     </div>
                     <span className={cn("text-[10px] transition-transform duration-200 text-neutral-500", isOpenDropdown && "rotate-90")}>
                       ▶
@@ -326,6 +343,12 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
                           } else if (child.tabId === "distributor-pricing") {
                             isSubActive = currentPath === "/admin/distributor-pricing";
                           }
+                        } else if (item.label === "Sales Management") {
+                          if (child.tabId === "sales-persons") {
+                            isSubActive = currentPath === "/admin/sales-persons";
+                          } else if (child.tabId === "daily-activities") {
+                            isSubActive = currentPath === "/admin/daily-activities";
+                          }
                         }
                         return (
                           <Link
@@ -333,7 +356,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
                             href={child.href as any}
                             onClick={() => setIsOpen(false)}
                             className={cn(
-                              "flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer",
+                              "flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer w-full",
                               isSubActive
                                 ? "text-[#D71920] bg-red-500/10 font-bold"
                                 : isDark
@@ -341,7 +364,12 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
                                   : "text-slate-600 hover:text-[#D71920]"
                             )}
                           >
-                            {child.label}
+                            <span>{child.label}</span>
+                            {child.label === "Daily Sales Activities" && counts.pendingActivities > 0 && (
+                              <span className="flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[8px] font-black bg-red-600 text-white ml-2">
+                                {counts.pendingActivities}
+                              </span>
+                            )}
                           </Link>
                         );
                       })}

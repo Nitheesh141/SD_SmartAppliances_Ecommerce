@@ -56,13 +56,8 @@ export default async function RootLayout({
                 try {
                   var theme = localStorage.getItem('admin-theme');
                   var path = window.location.pathname;
-                  var isSales = path.indexOf('/sales') !== -1;
-                  var isDistributor = path.indexOf('/distributor') !== -1 && path.indexOf('/admin') === -1;
                   
-                  if (isSales || isDistributor) {
-                    document.documentElement.classList.remove('dark');
-                    document.documentElement.style.colorScheme = 'light';
-                  } else if (path.indexOf('/admin') !== -1) {
+                  if (path.indexOf('/admin') !== -1) {
                     if (theme === 'light') {
                       document.documentElement.classList.remove('dark');
                       document.documentElement.style.colorScheme = 'light';
@@ -70,6 +65,9 @@ export default async function RootLayout({
                       document.documentElement.classList.add('dark');
                       document.documentElement.style.colorScheme = 'dark';
                     }
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.style.colorScheme = 'light';
                   }
                 } catch (e) {}
               })();

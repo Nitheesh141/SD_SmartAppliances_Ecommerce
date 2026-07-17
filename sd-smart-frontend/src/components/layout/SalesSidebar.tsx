@@ -1,11 +1,11 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { 
   LayoutDashboard, LogOut, Home, Shield, Menu, X, ArrowLeftRight, Package, Headphones,
-  MessageSquare
+  FileText, Calendar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -19,7 +19,6 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   const menuItems = [
     {
@@ -33,9 +32,14 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
       href: "/sales/distributors",
     },
     {
-      label: "Distributor Enquiries",
-      icon: MessageSquare,
-      href: "/sales/distributor-enquiries",
+      label: "Orders",
+      icon: FileText,
+      href: "/sales/orders",
+    },
+    {
+      label: "Daily Sales Activity",
+      icon: Calendar,
+      href: "/sales/daily-activity",
     },
     {
       label: "Product Catalog",
@@ -44,55 +48,7 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
     }
   ];
 
-  // Fetch salesperson unread notifications count
-  const fetchUnreadCount = async () => {
-    try {
-      const token = localStorage.getItem("authToken");
-      if (!token) return;
 
-      const res = await fetch(`${ENV.API_BASE_URL}/distributor-enquiries/notifications/list`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setUnreadCount(data.unreadCount || 0);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch salesperson unread count:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (user && user.role?.toUpperCase() === "SALESPERSON") {
-      fetchUnreadCount();
-      const interval = setInterval(fetchUnreadCount, 20000);
-      return () => clearInterval(interval);
-    }
-  }, [user]);
-
-  // Mark salesperson notifications as read when visiting enquiries page or when new counts appear while on that page
-  useEffect(() => {
-    const markAsRead = async () => {
-      const token = localStorage.getItem("authToken");
-      if (!token) return;
-
-      if (currentPath === "/sales/distributor-enquiries" && unreadCount > 0) {
-        try {
-          await fetch(`${ENV.API_BASE_URL}/distributor-enquiries/notifications/read`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          setUnreadCount(0);
-        } catch (err) {
-          console.error("Failed to mark notifications as read:", err);
-        }
-      }
-    };
-
-    markAsRead();
-  }, [currentPath, unreadCount]);
 
   const handleLogout = () => {
     logout();
@@ -151,6 +107,7 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
               <p className="text-xs text-neutral-500 truncate">{user?.email}</p>
             </div>
           </div>
+
         </div>
 
         {/* Main Navigation Links */}
@@ -178,14 +135,6 @@ export default function SalesSidebar({ currentPath }: SalesSidebarProps) {
                   )} />
                   <span>{item.label}</span>
                 </div>
-                {item.label === "Distributor Enquiries" && unreadCount > 0 && (
-                  <span className={cn(
-                    "text-[10px] font-black px-2 py-0.5 rounded-full inline-block animate-pulse",
-                    isActive ? "bg-white text-[#D71920]" : "bg-[#D71920] text-white"
-                  )}>
-                    {unreadCount}
-                  </span>
-                )}
               </Link>
             );
           })}

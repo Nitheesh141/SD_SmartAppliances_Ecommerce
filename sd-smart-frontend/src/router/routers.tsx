@@ -113,6 +113,26 @@ const SalesProductsPage = dynamic(() => import("../app/sales/products_page"), {
   ssr: true,
 });
 
+const SalesOrdersPage = dynamic(() => import("../app/sales/orders_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesTargetsPage = dynamic(() => import("../app/sales/targets_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesDailyActivityPage = dynamic(() => import("../app/sales/daily_activity_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminDailyActivitiesPage = dynamic(() => import("../app/admin/daily_activities_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 // Other pages
 const LandingPage = dynamic(() => import("../app/LandingPage/LandingPage"), {
   loading: PageLoader,
@@ -216,6 +236,10 @@ export const routes: Record<string, React.ComponentType<any>> = {
 
   "/sales/products": SalesProductsPage,
   "/sales/distributor-enquiries": SalesDistributorEnquiriesPage,
+  "/sales/orders": SalesOrdersPage,
+  "/sales/targets": SalesTargetsPage,
+  "/sales/daily-activity": SalesDailyActivityPage,
+  "/admin/daily-activities": AdminDailyActivitiesPage,
   "/admin/dashboard": AdminDashboardPage,
   "/admin/products": AdminProductsPage,
   "/admin/distributor-pricing": AdminDistributorPricingPage,

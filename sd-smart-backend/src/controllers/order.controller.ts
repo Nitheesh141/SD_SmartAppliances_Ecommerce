@@ -777,6 +777,13 @@ export const getUnreadCounts = async (req: Request, res: Response): Promise<void
       where: { viewedByAdmin: false }
     });
 
+    const pendingActivitiesCount = await prisma.salesDailyActivity.count({
+      where: {
+        status: "PENDING",
+        viewedByAdmin: false
+      }
+    });
+
     res.json({
       success: true,
       counts: {
@@ -784,7 +791,8 @@ export const getUnreadCounts = async (req: Request, res: Response): Promise<void
         distributors: distributorsCount,
         serviceRequests: serviceRequestsCount,
         warranties: warrantiesCount,
-        distributorEnquiries: distributorEnquiriesCount
+        distributorEnquiries: distributorEnquiriesCount,
+        pendingActivities: pendingActivitiesCount
       }
     });
   } catch (error: any) {
