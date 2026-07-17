@@ -92,12 +92,12 @@ const defaultFooterColumns = [
   {
     heading: "Products",
     links: [
-      { label: "Pressure Cookers", href: "/shop/pressure-cookers" },
-      { label: "Wet Grinders", href: "/shop/wet-grinders" },
-      { label: "Gas Stoves", href: "/shop/gas-stoves" },
-      { label: "Non-Stick Cookware", href: "/shop/non-stick" },
-      { label: "Commercial Products", href: "/shop/commercial" },
-      { label: "Kitchen Accessories", href: "/shop/accessories" },
+      { label: "Pressure Cookers", href: "/shop?category=pressure-cookers" },
+      { label: "Wet Grinders", href: "/shop?category=wet-grinders" },
+      { label: "Gas Stoves", href: "/shop?category=gas-stoves" },
+      { label: "Non-Stick Cookware", href: "/shop?category=non-stick" },
+      { label: "Commercial Products", href: "/shop?category=commercial" },
+      { label: "Kitchen Accessories", href: "/shop?category=accessories" },
     ],
   },
   {

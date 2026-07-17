@@ -47,7 +47,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const response = await originalFetch(...args);
           if (!response.ok) {
-            console.error(`API Error: Fetch failed with status ${response.status} (${response.statusText || "Error"}) for URL: ${response.url}`);
+            if (response.status >= 500) {
+              console.error(`API Error: Fetch failed with status ${response.status} (${response.statusText || "Error"}) for URL: ${response.url}`);
+            } else {
+              console.warn(`API Info: Fetch returned status ${response.status} for URL: ${response.url}`);
+            }
           }
           return response;
         } catch (error: any) {
@@ -77,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsAuthenticated(true);
             localStorage.setItem("userProfile", JSON.stringify(data.user));
           } else {
-            console.error(`Auth check failed: Server returned status ${response.status} (${response.statusText || "Error"})`);
+            console.warn(`Auth check failed: Server returned status ${response.status} (${response.statusText || "Error"})`);
             // Token is invalid/expired, clear auth state
             localStorage.removeItem("authToken");
             localStorage.removeItem("userProfile");
@@ -116,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       setIsAuthenticated(true);
     } catch (error) {
-      console.error("Login error:", error);
+      console.warn("Login error:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -143,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       setIsAuthenticated(true);
     } catch (error) {
-      console.error("Signup error:", error);
+      console.warn("Signup error:", error);
       throw error;
     } finally {
       setLoading(false);

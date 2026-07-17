@@ -46,6 +46,7 @@ model User {
   salesPersonId   String?
   salesPerson     SalesPerson?     @relation(fields: [salesPersonId], references: [id], onDelete: SetNull)
   distributorEnquiries DistributorEnquiry[] @relation("DistributorToEnquiry")
+  visitedActivities SalesDailyActivity[] @relation("DistributorVisited")
 }
 
 model OtpVerification {
@@ -418,6 +419,7 @@ model SalesPerson {
   targets          SalesTarget[]
   distributorEnquiries DistributorEnquiry[] @relation("SalesPersonToDistributorEnquiry")
   followUps            EnquiryFollowUp[]
+  activities           SalesDailyActivity[]
 }
 
 
@@ -500,5 +502,45 @@ model Category {
   slug      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SalesDailyActivity {
+  id                     String      @id @default(uuid())
+  salesPersonId          String
+  salesPerson            SalesPerson @relation(fields: [salesPersonId], references: [id], onDelete: Cascade)
+  activityDate           DateTime
+  startTime              String
+  endTime                String
+  workingStatus          String
+  currentLocation        String
+  distributorId          String?
+  distributor            User?       @relation("DistributorVisited", fields: [distributorId], references: [id], onDelete: SetNull)
+  visitType              String?
+  visitStatus            String?
+  orderCollected         Boolean     @default(false)
+  orderAmount            Float?
+  productsOrdered        String?
+  expectedDeliveryDate   DateTime?
+  newEnquiry             Boolean     @default(false)
+  enquiryDistributorName String?
+  enquiryMobile          String?
+  enquiryLocation        String?
+  interestedProducts     String?
+  numberOfVisits         Int         @default(0)
+  numberOfOrders         Int         @default(0)
+  numberOfEnquiries      Int         @default(0)
+  numberOfFollowUps      Int         @default(0)
+  distanceTravelled      Float?
+  achievements           String?
+  challenges             String?
+  tomorrowPlan           String?
+  remarks                String?
+  attachment             Json?
+  status                 String      @default("PENDING") // "DRAFT", "PENDING", "APPROVED", "CORRECTION_REQUESTED", "REJECTED", "VERIFIED"
+  reviewComment          String?
+  viewedByAdmin          Boolean     @default(false)
+  submittedAt            DateTime?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
 }
 

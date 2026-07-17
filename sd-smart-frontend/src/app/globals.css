@@ -97,6 +97,54 @@ textarea {
   cursor: text !important;
 }
 
+/* 
+  Global Input Caret (Insertion Cursor) Color Visibility Fix
+  Forces caret-color to match computed text color (currentColor) across all inputs, textareas, and select components.
+  This automatically makes the caret black in light theme (where text is dark) and white in dark theme (where text is white).
+*/
+input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+textarea,
+select {
+  caret-color: currentColor !important;
+}
+
+/* Force light color scheme on all light-background containers and their contents to ensure dark scrollbars and dark mouse I-beam cursors */
+.bg-white,
+.bg-slate-50,
+.bg-slate-100,
+.bg-neutral-50,
+.bg-neutral-100,
+[class*="bg-white"],
+[class*="bg-slate-50"],
+[class*="bg-slate-100"],
+[class*="bg-neutral-50"],
+[class*="bg-neutral-100"],
+.bg-white input,
+.bg-white textarea,
+.bg-slate-50 input,
+.bg-slate-50 textarea,
+.bg-slate-100 input,
+.bg-slate-100 textarea,
+.bg-neutral-50 input,
+.bg-neutral-50 textarea,
+.bg-neutral-100 input,
+.bg-neutral-100 textarea {
+  color-scheme: light !important;
+}
+
+/* Force dark color scheme on all dark-background containers and their contents */
+.dark,
+[class*="bg-slate-950"],
+[class*="bg-neutral-900"],
+[class*="bg-slate-900"],
+[class*="bg-neutral-950"],
+.dark input,
+.dark textarea,
+[class*="bg-slate-950"] input,
+[class*="bg-slate-950"] textarea {
+  color-scheme: dark !important;
+}
+
 /* Ensure range inputs and their thumbs/tracks show the pointer (human finger) cursor */
 input[type="range"],
 input[type="range"]::-webkit-slider-runnable-track,

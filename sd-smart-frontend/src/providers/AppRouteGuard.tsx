@@ -50,21 +50,21 @@ export function AppRouteGuard({
   const router = useRouter();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
 
-  // Synchronize document theme class to avoid loading flashes during dynamic page load transitions
+  // Synchronize document theme class and colorScheme to avoid loading flashes during dynamic page load transitions
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const isSales = pathname?.startsWith("/sales");
-      const isDistributor = pathname?.startsWith("/distributor") && !pathname?.startsWith("/admin");
-      
-      if (isSales || isDistributor) {
-        document.documentElement.classList.remove("dark");
-      } else if (pathname?.startsWith("/admin")) {
+      if (pathname?.startsWith("/admin")) {
         const saved = localStorage.getItem("admin-theme");
         if (saved === "light") {
           document.documentElement.classList.remove("dark");
+          document.documentElement.style.colorScheme = "light";
         } else {
           document.documentElement.classList.add("dark");
+          document.documentElement.style.colorScheme = "dark";
         }
+      } else {
+        document.documentElement.classList.remove("dark");
+        document.documentElement.style.colorScheme = "light";
       }
     }
   }, [pathname]);

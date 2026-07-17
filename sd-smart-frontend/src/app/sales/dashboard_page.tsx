@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { 
   Loader2, Layers, TrendingUp, TrendingDown, Calendar as CalendarIcon, Filter, 
   ChevronLeft, ChevronRight, Shield, ArrowLeftRight, IndianRupee, Headphones,
-  MessageSquare, RefreshCw, Calendar, Mail, Phone, Clock, FileText, CheckCircle
+  MessageSquare, RefreshCw, Calendar, Mail, Phone, Clock, FileText, CheckCircle, AlertCircle
 } from "lucide-react";
 import SalesSidebar from "@/components/layout/SalesSidebar";
 import { cn } from "@/lib/utils";
@@ -57,6 +57,7 @@ export default function SalesDashboardPage() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [recentEnquiries, setRecentEnquiries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showReminder, setShowReminder] = useState(false);
 
   // Performance Month/Year Filter
   const [mgmtMonth, setMgmtMonth] = useState<number>(new Date().getMonth() + 1);
@@ -102,6 +103,30 @@ export default function SalesDashboardPage() {
     }
   };
 
+  // Check daily activity reminder on mount/auth change
+  useEffect(() => {
+    const checkReminder = async () => {
+      try {
+        const token = localStorage.getItem("authToken");
+        if (!token) return;
+        const res = await fetch(`${ENV.API_BASE_URL}/sales-activities/reminder`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setShowReminder(data.showReminder);
+          }
+        }
+      } catch (err) {
+        console.error("Reminder check failed:", err);
+      }
+    };
+    if (isAuthenticated && user?.role === "SALESPERSON") {
+      checkReminder();
+    }
+  }, [isAuthenticated, user]);
+
   useEffect(() => {
     if (isAuthenticated && user?.role === "SALESPERSON") {
       fetchDashboardData(false, mgmtMonth, mgmtYear);
@@ -146,7 +171,7 @@ export default function SalesDashboardPage() {
       <SalesSidebar currentPath="/sales/dashboard" />
 
       {/* Main Content Area */}
-      <main className="flex-1 px-6 lg:pl-72 py-8 overflow-y-auto text-left">
+      <main className="flex-1 lg:ml-64 p-4 sm:p-6 md:p-8 overflow-y-auto text-left">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5 mb-8 border-neutral-200">
           <div>
@@ -169,6 +194,26 @@ export default function SalesDashboardPage() {
             <RefreshCw size={18} className={cn(loading && "animate-spin")} />
           </button>
         </div>
+
+        {showReminder && (
+          <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-center justify-between mb-6 animate-pulse">
+            <div className="flex items-center gap-3 text-amber-800">
+              <AlertCircle size={22} className="text-amber-500 flex-shrink-0" />
+              <div>
+                <p className="text-xs sm:text-sm font-extrabold uppercase tracking-wide">Daily Activity Pending</p>
+                <p className="text-xs font-semibold text-amber-700 mt-0.5">
+                  Reminder: You have not submitted your daily activity report for today. Please submit it before ending your shift.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push("/sales/daily-activity")}
+              className="px-4 py-2 bg-[#D71920] hover:bg-[#B91520] text-white font-extrabold uppercase tracking-wider text-[10px] sm:text-xs rounded-xl shadow-md cursor-pointer whitespace-nowrap ml-4 transition-colors"
+            >
+              Submit Report
+            </button>
+          </div>
+        )}
 
         {/* Loading State */}
         {loading ? (

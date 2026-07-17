@@ -80,3 +80,45 @@ export const createCategory = async (req: Request, res: Response): Promise<void>
     res.status(500).json({ success: false, message: "Server error while creating category" });
   }
 };
+
+// DELETE /api/categories/:id
+export const deleteCategory = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const roleUpper = user?.role?.toUpperCase();
+    if (!user || (roleUpper !== "ADMIN" && roleUpper !== "SUPERADMIN")) {
+      res.status(403).json({ success: false, message: "Access denied. Admin role required." });
+      return;
+    }
+
+    const id = req.params.id as string;
+
+    const category = await prisma.category.findUnique({
+      where: { id }
+    });
+
+    if (!category) {
+      res.status(404).json({ success: false, message: "Category not found" });
+      return;
+    }
+
+    // Run cascade delete within a Prisma transaction
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete all products belonging to this category slug
+      await tx.product.deleteMany({
+        where: { category: category.slug }
+      });
+
+      // 2. Delete the category
+      await tx.category.delete({
+        where: { id }
+      });
+    });
+
+    res.json({ success: true, message: "Category and all its products deleted successfully" });
+  } catch (error: any) {
+    console.error("Delete category error:", error);
+    res.status(500).json({ success: false, message: "Server error while deleting category" });
+  }
+};
+

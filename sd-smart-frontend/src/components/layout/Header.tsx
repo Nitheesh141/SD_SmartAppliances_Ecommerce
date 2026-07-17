@@ -370,6 +370,16 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                     <span className="xl:hidden">Admin</span>
                   </Link>
                 )}
+                {userProfile && (userProfile.role?.toUpperCase() === "SALESPERSON") && (
+                  <Link 
+                    href="/sales/dashboard" 
+                    className="px-4 py-2 bg-[#D71920] hover:bg-[#B91520] text-white text-[11px] font-black uppercase tracking-wider rounded-full transition-all shadow-md shadow-red-500/10 hover:shadow-lg hover:shadow-red-500/20 active:scale-95 flex items-center mr-1"
+                    title="Sales Dashboard"
+                  >
+                    <span className="hidden xl:inline">Sales Panel</span>
+                    <span className="xl:hidden">Sales</span>
+                  </Link>
+                )}
 
 
                 {/* Profile dropdown container */}
@@ -406,6 +416,24 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                           className="block px-5 py-2.5 text-sm font-bold text-[#D71920] dark:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                         >
                           Distributor Portal
+                        </Link>
+                      )}
+                      {userProfile && (userProfile.role?.toUpperCase() === "SALESPERSON") && (
+                        <Link
+                          href="/sales/dashboard"
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="block px-5 py-2.5 text-sm font-bold text-[#D71920] dark:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        >
+                          Sales Dashboard
+                        </Link>
+                      )}
+                      {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
+                        <Link
+                          href="/admin/dashboard"
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="block px-5 py-2.5 text-sm font-bold text-[#D71920] dark:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        >
+                          Admin Panel
                         </Link>
                       )}
                       <Link
@@ -678,6 +706,15 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                             onClick={() => setMobileOpen(false)}
                           >
                             Distributor Portal
+                          </Link>
+                        )}
+                        {userProfile && (userProfile.role?.toUpperCase() === "SALESPERSON") && (
+                          <Link
+                            href="/sales/dashboard"
+                            className="block px-3 py-2 text-xs font-bold text-[#D71920] dark:text-red-400 rounded-lg hover:bg-red-50/50"
+                            onClick={() => setMobileOpen(false)}
+                          >
+                            Sales Dashboard
                           </Link>
                         )}
                         {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (

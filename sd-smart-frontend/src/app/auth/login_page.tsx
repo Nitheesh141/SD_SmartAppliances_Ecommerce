@@ -22,34 +22,11 @@ export default function LoginPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isDark, setIsDark] = useState(false);
 
-  // Sync theme on mount
+  // Force light theme on mount for login page
   useEffect(() => {
-    const savedTheme = localStorage.getItem("admin-theme") || localStorage.getItem("theme");
-    const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const shouldBeDark = savedTheme === "dark" || (!savedTheme && systemDark);
-    
-    if (shouldBeDark) {
-      document.documentElement.classList.add("dark");
-      setIsDark(true);
-    } else {
-      document.documentElement.classList.remove("dark");
-      setIsDark(false);
-    }
+    document.documentElement.classList.remove("dark");
+    setIsDark(false);
   }, []);
-
-  const toggleTheme = () => {
-    const newDark = !isDark;
-    setIsDark(newDark);
-    if (newDark) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("admin-theme", "dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("admin-theme", "light");
-      localStorage.setItem("theme", "light");
-    }
-  };
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     const rect = e.target.getBoundingClientRect();
@@ -102,19 +79,8 @@ export default function LoginPage() {
 
   return (
     <AuthBackground focusPos={focusPos} isSuccess={isSuccess}>
-      {/* Floating Theme Toggle */}
-      <div className="absolute top-6 right-6 z-50">
-        <button
-          onClick={toggleTheme}
-          className="p-3 rounded-full bg-white/80 dark:bg-neutral-900/80 border border-neutral-200/50 dark:border-neutral-800/50 text-slate-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-300 shadow-md cursor-pointer hover:scale-105"
-          aria-label="Toggle Theme"
-        >
-          {isDark ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
-      </div>
-
       {/* Main Login Card */}
-      <div className="w-full max-w-md bg-white/80 dark:bg-neutral-900/85 backdrop-blur-xl border border-neutral-200/50 dark:border-neutral-800/50 rounded-3xl p-6 xs:p-8 sm:p-10 shadow-2xl transition-all duration-500 hover:shadow-[#D71920]/5 text-slate-800 dark:text-white">
+      <div className="w-full max-w-md bg-white/80 dark:bg-neutral-900/85 backdrop-blur-xl border border-neutral-200/50 dark:border-neutral-800/50 rounded-3xl p-6 xs:p-8 sm:p-10 shadow-2xl transition-all duration-500 text-slate-800 dark:text-white">
         {/* Header / Logo */}
         <div className="text-center mb-6 sm:mb-8">
           <Link href="/" className="inline-block mb-4 sm:mb-6 hover:scale-105 transition-transform duration-300">
