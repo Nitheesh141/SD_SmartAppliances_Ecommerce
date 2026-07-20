@@ -301,6 +301,7 @@ export default function SupportPage() {
                   </div>
                   <h4 className="text-2xs font-extrabold text-slate-300 uppercase tracking-wider mb-1">Phone</h4>
                   <p className="text-xs font-bold text-white mt-1 leading-snug select-all">{supportInfo.phone}</p>
+                  <p className="text-[10px] text-neutral-400 mt-2">Toll-Free: <a href="tel:18001239397" className="text-white hover:underline font-bold">1800 123 9397</a></p>
                 </div>
 
                 {/* Email */}

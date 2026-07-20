@@ -33,6 +33,7 @@ interface ProductType {
   modelNumber?: string | null;
   productId?: string | null;
   sku?: string | null;
+  itemCode?: string | null;
   availableStock?: number;
   stockIn?: number;
   stockOut?: number;
@@ -677,7 +678,7 @@ export default function AdminProductsPage() {
                             </h3>
                             {(product.sku || product.productId) && (
                               <p className={cn("text-[11px] font-mono font-bold mt-0.5", isDark ? "text-neutral-400" : "text-slate-500")}>
-                                SKU: {product.sku || product.productId}
+                                SKU: {product.sku || product.productId} {product.itemCode && `| Item Code: ${product.itemCode}`}
                               </p>
                             )}
                             <div className="flex items-center gap-2 mt-1">

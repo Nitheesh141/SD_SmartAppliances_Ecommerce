@@ -128,9 +128,10 @@ function CustomSelect({ value, onChange, options, placeholder = "Select option" 
 interface CustomDatePickerProps {
   value: string;
   onChange: (val: string) => void;
+  align?: "left" | "right";
 }
 
-function CustomDatePicker({ value, onChange }: CustomDatePickerProps) {
+function CustomDatePicker({ value, onChange, align = "left" }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   
@@ -228,7 +229,10 @@ function CustomDatePicker({ value, onChange }: CustomDatePickerProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1.5 w-72 bg-white border border-neutral-200 rounded-2xl shadow-xl p-4 animate-in fade-in slide-in-from-top-1 duration-150 text-slate-800">
+        <div className={cn(
+          "absolute z-50 mt-1.5 w-72 bg-white border border-neutral-200 rounded-2xl shadow-xl p-4 animate-in fade-in slide-in-from-top-1 duration-150 text-slate-800",
+          align === "right" ? "right-0" : "left-0"
+        )}>
           <div className="flex items-center justify-between mb-4">
             <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer text-slate-700 font-extrabold">&larr;</button>
             <span className="text-xs font-black uppercase tracking-wider text-slate-800">{months[currentMonth]} {currentYear}</span>
@@ -300,9 +304,10 @@ interface CustomTimePickerProps {
   value: string;
   onChange: (val: string) => void;
   placeholder?: string;
+  align?: "left" | "right";
 }
 
-function CustomTimePicker({ value, onChange, placeholder = "Select Time" }: CustomTimePickerProps) {
+function CustomTimePicker({ value, onChange, placeholder = "Select Time", align = "left" }: CustomTimePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -346,7 +351,10 @@ function CustomTimePicker({ value, onChange, placeholder = "Select Time" }: Cust
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1.5 w-60 bg-white border border-neutral-200 rounded-2xl shadow-xl p-4 animate-in fade-in slide-in-from-top-1 duration-150 text-slate-800">
+        <div className={cn(
+          "absolute z-50 mt-1.5 w-60 bg-white border border-neutral-200 rounded-2xl shadow-xl p-4 animate-in fade-in slide-in-from-top-1 duration-150 text-slate-800",
+          align === "right" ? "right-0" : "left-0"
+        )}>
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
               <p className="text-[10px] font-black uppercase text-neutral-400 mb-2">Hour</p>
@@ -913,6 +921,7 @@ export default function SalesDailyActivityPage() {
                       value={endTime}
                       onChange={setEndTime}
                       placeholder="End Time"
+                      align="right"
                     />
                   </div>
 
@@ -1050,6 +1059,7 @@ export default function SalesDailyActivityPage() {
                         <CustomDatePicker
                           value={expectedDeliveryDate}
                           onChange={setExpectedDeliveryDate}
+                          align="right"
                         />
                       </div>
                     </div>

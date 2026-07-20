@@ -356,9 +356,22 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
+    let userName = "";
+
+    if (user) {
+      userName = `${user.firstName} ${user.lastName}`;
+    } else {
+      const salesPerson = await prisma.salesPerson.findUnique({
+        where: { email: email.toLowerCase() },
+      });
+      if (salesPerson) {
+        user = salesPerson as any;
+        userName = salesPerson.fullName;
+      }
+    }
 
     if (!user) {
       res.status(404).json({ success: false, message: "No user found with this email address" });
@@ -377,7 +390,6 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     });
 
     // Send real password reset email
-    const userName = `${user.firstName} ${user.lastName}`;
     try {
       await sendPasswordResetEmail(email.toLowerCase(), userName, code);
       console.log(`[EMAIL] Password reset code sent to ${email}`);
@@ -429,10 +441,25 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
+    // Find user by email (either in User table or SalesPerson table)
+    let user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
+    let isSalesPerson = false;
+
+    if (!user) {
+      const salesPerson = await prisma.salesPerson.findUnique({
+        where: { email: email.toLowerCase() },
+      });
+      if (salesPerson) {
+        user = {
+          id: salesPerson.id,
+          password: salesPerson.password,
+          email: salesPerson.email,
+        } as any;
+        isSalesPerson = true;
+      }
+    }
 
     if (!user) {
       res.status(404).json({ success: false, message: "User not found" });
@@ -449,11 +476,18 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashedPassword },
-    });
+    // Update password in the correct table
+    if (isSalesPerson) {
+      await prisma.salesPerson.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      });
+    } else {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      });
+    }
 
     // Delete the reset record
     await prisma.passwordReset.delete({

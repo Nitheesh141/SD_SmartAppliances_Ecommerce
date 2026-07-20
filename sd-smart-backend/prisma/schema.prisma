@@ -96,6 +96,7 @@ model Product {
   modelNumber        String?
   productId          String?
   sku                String?                @unique
+  itemCode           String?
   variantGroup       String?
   variantDetails     Json?
   availableStock     Int                    @default(0)

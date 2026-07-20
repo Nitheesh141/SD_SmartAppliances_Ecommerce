@@ -147,6 +147,7 @@ export default function AdminManagePage() {
   const [colorName, setColorName] = useState("");
   const [colorHex, setColorHex] = useState("#ffffff");
   const [groupVariants, setGroupVariants] = useState<any[]>([]);
+  const [itemCode, setItemCode] = useState("");
 
   const fetchGroupVariants = async (vg: string) => {
     try {
@@ -170,6 +171,7 @@ export default function AdminManagePage() {
     setColorName("");
     setColorHex("#ffffff");
     setGeneratedSku("");
+    setItemCode("");
     router.push("/admin/manage-product");
     toast.info("Variant fields reset. You can now define a new color variant.");
   };
@@ -524,6 +526,7 @@ export default function AdminManagePage() {
       setEyebrow(product.eyebrow || "");
       setDescription(product.description || "");
       setImagePosition(product.imagePosition || "left");
+      setItemCode(product.itemCode || "");
       
       const vDetails = product.variantDetails || {};
       const loadedColorName = vDetails.colorName || vDetails.Color || "";
@@ -611,8 +614,8 @@ export default function AdminManagePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || !image || !price || !originalPrice || !modelNumber || !product_id) {
-      toast.error("Please fill in all required fields.");
+    if (!name || !image || !price || !originalPrice || !modelNumber || !product_id || !itemCode) {
+      toast.error("Please fill in all required fields (including Item Code).");
       return;
     }
 
@@ -641,6 +644,7 @@ export default function AdminManagePage() {
       isFeatured,
       href: `#product-${Date.now()}`,
       sku: generatedSku || product_id,
+      itemCode,
       variantGroup: variantGroup || null,
       variantDetails: {
         ...attributes.reduce((acc, curr) => {
@@ -1053,6 +1057,29 @@ export default function AdminManagePage() {
                       })()}
                     </div>
 
+                    {/* Item Code (Manually populated, mandatory) */}
+                    <div className="md:col-span-2">
+                      <label className={cn(
+                        "block text-xs font-bold uppercase tracking-wider mb-1.5",
+                        isDark ? "text-neutral-400" : "text-slate-600"
+                      )}>
+                        Item Code *
+                      </label>
+                      <input
+                        type="text"
+                        value={itemCode}
+                        onChange={(e) => setItemCode(e.target.value)}
+                        required
+                        placeholder="e.g. IC-WG-DLX"
+                        className={cn(
+                          "w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#D71920] focus:border-[#D71920] transition-all",
+                          isDark
+                            ? "bg-neutral-950 border-neutral-800 text-white placeholder-neutral-700"
+                            : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"
+                        )}
+                      />
+                    </div>
+
                     {/* Variant Group */}
                     <div className="md:col-span-2">
                       <label className={cn(
@@ -1455,10 +1482,13 @@ export default function AdminManagePage() {
                         <span className={isDark ? "text-neutral-500" : "text-slate-500"}>Appliance Name:</span>
                         <span className="font-semibold">{name}</span>
                         
-                        <span className={isDark ? "text-neutral-500" : "text-slate-500"}>Model Name:</span>
+                        <span className={isDark ? "text-neutral-500" : "text-slate-550"}>Model Name:</span>
                         <span className="font-semibold">{modelNumber}</span>
 
-                        <span className={isDark ? "text-neutral-500" : "text-slate-500"}>Variant Details:</span>
+                        <span className={isDark ? "text-neutral-500" : "text-slate-550"}>Item Code:</span>
+                        <span className="font-semibold">{itemCode || "N/A"}</span>
+
+                        <span className={isDark ? "text-neutral-500" : "text-slate-550"}>Variant Details:</span>
                         <span className="font-semibold">
                           {attributes.map(a => `${a.name}: ${a.value}`).join(" | ") || "N/A"}
                         </span>

@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, User, ShoppingCart, ChevronDown, Menu, X, ChevronRight } from "lucide-react";
+import { Search, User, ShoppingCart, ChevronDown, Menu, X, ChevronRight, Headphones, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ENV } from "@/config/env";
 import { NavLink } from "../../app/LandingPage/types";
 import { THEME_CLASSES } from "@/config/themes";
 import { useAuth } from "@/providers/AuthProvider";
@@ -41,6 +42,23 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
 
   const isAuthenticated = propIsAuthenticated !== undefined ? propIsAuthenticated : contextIsAuthenticated;
   const userProfile = propUserProfile !== undefined ? propUserProfile : contextUser;
+  
+  const [sellerPhone, setSellerPhone] = useState("+91 80 4455 6677");
+
+  useEffect(() => {
+    const fetchPhone = async () => {
+      try {
+        const res = await fetch(`${ENV.API_BASE_URL}/settings`);
+        const data = await res.json();
+        if (data.success && data.settings?.seller_phone) {
+          setSellerPhone(data.settings.seller_phone);
+        }
+      } catch (err) {
+        console.error("Failed to fetch seller phone:", err);
+      }
+    };
+    fetchPhone();
+  }, []);
 
   // Use optional chaining or try-catch in case it's used outside provider (though it shouldn't be)
   let cartCount = 0;
@@ -253,13 +271,45 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
 
   return (
     <header className={cn(
-      "sticky top-0 z-50 transition-all duration-500 will-change-transform py-1 md:py-2 border-b",
+      "sticky top-0 z-50 transition-all duration-500 will-change-transform border-b",
       isScrolled
         ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-neutral-200/80 shadow-[0_15px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.7)]"
         : "bg-red-50 dark:bg-[#1A090A] border-neutral-200/40 shadow-[0_6px_25px_rgba(0,0,0,0.1)] dark:shadow-[0_6px_25px_rgba(0,0,0,0.45)]",
       isLoaded ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
     )}>
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
+      {/* Top Support Bar */}
+      <div className="bg-red-100/55 dark:bg-red-950/20 text-neutral-600 dark:text-neutral-350 py-2 px-4 text-xs md:text-[12.5px] font-extrabold uppercase tracking-wider border-b border-neutral-200/50 dark:border-neutral-800/40 animate-in fade-in duration-300">
+        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-center md:justify-between items-center gap-2 md:gap-4 px-4 sm:px-6 lg:px-8 xl:px-12 text-center md:text-left">
+          <div className="flex items-center gap-1.5 justify-center md:justify-start">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-650 animate-pulse"></span>
+            <span>Customer Support</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-4 gap-y-1.5">
+            <a href="tel:18001239397" className="flex items-center gap-1.5 hover:text-[#D71920] dark:hover:text-red-400 transition-colors">
+              <Headphones size={13.5} className="text-[#D71920]" />
+              <span>Toll-Free: 1800 123 9397</span>
+            </a>
+            <span className="hidden sm:inline text-neutral-300 dark:text-neutral-750">|</span>
+            <a href={`tel:${sellerPhone}`} className="hover:text-[#D71920] dark:hover:text-red-400 transition-colors">
+              <span>Support: {sellerPhone}</span>
+            </a>
+            <span className="hidden sm:inline text-neutral-300 dark:text-neutral-750">|</span>
+            <a 
+              href={`https://wa.me/${sellerPhone.replace(/[^0-9]/g, "")}`} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="flex items-center gap-1.5 hover:text-green-500 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" width="13.5" height="13.5" fill="currentColor" className="text-green-500">
+                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.003 5.324 5.328 0 11.859 0c3.166.001 6.141 1.233 8.377 3.469 2.235 2.237 3.466 5.214 3.464 8.384-.003 6.536-5.328 11.86-11.859 11.86-2.007-.001-3.98-.51-5.735-1.479L0 24zm6.59-4.846c1.62.962 3.238 1.469 4.881 1.47 5.434 0 9.855-4.422 9.857-9.856.001-2.632-1.02-5.107-2.875-6.963C16.657 1.95 14.187.93 11.86.93c-5.436 0-9.859 4.422-9.86 9.857-.001 1.847.489 3.65 1.42 5.25L2.39 20.312l4.257-1.158z" />
+              </svg>
+              <span>WhatsApp Chat</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-1 md:py-2">
         {/* Desktop View (Visible on xl breakpoint and up) */}
         <div className="hidden xl:flex items-center h-16 gap-3 sm:gap-4 xl:gap-8">
           {/* Logo */}
@@ -789,6 +839,27 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                       </Link>
                     </div>
                   )}
+                </div>
+
+                {/* Support Block inside Mobile Drawer */}
+                <div className="border-t border-neutral-100 dark:border-neutral-900/60 pt-5 space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Need Assistance?</p>
+                  <div className="bg-neutral-50 dark:bg-slate-900/50 rounded-xl p-3.5 space-y-2.5">
+                    <a href="tel:18001239397" className="flex items-center gap-2 text-xs font-bold text-neutral-800 dark:text-neutral-200 hover:text-[#D71920]">
+                      <Headphones size={15} className="text-[#D71920]" />
+                      <div className="text-left leading-tight">
+                        <p className="text-[9px] uppercase text-neutral-400 font-semibold">Toll-Free Support</p>
+                        <p>1800 123 9397</p>
+                      </div>
+                    </a>
+                    <a href={`tel:${sellerPhone}`} className="flex items-center gap-2 text-xs font-bold text-neutral-800 dark:text-neutral-200 hover:text-[#D71920]">
+                      <Phone size={15} className="text-[#D71920]" />
+                      <div className="text-left leading-tight">
+                        <p className="text-[9px] uppercase text-neutral-400 font-semibold">Direct Helpline</p>
+                        <p>{sellerPhone}</p>
+                      </div>
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

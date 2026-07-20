@@ -271,6 +271,18 @@ export default function EnquiryModal({ isOpen, onClose, productId, productName }
               />
             </div>
 
+            {/* Seller Contact Details */}
+            <div className="text-[10px] text-neutral-500 dark:text-neutral-400 font-semibold space-y-1 mt-1 leading-normal">
+              <div className="flex items-center gap-1.5">
+                <Phone size={12} className="text-[#D71920]" />
+                <span>Support Call: <a href={`tel:${settings.seller_phone}`} className="text-neutral-700 dark:text-neutral-200 hover:underline font-bold">{settings.seller_phone}</a> | Toll-Free: <a href="tel:18001239397" className="text-neutral-700 dark:text-neutral-200 hover:underline font-bold">1800 123 9397</a></span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Mail size={12} className="text-[#D71920]" />
+                <span>Support Email: <a href={`mailto:${settings.seller_email}`} className="text-neutral-700 dark:text-neutral-200 hover:underline font-bold">{settings.seller_email}</a></span>
+              </div>
+            </div>
+
             <div className="pt-2 flex gap-3">
               <button
                 type="button"
