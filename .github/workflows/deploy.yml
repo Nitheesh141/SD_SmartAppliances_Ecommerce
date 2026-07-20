@@ -1,0 +1,54 @@
+name: Deploy SD Smart
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Hostinger VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            set -e
+
+            echo "Starting deployment..."
+
+            cd /var/www/SD_SmartAppliances_Ecommerce
+
+            echo "Fetching latest code..."
+            git fetch origin
+            git checkout main
+            git reset --hard origin/main
+
+            echo "Installing backend dependencies..."
+            cd backend
+            npm install
+
+            if npm run | grep -q "build"; then
+              npm run build
+            fi
+
+            echo "Restarting backend..."
+            pm2 restart sdsmart-backend
+
+            echo "Installing frontend dependencies..."
+            cd ../frontend
+            npm install
+            npm run build
+
+            echo "Restarting frontend..."
+            pm2 restart sdsmart-frontend
+
+            echo "Saving PM2..."
+            pm2 save
+
+            echo "Deployment completed successfully!"
