@@ -22,6 +22,7 @@ interface ProductType {
   sku: string | null;
   productId: string | null;
   price: number;
+  itemCode?: string | null;
 }
 
 interface DistributorPricingType {
@@ -48,6 +49,7 @@ interface DistributorPricingType {
     image: string;
     modelNumber: string | null;
     sku: string | null;
+    itemCode?: string | null;
   };
 }
 
@@ -751,6 +753,8 @@ export default function AdminDistributorPricingPage() {
                           <span>Model: <b>{selectedProductDetails.modelNumber || "N/A"}</b></span>
                           <span>·</span>
                           <span>SKU: <b className="font-mono">{selectedProductDetails.sku || selectedProductDetails.productId || "N/A"}</b></span>
+                          <span>·</span>
+                          <span>Item Code: <b className="font-mono">{selectedProductDetails.itemCode || "N/A"}</b></span>
                         </div>
                       </div>
                     </div>
@@ -942,6 +946,13 @@ export default function AdminDistributorPricingPage() {
                         <span className="text-neutral-400">SKU Code:</span>
                         <span className="font-mono font-bold">
                           {selectedProductDetails?.sku || selectedProductDetails?.productId || "--"}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Item Code:</span>
+                        <span className="font-mono font-bold">
+                          {selectedProductDetails?.itemCode || "--"}
                         </span>
                       </div>
 

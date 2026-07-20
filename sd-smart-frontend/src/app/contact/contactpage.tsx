@@ -84,6 +84,7 @@ export default function ContactPage() {
                 <div>
                   <h4 className="font-bold text-sm text-[#1C1C1C]">Call Us</h4>
                   <p className="text-sm text-neutral-500 mt-0.5">{contactInfo.phone}</p>
+                  <p className="text-xs text-neutral-400 mt-0.5">Toll-Free: <a href="tel:18001239397" className="hover:text-[#D71920] font-semibold transition-colors">1800 123 9397</a></p>
                 </div>
               </div>
 

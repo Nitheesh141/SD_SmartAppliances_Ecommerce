@@ -16,6 +16,7 @@ import {
 
 export default function OrderDetailPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const isDistributor = user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
   const router = useRouter();
   const pathname = usePathname() || "";
   const searchParams = useSearchParams();
@@ -603,13 +604,17 @@ export default function OrderDetailPage() {
                       <div>
                         <p className="text-sm font-bold text-slate-800 dark:text-white">{item.product?.name || "Product Item"}</p>
                         <p className="text-[11px] text-neutral-400 mt-0.5">Model: {item.product?.modelNumber || "N/A"} | SKU: {item.product?.sku || "N/A"}</p>
-                        <p className="text-[11px] text-[#D71920] font-bold mt-1">₹{item.unitPrice.toLocaleString('en-IN')}</p>
+                        {!isDistributor && (
+                          <p className="text-[11px] text-[#D71920] font-bold mt-1">₹{item.unitPrice.toLocaleString('en-IN')}</p>
+                        )}
                       </div>
                     </div>
                     
                     <div className="text-right">
                       <p className="text-sm font-bold text-slate-800 dark:text-white">Qty: {item.quantity}</p>
-                      <p className="text-xs text-neutral-400 mt-0.5">₹{(item.unitPrice * item.quantity).toLocaleString('en-IN')}</p>
+                      {!isDistributor && (
+                        <p className="text-xs text-neutral-400 mt-0.5">₹{(item.unitPrice * item.quantity).toLocaleString('en-IN')}</p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -655,33 +660,37 @@ export default function OrderDetailPage() {
                     <span className="font-bold text-neutral-800 dark:text-white">{order.poNumber}</span>
                   </div>
                 )}
-                <div className="flex justify-between items-center pt-2.5 border-t border-neutral-100 dark:border-slate-800">
-                  <span>Subtotal</span>
-                  <span className="font-bold text-neutral-800 dark:text-white">₹{order.subtotal.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>CGST (9%)</span>
-                  <span>₹{order.cgst.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>SGST (9%)</span>
-                  <span>₹{order.sgst.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Delivery Charges</span>
-                  <span>{order.deliveryCharges === 0 ? <span className="text-green-600 font-bold">FREE</span> : `₹${order.deliveryCharges}`}</span>
-                </div>
-                {order.discount > 0 && (
-                  <div className="flex justify-between items-center text-green-600 font-bold">
-                    <span>Discounts</span>
-                    <span>-₹{order.discount.toLocaleString('en-IN')}</span>
-                  </div>
+                {!isDistributor && (
+                  <>
+                    <div className="flex justify-between items-center pt-2.5 border-t border-neutral-100 dark:border-slate-800">
+                      <span>Subtotal</span>
+                      <span className="font-bold text-neutral-800 dark:text-white">₹{order.subtotal.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>CGST (9%)</span>
+                      <span>₹{order.cgst.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>SGST (9%)</span>
+                      <span>₹{order.sgst.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>Delivery Charges</span>
+                      <span>{order.deliveryCharges === 0 ? <span className="text-green-600 font-bold">FREE</span> : `₹${order.deliveryCharges}`}</span>
+                    </div>
+                    {order.discount > 0 && (
+                      <div className="flex justify-between items-center text-green-600 font-bold">
+                        <span>Discounts</span>
+                        <span>-₹{order.discount.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    
+                    <div className="border-t border-neutral-100 dark:border-slate-800 border-dashed pt-4 flex justify-between items-end text-neutral-800 dark:text-white">
+                      <span className="font-bold text-sm">Grand Total</span>
+                      <span className="text-xl font-black text-[#D71920]">₹{order.grandTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  </>
                 )}
-                
-                <div className="border-t border-neutral-100 dark:border-slate-800 border-dashed pt-4 flex justify-between items-end text-neutral-800 dark:text-white">
-                  <span className="font-bold text-sm">Grand Total</span>
-                  <span className="text-xl font-black text-[#D71920]">₹{order.grandTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-                </div>
               </div>
             </section>
 

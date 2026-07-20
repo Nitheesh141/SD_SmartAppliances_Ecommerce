@@ -362,10 +362,12 @@ export default function CheckoutPage() {
               <span className="text-sm text-neutral-500 font-medium">Payment Method</span>
               <span className="text-sm font-bold text-[#1C1C1C]">{completedOrder.paymentMethod}</span>
             </div>
-            <div className="flex justify-between items-center py-3 border-t border-neutral-200">
-              <span className="text-sm text-neutral-500 font-medium">Grand Total</span>
-              <span className="text-lg font-black text-[#D71920]">₹{completedOrder.grandTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-            </div>
+            {!isDistributor && (
+              <div className="flex justify-between items-center py-3 border-t border-neutral-200">
+                <span className="text-sm text-neutral-500 font-medium">Grand Total</span>
+                <span className="text-lg font-black text-[#D71920]">₹{completedOrder.grandTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">

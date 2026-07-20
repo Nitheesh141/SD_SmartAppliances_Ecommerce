@@ -54,6 +54,7 @@ interface Address {
 
 function AccountPageContent() {
   const { user, logout, isAuthenticated, loading, updateProfile } = useAuth();
+  const isDistributor = user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1775,7 +1776,9 @@ function AccountPageContent() {
                           </div>
                         </div>
                         <div className="text-left sm:text-right flex flex-col sm:items-end w-full sm:w-auto">
-                          <p className="text-sm font-bold text-neutral-800 dark:text-white mb-1">₹{order.grandTotal.toLocaleString()}</p>
+                          {!isDistributor && (
+                            <p className="text-sm font-bold text-neutral-800 dark:text-white mb-1">₹{order.grandTotal.toLocaleString()}</p>
+                          )}
                           <p className="text-xs text-neutral-600 font-bold mb-3 flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block animate-pulse"></span>
                             Status: {order.status}

@@ -208,9 +208,15 @@ export default function Footer({ footerColumns, socialLinks }: FooterProps) {
                 <MapPin size={14} className="text-[#D71920] mt-0.5 flex-shrink-0" />
                 <span>SD SMART Appliances Pvt. Ltd., Industrial Area, Coimbatore, Tamil Nadu – 641 001</span>
               </div>
-              <div className="flex items-center gap-3 text-sm text-neutral-400">
-                <Phone size={14} className="text-[#D71920] flex-shrink-0" />
-                <span>{contactInfo.phone}</span>
+              <div className="flex flex-col gap-1 text-sm text-neutral-400">
+                <div className="flex items-center gap-3">
+                  <Phone size={14} className="text-[#D71920] flex-shrink-0" />
+                  <span>Support: {contactInfo.phone}</span>
+                </div>
+                <div className="flex items-center gap-3 pl-6.5">
+                  <span className="text-neutral-500 text-xs font-bold uppercase">Toll-Free:</span>
+                  <a href="tel:18001239397" className="hover:text-white transition-colors">1800 123 9397</a>
+                </div>
               </div>
               <div className="flex items-center gap-3 text-sm text-neutral-400">
                 <Mail size={14} className="text-[#D71920] flex-shrink-0" />

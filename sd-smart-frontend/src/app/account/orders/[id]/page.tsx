@@ -8,6 +8,7 @@ import Footer from "@/components/layout/Footer";
 import { navLinks, footerColumns, socialLinks } from "@/app/LandingPage/data/navigation";
 import { checkoutService } from "@/services/checkoutService";
 import { Order } from "@/types/api";
+import { useAuth } from "@/providers/AuthProvider";
 import { 
   ArrowLeft, Package, User, MapPin, CreditCard, Receipt, 
   Download, Clock, Calendar, CheckCircle2, AlertTriangle, 
@@ -17,6 +18,8 @@ import {
 export default function OrderDetailsPage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
+  const isDistributor = user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
   const searchParams = useSearchParams();
   const orderId = params.id as string;
   const isInvoiceView = searchParams ? searchParams.get("invoice") === "true" : false;
@@ -681,11 +684,21 @@ export default function OrderDetailsPage() {
                       </div>
                       <div className="flex items-center justify-between mt-4 sm:mt-0 bg-neutral-50 dark:bg-slate-800 p-3 rounded-xl border border-neutral-100 dark:border-slate-700">
                         <div className="text-sm">
-                          <span className="text-neutral-500">Price:</span> <span className="font-bold">₹{item.unitPrice.toLocaleString()}</span> &nbsp;|&nbsp; <span className="text-neutral-500">Qty:</span> <span className="font-bold">{item.quantity}</span>
+                          {isDistributor ? (
+                            <>
+                              <span className="text-neutral-500">Qty:</span> <span className="font-bold">{item.quantity}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-neutral-500">Price:</span> <span className="font-bold">₹{item.unitPrice.toLocaleString()}</span> &nbsp;|&nbsp; <span className="text-neutral-500">Qty:</span> <span className="font-bold">{item.quantity}</span>
+                            </>
+                          )}
                         </div>
-                        <div className="text-base font-black text-[#1C1C1C] dark:text-white">
-                          Total: ₹{(item.unitPrice * item.quantity).toLocaleString()}
-                        </div>
+                        {!isDistributor && (
+                          <div className="text-base font-black text-[#1C1C1C] dark:text-white">
+                            Total: ₹{(item.unitPrice * item.quantity).toLocaleString()}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -699,57 +712,59 @@ export default function OrderDetailsPage() {
           <div className="lg:w-[35%] space-y-8 sticky top-28 self-start">
             
             {/* PRICING SUMMARY */}
-            <div className="bg-white dark:bg-slate-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-neutral-200 dark:border-slate-800 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-neutral-800 dark:text-white mb-6 flex items-center gap-2">
-                <Receipt size={20} className="text-[#D71920]" /> Order Cost Summary
-              </h3>
-              
-              <div className="space-y-4 text-sm mb-6">
-                <div className="flex justify-between items-center text-neutral-600 dark:text-neutral-400 font-medium">
-                  <span>Subtotal</span>
-                  <span className="font-bold text-neutral-800 dark:text-white">₹{order.subtotal.toLocaleString()}</span>
-                </div>
+            {!isDistributor && (
+              <div className="bg-white dark:bg-slate-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-neutral-200 dark:border-slate-800 rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-neutral-800 dark:text-white mb-6 flex items-center gap-2">
+                  <Receipt size={20} className="text-[#D71920]" /> Order Cost Summary
+                </h3>
                 
-                <div className="pt-3 border-t border-dashed border-neutral-200 dark:border-slate-700">
-                  <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Taxes</p>
-                  <div className="space-y-2 pl-2">
-                    <div className="flex justify-between items-center text-neutral-500">
-                      <span>CGST (9%)</span>
-                      <span className="font-medium text-neutral-800 dark:text-white">₹{order.cgst.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-neutral-500">
-                      <span>SGST (9%)</span>
-                      <span className="font-medium text-neutral-800 dark:text-white">₹{order.sgst.toLocaleString()}</span>
-                    </div>
-                    {order.igst > 0 && (
+                <div className="space-y-4 text-sm mb-6">
+                  <div className="flex justify-between items-center text-neutral-600 dark:text-neutral-400 font-medium">
+                    <span>Subtotal</span>
+                    <span className="font-bold text-neutral-800 dark:text-white">₹{order.subtotal.toLocaleString()}</span>
+                  </div>
+                  
+                  <div className="pt-3 border-t border-dashed border-neutral-200 dark:border-slate-700">
+                    <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Taxes</p>
+                    <div className="space-y-2 pl-2">
                       <div className="flex justify-between items-center text-neutral-500">
-                        <span>IGST</span>
-                        <span className="font-medium text-neutral-800 dark:text-white">₹{order.igst.toLocaleString()}</span>
+                        <span>CGST (9%)</span>
+                        <span className="font-medium text-neutral-800 dark:text-white">₹{order.cgst.toLocaleString()}</span>
                       </div>
+                      <div className="flex justify-between items-center text-neutral-500">
+                        <span>SGST (9%)</span>
+                        <span className="font-medium text-neutral-800 dark:text-white">₹{order.sgst.toLocaleString()}</span>
+                      </div>
+                      {order.igst > 0 && (
+                        <div className="flex justify-between items-center text-neutral-500">
+                          <span>IGST</span>
+                          <span className="font-medium text-neutral-800 dark:text-white">₹{order.igst.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-dashed border-neutral-200 dark:border-slate-700 flex justify-between items-center text-neutral-600 dark:text-neutral-400 font-medium">
+                    <span>Distributor Discount</span>
+                    <span className="font-bold text-green-600">-₹{order.discount.toLocaleString()}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center text-neutral-600 dark:text-neutral-400 font-medium">
+                    <span>Logistics/Shipping</span>
+                    {order.deliveryCharges === 0 ? (
+                      <span className="font-bold text-green-600">Free</span>
+                    ) : (
+                      <span className="font-bold text-neutral-800 dark:text-white">₹{order.deliveryCharges.toLocaleString()}</span>
                     )}
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-dashed border-neutral-200 dark:border-slate-700 flex justify-between items-center text-neutral-600 dark:text-neutral-400 font-medium">
-                  <span>Distributor Discount</span>
-                  <span className="font-bold text-green-600">-₹{order.discount.toLocaleString()}</span>
-                </div>
-                
-                <div className="flex justify-between items-center text-neutral-600 dark:text-neutral-400 font-medium">
-                  <span>Logistics/Shipping</span>
-                  {order.deliveryCharges === 0 ? (
-                    <span className="font-bold text-green-600">Free</span>
-                  ) : (
-                    <span className="font-bold text-neutral-800 dark:text-white">₹{order.deliveryCharges.toLocaleString()}</span>
-                  )}
+                <div className="pt-4 border-t border-neutral-200 dark:border-slate-800 flex justify-between items-center">
+                  <span className="text-base font-bold text-neutral-800 dark:text-white">Grand Total</span>
+                  <span className="text-2xl font-black text-[#D71920]">₹{order.grandTotal.toLocaleString()}</span>
                 </div>
               </div>
-
-              <div className="pt-4 border-t border-neutral-200 dark:border-slate-800 flex justify-between items-center">
-                <span className="text-base font-bold text-neutral-800 dark:text-white">Grand Total</span>
-                <span className="text-2xl font-black text-[#D71920]">₹{order.grandTotal.toLocaleString()}</span>
-              </div>
-            </div>
+            )}
 
             {/* PAYMENT INFORMATION */}
             <div className="bg-white dark:bg-slate-900 shadow-sm border border-neutral-200 dark:border-slate-800 rounded-2xl p-6">

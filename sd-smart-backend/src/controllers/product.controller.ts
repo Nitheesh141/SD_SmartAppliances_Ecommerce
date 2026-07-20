@@ -143,9 +143,10 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       sku,
       variantGroup,
       variantDetails,
+      itemCode,
     } = req.body;
 
-    if (!name || !category || !categoryLabel || !image || price === undefined || originalPrice === undefined || !modelNumber || !productId) {
+    if (!name || !category || !categoryLabel || !image || price === undefined || originalPrice === undefined || !modelNumber || !productId || !itemCode) {
       res.status(400).json({ success: false, message: "Missing required product fields" });
       return;
     }
@@ -181,6 +182,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
         modelNumber,
         productId,
         sku: sku || null,
+        itemCode: itemCode || null,
         variantGroup: variantGroup || null,
         variantDetails: variantDetails || null,
       } as any,
@@ -214,7 +216,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       "badge", "href", "inStock", "isBestSeller", "isFeatured", "eyebrow",
       "description", "specs", "startingPrice", "primaryCTALabel", "primaryCTAHref",
       "secondaryCTALabel", "secondaryCTAHref", "imagePosition", "modelNumber", "productId",
-      "availableStock", "sku", "variantGroup", "variantDetails"
+      "availableStock", "sku", "variantGroup", "variantDetails", "itemCode"
     ];
 
     for (const key of allowedFields) {
