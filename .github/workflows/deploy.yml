@@ -1,4 +1,4 @@
-name: Deploy SD Smart
+name: Deploy SD Smart Appliances
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
           script: |
             set -e
 
-            echo "Starting deployment..."
+            echo "========== Starting Deployment =========="
 
             cd /var/www/SD_SmartAppliances_Ecommerce
 
@@ -29,26 +29,52 @@ jobs:
             git checkout main
             git reset --hard origin/main
 
+            #################################################
+            # Backend
+            #################################################
+
             echo "Installing backend dependencies..."
             cd sd-smart-backend
             npm install
 
-            if npm run | grep -q "build"; then
-              npm run build
+            echo "Generating Prisma Client..."
+            npx prisma generate
+
+            echo "Running Prisma Migrations..."
+            npx prisma migrate deploy
+
+            echo "Building Backend..."
+            npm run build
+
+            echo "Restarting Backend..."
+            if pm2 describe sdsmart-backend >/dev/null; then
+              pm2 restart sdsmart-backend
+            else
+              pm2 start dist/server.js --name sdsmart-backend
             fi
 
-            echo "Restarting backend..."
-            pm2 restart sdsmart-backend
+            #################################################
+            # Frontend
+            #################################################
 
             echo "Installing frontend dependencies..."
             cd ../sd-smart-frontend
             npm install
+
+            echo "Building Frontend..."
             npm run build
 
-            echo "Restarting frontend..."
-            pm2 restart sdsmart-frontend
+            echo "Restarting Frontend..."
+            if pm2 describe sdsmart-frontend >/dev/null; then
+              pm2 restart sdsmart-frontend
+            else
+              pm2 serve dist 4173 --spa --name sdsmart-frontend
+            fi
 
-            echo "Saving PM2..."
+            #################################################
+            # Save PM2
+            #################################################
+
             pm2 save
 
-            echo "Deployment completed successfully!"
+            echo "========== Deployment Completed Successfully =========="
