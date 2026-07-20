@@ -29,3 +29,17 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     return;
   }
 };
+
+export const optionalAuthenticateToken = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string };
+      (req as AuthenticatedRequest).user = decoded;
+    } catch (error) {
+      // Ignore token decode errors for guest visitors
+    }
+  }
+  next();
+};

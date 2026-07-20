@@ -1,12 +1,14 @@
 "use client";
+import { ENV } from "@/config/env";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
-import { 
-  LayoutDashboard, PlusCircle, LogOut, Sun, Moon, 
-  Home, Shield, Menu, X, ArrowLeftRight
+import {
+  LayoutDashboard, PlusCircle, LogOut, Sun, Moon,
+  Home, Shield, Menu, X, ArrowLeftRight, Package, Percent, Settings, Headphones, ShieldCheck, Users,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -19,8 +21,85 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminSidebarProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get("tab") || "discounts";
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [marketingOpen, setMarketingOpen] = useState(currentPath.startsWith("/admin/marketing"));
+  const [productsOpen, setProductsOpen] = useState(currentPath.startsWith("/admin/products") || currentPath.startsWith("/admin/distributor-pricing") || currentPath.startsWith("/admin/manage-product"));
+  const [salesOpen, setSalesOpen] = useState(currentPath.startsWith("/admin/sales-persons") || currentPath.startsWith("/admin/daily-activities"));
+  const [counts, setCounts] = useState({ orders: 0, distributors: 0, serviceRequests: 0, warranties: 0, distributorEnquiries: 0, pendingActivities: 0 });
+
+  // Fetch counts periodically
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const token = localStorage.getItem("authToken");
+        if (!token) return;
+        const res = await fetch(`${ENV.API_BASE_URL}/orders/unread-counts`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.counts) {
+            setCounts(data.counts);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch unread counts:", err);
+      }
+    };
+
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 20000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Mark as read when navigating to admin sections or when new counts appear while on that section
+  useEffect(() => {
+    const markAsRead = async () => {
+      const token = localStorage.getItem("authToken");
+      if (!token) return;
+
+      try {
+        if (currentPath === "/admin/orders" && counts.orders > 0) {
+          await fetch(`${ENV.API_BASE_URL}/orders/mark-read`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setCounts(prev => ({ ...prev, orders: 0 }));
+        } else if (currentPath === "/admin/distributors" && counts.distributors > 0) {
+          await fetch(`${ENV.API_BASE_URL}/auth/admin/distributors/mark-read`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setCounts(prev => ({ ...prev, distributors: 0 }));
+        } else if (currentPath === "/admin/service-requests" && counts.serviceRequests > 0) {
+          await fetch(`${ENV.API_BASE_URL}/service-requests/mark-read`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setCounts(prev => ({ ...prev, serviceRequests: 0 }));
+        } else if (currentPath === "/admin/distributor-enquiries" && counts.distributorEnquiries > 0) {
+          await fetch(`${ENV.API_BASE_URL}/distributor-enquiries/admin/mark-read`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setCounts(prev => ({ ...prev, distributorEnquiries: 0 }));
+        } else if (currentPath === "/admin/daily-activities" && counts.pendingActivities > 0) {
+          await fetch(`${ENV.API_BASE_URL}/sales-activities/admin/mark-read`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setCounts(prev => ({ ...prev, pendingActivities: 0 }));
+        }
+      } catch (err) {
+        console.error("Failed to mark notification as read:", err);
+      }
+    };
+
+    markAsRead();
+  }, [currentPath, counts.orders, counts.distributors, counts.serviceRequests, counts.distributorEnquiries, counts.pendingActivities]);
 
   const menuItems = [
     {
@@ -29,10 +108,66 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
       href: "/admin/dashboard",
     },
     {
-      label: "Add Appliance",
-      icon: PlusCircle,
-      href: "/admin/manage-product",
+      label: "Products",
+      icon: Package,
+      href: "/admin/products",
+      children: [
+        { label: "Product Management", href: "/admin/products", tabId: "management" },
+        { label: "Categories", href: "/admin/products?tab=categories", tabId: "categories" },
+        { label: "Distributor Pricing", href: "/admin/distributor-pricing", tabId: "distributor-pricing" },
+      ]
     },
+    {
+      label: "Orders",
+      icon: ArrowLeftRight,
+      href: "/admin/orders",
+    },
+    {
+      label: "Distributors",
+      icon: Shield,
+      href: "/admin/distributors",
+    },
+    {
+      label: "Sales Management",
+      icon: Users,
+      href: "/admin/sales-persons",
+      children: [
+        { label: "Sales Persons", href: "/admin/sales-persons", tabId: "sales-persons" },
+        { label: "Daily Sales Activities", href: "/admin/daily-activities", tabId: "daily-activities" }
+      ]
+    },
+    {
+      label: "Distributor Enquiries",
+      icon: MessageSquare,
+      href: "/admin/distributor-enquiries",
+    },
+    {
+      label: "Service Requests",
+      icon: Headphones,
+      href: "/admin/service-requests",
+    },
+    {
+      label: "Warranty Registrations",
+      icon: ShieldCheck,
+      href: "/admin/warranties",
+    },
+    {
+      label: "Marketing",
+      icon: Percent,
+      href: "/admin/marketing",
+      children: [
+        { label: "Discounts & Offers", href: "/admin/marketing?tab=discounts", tabId: "discounts" },
+        { label: "Coupons", href: "/admin/marketing?tab=coupons", tabId: "coupons" },
+        { label: "Flash Sales", href: "/admin/marketing?tab=flash-sales", tabId: "flash-sales" },
+        { label: "Campaigns", href: "/admin/marketing?tab=campaigns", tabId: "campaigns" },
+        { label: "Offer Analytics", href: "/admin/marketing?tab=analytics", tabId: "analytics" },
+      ]
+    },
+    {
+      label: "Invoice Settings",
+      icon: Settings,
+      href: "/admin/settings",
+    }
   ];
 
   const handleLogout = () => {
@@ -43,6 +178,15 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
 
   const isDark = theme === "dark";
 
+  const getBadgeCount = (label: string) => {
+    if (label === "Orders") return counts.orders;
+    if (label === "Distributors") return counts.distributors;
+    if (label === "Service Requests") return counts.serviceRequests;
+    if (label === "Warranty Registrations") return counts.warranties || 0;
+    if (label === "Distributor Enquiries") return counts.distributorEnquiries || 0;
+    return 0;
+  };
+
   return (
     <>
       {/* Mobile Top Bar */}
@@ -51,9 +195,9 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
         isDark ? "bg-[#0d0d0d] border-neutral-800 text-white" : "bg-white border-neutral-200 text-slate-900"
       )}>
         <div className="flex items-center gap-3">
-          <Link href="/">
+          <Link href="/?bypass=true">
             <img
-              src="/sd-smart-ecommerce/SD-logo.png"
+              src="/SD-logo.png"
               alt="SD Smart Appliances"
               className="h-8 w-auto object-contain cursor-pointer"
             />
@@ -64,7 +208,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
             <span>Admin</span>
           </span>
         </div>
-        
+
         <button
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
@@ -88,9 +232,9 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
           isDark ? "border-neutral-800" : "border-neutral-200"
         )}>
           <div className="flex items-center gap-3">
-            <Link href="/" onClick={() => setIsOpen(false)}>
+            <Link href="/?bypass=true" onClick={() => setIsOpen(false)}>
               <img
-                src="/sd-smart-ecommerce/SD-logo.png"
+                src="/SD-logo.png"
                 alt="SD Smart Appliances"
                 className="h-10 w-auto object-contain cursor-pointer"
               />
@@ -104,10 +248,10 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
               </span>
             </div>
           </div>
-          
+
           {/* Close button on mobile */}
-          <button 
-            onClick={() => setIsOpen(false)} 
+          <button
+            onClick={() => setIsOpen(false)}
             className={cn(
               "lg:hidden p-1.5 rounded-lg border",
               isDark ? "border-neutral-800" : "border-neutral-200"
@@ -135,17 +279,116 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
         </div>
 
         {/* Main Navigation Links */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5">
+        <nav className="flex-1 overflow-y-auto sidebar-scrollbar px-4 py-6 space-y-1.5">
           <p className="px-3 text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-3">Management</p>
           {menuItems.map((item) => {
-            const isActive = currentPath === item.href;
+            const hasChildren = !!item.children;
+            const isChildActive = !!(item.children && item.children.some(c => currentPath === c.href || currentPath.startsWith(c.href.split("?")[0])));
+            const isActive = currentPath === item.href || isChildActive;
+
+            if (item.children) {
+              const isOpenDropdown = item.label === "Marketing" ? marketingOpen : (item.label === "Products" ? productsOpen : (item.label === "Sales Management" ? salesOpen : false));
+              const toggleDropdown = () => {
+                if (item.label === "Marketing") setMarketingOpen(!marketingOpen);
+                if (item.label === "Products") setProductsOpen(!productsOpen);
+                if (item.label === "Sales Management") setSalesOpen(!salesOpen);
+              };
+
+              return (
+                <div key={item.label} className="space-y-1">
+                  <button
+                    onClick={toggleDropdown}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group cursor-pointer text-left",
+                      isChildActive
+                        ? isDark ? "bg-neutral-900 text-white" : "bg-red-50/50 text-[#D71920]"
+                        : isDark
+                          ? "text-neutral-400 hover:text-white hover:bg-neutral-900 border border-transparent"
+                          : "text-neutral-600 hover:text-[#D71920] hover:bg-red-50/50 border border-transparent"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon size={18} className={cn(
+                        "transition-transform group-hover:scale-110",
+                        isChildActive ? "text-[#D71920]" : "text-neutral-500 group-hover:text-[#D71920]"
+                      )} />
+                      <span>{item.label}</span>
+                      {item.label === "Sales Management" && counts.pendingActivities > 0 && (
+                        <span className="flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[9px] font-black bg-red-600 text-white animate-pulse">
+                          {counts.pendingActivities}
+                        </span>
+                      )}
+                    </div>
+                    <span className={cn("text-[10px] transition-transform duration-200 text-neutral-500", isOpenDropdown && "rotate-90")}>
+                      ▶
+                    </span>
+                  </button>
+
+                  {isOpenDropdown && (
+                    <div className={cn(
+                      "pl-6 space-y-1 mt-1 border-l ml-5",
+                      isDark ? "border-neutral-800" : "border-neutral-200"
+                    )}>
+                      {item.children.map((child) => {
+                        let isSubActive = false;
+                        if (item.label === "Marketing") {
+                          isSubActive = currentPath.startsWith("/admin/marketing") && currentTab === child.tabId;
+                        } else if (item.label === "Products") {
+                          if (child.tabId === "management") {
+                            isSubActive = currentPath === "/admin/products" && (!currentTab || currentTab === "management" || !["categories", "inventory"].includes(currentTab));
+                          } else if (child.tabId === "categories") {
+                            isSubActive = currentPath === "/admin/products" && currentTab === "categories";
+                          } else if (child.tabId === "inventory") {
+                            isSubActive = currentPath === "/admin/products" && currentTab === "inventory";
+                          } else if (child.tabId === "distributor-pricing") {
+                            isSubActive = currentPath === "/admin/distributor-pricing";
+                          }
+                        } else if (item.label === "Sales Management") {
+                          if (child.tabId === "sales-persons") {
+                            isSubActive = currentPath === "/admin/sales-persons";
+                          } else if (child.tabId === "daily-activities") {
+                            isSubActive = currentPath === "/admin/daily-activities";
+                          }
+                        }
+                        return (
+                          <Link
+                            key={child.label}
+                            href={child.href as any}
+                            onClick={() => setIsOpen(false)}
+                            className={cn(
+                              "flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer w-full",
+                              isSubActive
+                                ? "text-[#D71920] bg-red-500/10 font-bold"
+                                : isDark
+                                  ? "text-neutral-400 hover:text-white"
+                                  : "text-slate-600 hover:text-[#D71920]"
+                            )}
+                          >
+                            <span>{child.label}</span>
+                            {child.label === "Daily Sales Activities" && counts.pendingActivities > 0 && (
+                              <span className="flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[8px] font-black bg-red-600 text-white ml-2">
+                                {counts.pendingActivities}
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            const count = getBadgeCount(item.label);
+            const displayCount = count > 99 ? "99+" : count;
+
             return (
               <Link
                 key={item.label}
-                href={item.href}
+                href={item.href as any}
                 onClick={() => setIsOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group cursor-pointer",
+                  "flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group cursor-pointer",
                   isActive
                     ? "bg-[#D71920] text-white shadow-lg shadow-[#D71920]/20"
                     : isDark
@@ -153,24 +396,36 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
                       : "text-neutral-600 hover:text-[#D71920] hover:bg-red-50/50 border border-transparent"
                 )}
               >
-                <item.icon size={18} className={cn(
-                  "transition-transform group-hover:scale-110",
-                  isActive ? "text-white" : "text-neutral-500 group-hover:text-[#D71920]"
-                )} />
-                <span>{item.label}</span>
+                <div className="flex items-center gap-3">
+                  <item.icon size={18} className={cn(
+                    "transition-transform group-hover:scale-110",
+                    isActive ? "text-white" : "text-neutral-500 group-hover:text-[#D71920]"
+                  )} />
+                  <span>{item.label}</span>
+                </div>
+                {count > 0 && (
+                  <span className={cn(
+                    "flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[9px] font-black uppercase tracking-wider",
+                    isActive
+                      ? "bg-white text-[#D71920]"
+                      : "bg-red-600 text-white"
+                  )}>
+                    {displayCount}
+                  </span>
+                )}
               </Link>
             );
           })}
 
           <p className="px-3 pt-6 text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-3">Actions</p>
-          
+
           {/* Storefront Link */}
           <Link
-            href="/"
+            href="/?bypass=true"
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group cursor-pointer",
-              isDark 
-                ? "text-neutral-400 hover:text-white hover:bg-neutral-900" 
+              isDark
+                ? "text-neutral-400 hover:text-white hover:bg-neutral-900"
                 : "text-neutral-600 hover:text-[#D71920] hover:bg-red-50/50"
             )}
           >
@@ -186,7 +441,15 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
         )}>
           {/* Theme Switcher Button */}
           <button
-            onClick={toggleTheme}
+            onClick={() => {
+              toggleTheme();
+              const nextTheme = theme === "dark" ? "light" : "dark";
+              if (nextTheme === "dark") {
+                document.documentElement.classList.add("dark");
+              } else {
+                document.documentElement.classList.remove("dark");
+              }
+            }}
             className={cn(
               "w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm font-semibold transition-all cursor-pointer",
               isDark
@@ -225,7 +488,7 @@ export default function AdminSidebar({ currentPath, theme, toggleTheme }: AdminS
 
       {/* Sidebar Backdrop on mobile */}
       {isOpen && (
-        <div 
+        <div
           onClick={() => setIsOpen(false)}
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
         />

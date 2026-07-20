@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import AnnouncementBar from "@/components/layout/AnnouncementBar";
 import Header from "@/components/layout/Header";
@@ -6,15 +7,56 @@ import Footer from "@/components/layout/Footer";
 // import { announcements } from "../LandingPage/data/announcements";
 import { navLinks, footerColumns, socialLinks } from "../LandingPage/data/navigation";
 import { Phone, Mail, MapPin, Send } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function ContactPage() {
-  const [formData, setFormData] = useState({ name: "", email: "", message: "" });
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [contactInfo, setContactInfo] = useState({
+    phone: "+91 80000 00000",
+    email: "support@sdsmart.in"
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${ENV.API_BASE_URL}/settings`);
+        const data = await res.json();
+        if (data.success && data.settings) {
+          setContactInfo({
+            phone: data.settings.seller_phone || "+91 80000 00000",
+            email: data.settings.seller_email || "support@sdsmart.in"
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to fetch settings in contact page:", err);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${ENV.API_BASE_URL}/sales-persons/public/enquiry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSubmitted(true);
+      } else {
+        alert(data.message || "Failed to submit message");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while sending your message. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -41,7 +83,8 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-[#1C1C1C]">Call Us</h4>
-                  <p className="text-sm text-neutral-500 mt-0.5">+91 80000 00000</p>
+                  <p className="text-sm text-neutral-500 mt-0.5">{contactInfo.phone}</p>
+                  <p className="text-xs text-neutral-400 mt-0.5">Toll-Free: <a href="tel:18001239397" className="hover:text-[#D71920] font-semibold transition-colors">1800 123 9397</a></p>
                 </div>
               </div>
 
@@ -51,7 +94,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-[#1C1C1C]">Email Us</h4>
-                  <p className="text-sm text-neutral-500 mt-0.5">support@sdsmart.in</p>
+                  <p className="text-sm text-neutral-500 mt-0.5">{contactInfo.email}</p>
                 </div>
               </div>
 
@@ -101,6 +144,17 @@ export default function ContactPage() {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-4 py-3 text-sm bg-white border border-neutral-200 rounded-xl outline-none focus:border-[#D71920]"
                     placeholder="Enter your email"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-600 uppercase mb-2">Phone Number</label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-4 py-3 text-sm bg-white border border-neutral-200 rounded-xl outline-none focus:border-[#D71920]"
+                    placeholder="Enter your phone number"
                   />
                 </div>
                 <div>

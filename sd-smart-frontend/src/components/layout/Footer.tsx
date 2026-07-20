@@ -1,8 +1,9 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import Link from "next/link";
 import { MapPin, Phone, Mail, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { FooterColumn, SocialLink } from "../../app/LandingPage/types";
 
@@ -91,12 +92,12 @@ const defaultFooterColumns = [
   {
     heading: "Products",
     links: [
-      { label: "Pressure Cookers", href: "/shop/pressure-cookers" },
-      { label: "Wet Grinders", href: "/shop/wet-grinders" },
-      { label: "Gas Stoves", href: "/shop/gas-stoves" },
-      { label: "Non-Stick Cookware", href: "/shop/non-stick" },
-      { label: "Commercial Products", href: "/shop/commercial" },
-      { label: "Kitchen Accessories", href: "/shop/accessories" },
+      { label: "Pressure Cookers", href: "/shop?category=pressure-cookers" },
+      { label: "Wet Grinders", href: "/shop?category=wet-grinders" },
+      { label: "Gas Stoves", href: "/shop?category=gas-stoves" },
+      { label: "Non-Stick Cookware", href: "/shop?category=non-stick" },
+      { label: "Commercial Products", href: "/shop?category=commercial" },
+      { label: "Kitchen Accessories", href: "/shop?category=accessories" },
     ],
   },
   {
@@ -142,6 +143,28 @@ const getSocialIconComponent = (platformOrIcon: string) => {
 export default function Footer({ footerColumns, socialLinks }: FooterProps) {
   const pathname = usePathname();
   const [email, setEmail] = useState("");
+  const [contactInfo, setContactInfo] = useState({
+    phone: "+91 80000 00000",
+    email: "support@sdsmart.in"
+  });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${ENV.API_BASE_URL}/settings`);
+        const data = await res.json();
+        if (data.success && data.settings) {
+          setContactInfo({
+            phone: data.settings.seller_phone || "+91 80000 00000",
+            email: data.settings.seller_email || "support@sdsmart.in"
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to fetch settings for footer:", err);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   if (pathname !== "/") {
     return null;
@@ -185,13 +208,19 @@ export default function Footer({ footerColumns, socialLinks }: FooterProps) {
                 <MapPin size={14} className="text-[#D71920] mt-0.5 flex-shrink-0" />
                 <span>SD SMART Appliances Pvt. Ltd., Industrial Area, Coimbatore, Tamil Nadu – 641 001</span>
               </div>
-              <div className="flex items-center gap-3 text-sm text-neutral-400">
-                <Phone size={14} className="text-[#D71920] flex-shrink-0" />
-                <span>+91 80000 00000</span>
+              <div className="flex flex-col gap-1 text-sm text-neutral-400">
+                <div className="flex items-center gap-3">
+                  <Phone size={14} className="text-[#D71920] flex-shrink-0" />
+                  <span>Support: {contactInfo.phone}</span>
+                </div>
+                <div className="flex items-center gap-3 pl-6.5">
+                  <span className="text-neutral-500 text-xs font-bold uppercase">Toll-Free:</span>
+                  <a href="tel:18001239397" className="hover:text-white transition-colors">1800 123 9397</a>
+                </div>
               </div>
               <div className="flex items-center gap-3 text-sm text-neutral-400">
                 <Mail size={14} className="text-[#D71920] flex-shrink-0" />
-                <span>support@sdsmart.in</span>
+                <span>{contactInfo.email}</span>
               </div>
             </div>
 

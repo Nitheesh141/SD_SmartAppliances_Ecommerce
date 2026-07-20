@@ -1,26 +1,24 @@
 "use client";
+import { ENV } from "@/config/env";
 
-import { useState, useEffect } from "react";
 import { useAuth } from "@/providers/AuthProvider";
+import Link from "next/link";
+import { Headphones } from "lucide-react";
 import AnnouncementBar from "../../components/layout/AnnouncementBar";
 import Header from "../../components/layout/Header";
 import Footer from "../../components/layout/Footer";
 import HeroSection from "../../components/sections/HeroSection";
 import TrustBadgesSection from "../../components/sections/TrustBadgesSection";
 import CategorySection from "../../components/sections/CategorySection";
-import BestSellerSection from "../../components/sections/BestSellerSection";
 import WhyChooseUsSection from "../../components/sections/WhyChooseUsSection";
-import FeaturedProductSection from "../../components/sections/FeaturedProductSection";
-import TimelineSection from "../../components/sections/TimelineSection";
 import CommercialSection from "../../components/sections/CommercialSection";
 import TestimonialSection from "../../components/sections/TestimonialSection";
 import NewsletterSection from "../../components/sections/NewsletterSection";
 
+import { useEffect, useState } from "react";
 import { banners } from "./data/banners";
 import { categories } from "./data/categories";
-import { bestSellingProducts, featuredProducts } from "./data/products";
 import { features } from "./data/features";
-import { timelineItems } from "./data/timeline";
 import { testimonials } from "./data/testimonials";
 import { trustBadges } from "./data/trustBadges";
 import { announcements } from "./data/announcements";
@@ -29,61 +27,28 @@ import KitchenBackground from "../../components/animations/KitchenBackground";
 
 export default function LandingPage() {
   const { isAuthenticated, user } = useAuth();
-
-  const [bestSellers, setBestSellers] = useState<any[]>(bestSellingProducts);
-  const [featuredItems, setFeaturedItems] = useState<any[]>(featuredProducts);
+  const [threshold, setThreshold] = useState<number | null>(null);
 
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const response = await fetch("http://localhost:5000/api/products");
-        if (!response.ok) throw new Error("Failed to fetch products");
-        const data = await response.json();
-        const apiProducts = data.products || [];
-
-        // Filter best sellers and featured
-        const apiBestSellers = apiProducts.filter((p: any) => p.isBestSeller);
-        const apiFeatured = apiProducts.filter((p: any) => p.isFeatured).map((p: any) => {
-          // Parse specs safely if they are stored as JSON/string
-          let parsedSpecs = [];
-          if (p.specs) {
-            if (typeof p.specs === "string") {
-              try {
-                parsedSpecs = JSON.parse(p.specs);
-              } catch {
-                parsedSpecs = [];
-              }
-            } else if (Array.isArray(p.specs)) {
-              parsedSpecs = p.specs;
-            }
-          }
-          return {
-            ...p,
-            startingPrice: p.startingPrice || p.price,
-            primaryCTA: {
-              label: p.primaryCTALabel || "Buy Now",
-              href: p.primaryCTAHref || "#buy-now"
-            },
-            secondaryCTA: {
-              label: p.secondaryCTALabel || "Compare Specs",
-              href: p.secondaryCTAHref || "#compare"
-            },
-            specs: parsedSpecs
-          };
-        });
-
-        if (apiBestSellers.length > 0) {
-          setBestSellers(apiBestSellers);
+    fetch(`${ENV.API_BASE_URL}/settings`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.settings && data.settings.freeShippingThreshold) {
+          setThreshold(Number(data.settings.freeShippingThreshold));
         }
-        if (apiFeatured.length > 0) {
-          setFeaturedItems(apiFeatured);
-        }
-      } catch (error) {
-        console.warn("Backend API offline, falling back to static product data.", error);
-      }
-    };
-    loadProducts();
+      })
+      .catch(err => console.error("Failed to fetch settings on landing page:", err));
   }, []);
+
+  const dynamicTrustBadges = trustBadges.map((badge) => {
+    if (badge.id === "badge-2" && threshold !== null) {
+      return {
+        ...badge,
+        subtitle: `On all orders above ₹${threshold.toLocaleString('en-IN')}`
+      };
+    }
+    return badge;
+  });
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-slate-950 relative">
@@ -98,33 +63,19 @@ export default function LandingPage() {
         <HeroSection banners={banners} />
 
         {/* 2. Trust Badges */}
-        <TrustBadgesSection trustBadges={trustBadges} />
+        <TrustBadgesSection trustBadges={dynamicTrustBadges} />
 
         {/* 3. Shop by Category */}
         <CategorySection categories={categories} />
 
-        {/* 4. Best Selling Products */}
-        <BestSellerSection products={bestSellers} />
-
         {/* 5. Why Choose SD SMART */}
         <WhyChooseUsSection features={features} />
-
-        {/* 6. Featured: Pressure Cooker */}
-        <FeaturedProductSection product={featuredItems[0] || featuredProducts[0]} />
-
-        {/* 7. Featured: Wet Grinder (gray bg, image right) */}
-        <div className="bg-[#F5F5F5] dark:bg-slate-900/40">
-          <FeaturedProductSection product={featuredItems[1] || featuredProducts[1]} />
-        </div>
-
-        {/* 8. Company Timeline */}
-        <TimelineSection items={timelineItems} />
 
         {/* 9. Commercial Kitchen Solutions */}
         <CommercialSection data={commercialSectionData} />
 
         {/* 10. Testimonials */}
-        <TestimonialSection testimonials={testimonials} />
+        {/* <TestimonialSection testimonials={testimonials} /> */}
 
         {/* 11. Newsletter */}
         <NewsletterSection />
@@ -132,6 +83,16 @@ export default function LandingPage() {
 
       {/* ── Footer ──────────────────────────────────────────── */}
       <Footer footerColumns={footerColumns} socialLinks={socialLinks} />
+      {/* Floating Service Ticket FAB */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Link
+          href="/service-request"
+          className="flex items-center gap-2 px-5 py-3.5 bg-[#D71920] hover:bg-[#b8141a] hover:text-white text-white text-xs font-black uppercase tracking-wider rounded-full shadow-[0_8px_30px_rgba(215,25,32,0.35)] hover:shadow-[0_8px_30px_rgba(215,25,32,0.55)] active:scale-95 transition-all duration-300 group border border-white/10"
+        >
+          <Headphones size={15} className="group-hover:scale-110 transition-transform" />
+          <span>File Service Ticket</span>
+        </Link>
+      </div>
     </div>
   );
 }

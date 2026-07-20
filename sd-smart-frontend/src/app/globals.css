@@ -1,52 +1,6 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-mono);
-  --font-heading: var(--font-geist-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-}
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
 :root {
   --background: oklch(1 0 0);
@@ -81,6 +35,7 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
 }
 
 .dark {
@@ -115,16 +70,128 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
+* {
+  border-color: var(--border);
+}
+
+html, body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+html {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Fix input cursor visibility issues on hover across the entire application */
+input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+textarea {
+  cursor: text !important;
+}
+
+/* 
+  Global Input Caret (Insertion Cursor) Color Visibility Fix
+  Forces caret-color to match computed text color (currentColor) across all inputs, textareas, and select components.
+  This automatically makes the caret black in light theme (where text is dark) and white in dark theme (where text is white).
+*/
+input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+textarea,
+select {
+  caret-color: currentColor !important;
+}
+
+/* Force light color scheme on all light-background containers and their contents to ensure dark scrollbars and dark mouse I-beam cursors */
+.bg-white,
+.bg-slate-50,
+.bg-slate-100,
+.bg-neutral-50,
+.bg-neutral-100,
+[class*="bg-white"],
+[class*="bg-slate-50"],
+[class*="bg-slate-100"],
+[class*="bg-neutral-50"],
+[class*="bg-neutral-100"],
+.bg-white input,
+.bg-white textarea,
+.bg-slate-50 input,
+.bg-slate-50 textarea,
+.bg-slate-100 input,
+.bg-slate-100 textarea,
+.bg-neutral-50 input,
+.bg-neutral-50 textarea,
+.bg-neutral-100 input,
+.bg-neutral-100 textarea {
+  color-scheme: light !important;
+}
+
+/* Force dark color scheme on all dark-background containers and their contents */
+.dark,
+[class*="bg-slate-950"],
+[class*="bg-neutral-900"],
+[class*="bg-slate-900"],
+[class*="bg-neutral-950"],
+.dark input,
+.dark textarea,
+[class*="bg-slate-950"] input,
+[class*="bg-slate-950"] textarea {
+  color-scheme: dark !important;
+}
+
+/* Ensure range inputs and their thumbs/tracks show the pointer (human finger) cursor */
+input[type="range"],
+input[type="range"]::-webkit-slider-runnable-track,
+input[type="range"]::-webkit-slider-thumb,
+input[type="range"]::-moz-range-track,
+input[type="range"]::-moz-range-thumb {
+  cursor: pointer !important;
+}
+
+select {
+  cursor: default !important;
+}
+
+button,
+a,
+[role="button"],
+input[type="button"],
+input[type="submit"] {
+  cursor: pointer !important;
+}
+
+/* Sidebar custom premium scrollbar */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scroll-color 0.3s ease;
+}
+
+.sidebar-scrollbar:hover {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* Chrome, Safari and Opera scrollbar styles */
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.3s ease;
+}
+
+.sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
 }

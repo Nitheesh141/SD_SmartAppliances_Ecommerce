@@ -1,20 +1,14 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import { useState, useEffect } from "react";
-import { bestSellingProducts } from "../app/LandingPage/data/products";
-
 export function useDynamicProducts(category?: string) {
-  const [products, setProducts] = useState<any[]>(() => {
-    if (category) {
-      return bestSellingProducts.filter(p => p.category === category);
-    }
-    return bestSellingProducts;
-  });
+  const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/products");
+        const response = await fetch(`${ENV.API_BASE_URL}/products`);
         if (!response.ok) throw new Error("Failed to fetch products");
         const data = await response.json();
         const apiProducts = data.products || [];

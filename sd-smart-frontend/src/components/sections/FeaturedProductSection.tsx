@@ -6,6 +6,8 @@ import BadgePill from "../shared/BadgePill";
 import CTAButton from "../shared/CTAButton";
 import { Cpu, ShieldCheck, Gear } from "@phosphor-icons/react";
 import ScrollReveal from "../animations/ScrollReveal";
+import { useAuth } from "@/providers/AuthProvider";
+import EnquiryModal from "../shared/EnquiryModal";
 
 interface FeaturedProductSectionProps {
   product: FeaturedProduct;
@@ -14,6 +16,9 @@ interface FeaturedProductSectionProps {
 export default function FeaturedProductSection({ product }: FeaturedProductSectionProps) {
   const [activeTab, setActiveTab] = React.useState<"overview" | "specs" | "features">("overview");
   const isImageLeft = product.imagePosition === "left";
+  const { isAuthenticated, user } = useAuth();
+  const isDistributor = isAuthenticated && user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
+  const [isEnquiryOpen, setIsEnquiryOpen] = React.useState(false);
 
   return (
     <SectionContainer id={`featured-${product.id}`}>
@@ -56,13 +61,24 @@ export default function FeaturedProductSection({ product }: FeaturedProductSecti
           </h2>
 
           {/* Pricing */}
-          <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-3xs font-medium text-slate-400 uppercase tracking-wider">Starting from</span>
-            <ProductPrice
-              price={product.startingPrice}
-              priceClass="text-2xl md:text-3xl font-extrabold text-[#D71920] dark:text-red-400"
-            />
-          </div>
+          {isDistributor ? (
+            <div className="mt-4">
+              <button
+                onClick={() => setIsEnquiryOpen(true)}
+                className="py-3 px-6 border-2 border-[#D71920] hover:bg-red-50 dark:hover:bg-slate-800 text-[#D71920] hover:text-[#b8141a] text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer"
+              >
+                Enquiry for Price
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 flex items-baseline gap-2">
+              <span className="text-3xs font-medium text-slate-400 uppercase tracking-wider">Starting from</span>
+              <ProductPrice
+                price={product.startingPrice}
+                priceClass="text-2xl md:text-3xl font-extrabold text-[#D71920] dark:text-red-400"
+              />
+            </div>
+          )}
 
           {/* Tab Navigation */}
           <div className="mt-8 flex border-b border-slate-100 w-full dark:border-slate-800">
@@ -162,6 +178,9 @@ export default function FeaturedProductSection({ product }: FeaturedProductSecti
           </div>
         </ScrollReveal>
       </div>
+      {isEnquiryOpen && (
+        <EnquiryModal isOpen={isEnquiryOpen} onClose={() => setIsEnquiryOpen(false)} productId={product.id} productName={product.name} />
+      )}
     </SectionContainer>
   );
 }

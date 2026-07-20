@@ -52,6 +52,13 @@ export const authService = {
   },
 
   /**
+   * Change user password
+   */
+  changePassword: async (data: any): Promise<ApiResponse<{ message: string }>> => {
+    return apiPost<{ message: string }>("/auth/change-password", data);
+  },
+
+  /**
    * Get current user profile
    */
   getCurrentUser: async (): Promise<ApiResponse<User>> => {

@@ -1,43 +1,41 @@
 import { NavLink, FooterColumn, SocialLink, CommercialSection } from "../types";
 
 export const navLinks: NavLink[] = [
-  { label: "Home", href: "#", hasDropdown: false },
-  { label: "Categories", href: "#categories", hasDropdown: false },
-  { label: "Bestsellers", href: "#best-sellers", hasDropdown: false },
-  { label: "Why Us", href: "#why-choose-us", hasDropdown: false },
-  { label: "Our Story", href: "#timeline", hasDropdown: false },
-  { label: "Commercial", href: "#commercial", hasDropdown: false },
+  { label: "Home", href: "/", hasDropdown: false },
+  { label: "Categories", href: "/#categories", hasDropdown: false },
+  { label: "Why Us", href: "/#why-choose-us", hasDropdown: false },
+  { label: "About Us", href: "/about", hasDropdown: false },
+  { label: "Appliances", href: "/shop", hasDropdown: false },
 ];
 
 export const footerColumns: FooterColumn[] = [
   {
     heading: "Shop Range",
     links: [
-      { label: "Pressure Cookers", href: "#pressure-cookers" },
-      { label: "Wet Grinders", href: "#wet-grinders" },
-      { label: "LPG Stoves", href: "#gas-stoves" },
-      { label: "Mixer Grinders", href: "#mixer-grinders" },
-      { label: "Stainless Steel Wet Grinders", href: "#wet-grinders" }
+      { label: "Pressure Cookers", href: "/shop?category=pressure-cookers" },
+      { label: "Wet Grinders", href: "/shop?category=wet-grinders" },
+      { label: "LPG Stoves", href: "/shop?category=gas-stoves" },
+      { label: "Stainless Steel Wet Grinders", href: "/shop?category=wet-grinders" }
     ]
   },
   {
     heading: "Support Center",
     links: [
-      { label: "Product Warranty", href: "#" },
-      { label: "Service Centers", href: "#" },
-      { label: "User Manuals", href: "#" },
-      { label: "Customer Care", href: "#" },
-      { label: "Replacement Parts", href: "#" }
+      { label: "Product Warranty", href: "/warranty-registration" },
+      { label: "Service Centers", href: "/service-request" },
+      { label: "User Manuals", href: "/support" },
+      { label: "Customer Care", href: "/contact" },
+      { label: "Replacement Parts", href: "/support" }
     ]
   },
   {
-    heading: "Support Center", // Repeating support for consistency
+    heading: "Company Info",
     links: [
-      { label: "About Us", href: "#timeline" },
-      { label: "Manufacturing Facility", href: "#" },
-      { label: "Commercial kitchen solutions", href: "#commercial" },
-      { label: "Corporate Careers", href: "#" },
-      { label: "Media Kit", href: "#" }
+      { label: "About Us", href: "/about" },
+      { label: "Manufacturing Facility", href: "/about" },
+      { label: "Commercial kitchen solutions", href: "/shop?category=commercial" },
+      { label: "Corporate Careers", href: "/about" },
+      { label: "Media Kit", href: "/about" }
     ]
   }
 ];
@@ -52,7 +50,7 @@ export const socialLinks: SocialLink[] = [
 export const commercialSectionData: CommercialSection = {
   eyebrow: "HEAVY-DUTY LINE",
   heading: "Commercial Kitchen Solutions",
-  description: "We manufacture massive capacity commercial wet grinders, heavy-duty mixer grinders, bulk pressure cookers, and high-efficiency LPG stoves tailored for restaurants, high-volume caterers, and institutional kitchens. Engineered for continuous operation under demanding conditions.",
+  description: "We manufacture massive capacity commercial wet grinders, bulk pressure cookers, and high-efficiency LPG stoves tailored for restaurants, high-volume caterers, and institutional kitchens. Engineered for continuous operation under demanding conditions.",
   bullets: [
     "Rugged Build: High-grade steel housings",
     "High Capacity: Up to 20-litre wet grinders",
@@ -60,6 +58,5 @@ export const commercialSectionData: CommercialSection = {
   ],
   badgeLabel: "COMMERCIAL",
   image: "https://images.unsplash.com/photo-1581092921461-eab62e97a780?q=80&w=1200&auto=format&fit=crop",
-  primaryCTA: { label: "Get Commercial Catalog", href: "#catalog" },
-  secondaryCTA: { label: "Consult an Engineer", href: "#consult" }
+  primaryCTA: { label: "Get Commercial Catalog", href: "/2026-SD Smart Catalogue.pdf" }
 };

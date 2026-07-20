@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ShoppingBag, Building, ArrowRight } from "lucide-react";
 import AuthBackground from "@/components/animations/AuthBackground";
 import { useAuth } from "@/providers/AuthProvider";
 
 export default function SignupPage() {
   const router = useRouter();
   const { signup } = useAuth();
+  const [roleChoice, setRoleChoice] = useState<"SELECT" | "CUSTOMER">("SELECT");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -82,7 +83,7 @@ export default function SignupPage() {
       // Redirect to home page after success animation completes
       setTimeout(() => {
         router.push("/");
-      }, 3000);
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "Signup failed. Please try again.");
     } finally {
@@ -90,21 +91,103 @@ export default function SignupPage() {
     }
   };
 
+  if (roleChoice === "SELECT") {
+    return (
+      <AuthBackground focusPos={focusPos} isSuccess={isSuccess}>
+        <div className="w-full max-w-lg bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/20 dark:border-slate-800/40 rounded-2xl p-6 sm:p-8 shadow-2xl transition-all duration-500 text-center">
+          {/* Header */}
+          <div className="mb-6">
+            <Link href="/" className="inline-block mb-4">
+              <img
+                src="/SD-logo.png"
+                alt="SD Smart Appliances"
+                className="h-10 w-auto object-contain"
+              />
+            </Link>
+            <h1 className="text-2xl font-bold text-[#1C1C1C] dark:text-white mb-2">Create Account</h1>
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm">Choose your account type to get started</p>
+          </div>
+
+          {/* Cards Container */}
+          <div className="space-y-4 my-6">
+            {/* Customer Option */}
+            <div 
+              onClick={() => setRoleChoice("CUSTOMER")}
+              className="group border border-neutral-200 dark:border-slate-800 hover:border-[#D71920] dark:hover:border-[#D71920] bg-white/50 dark:bg-slate-950/40 hover:bg-white dark:hover:bg-slate-950 p-5 rounded-2xl text-left cursor-pointer transition-all duration-300 flex items-center gap-4 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <div className="w-12 h-12 rounded-xl bg-[#D71920]/10 text-[#D71920] flex items-center justify-center transition-all group-hover:scale-110 shrink-0">
+                <ShoppingBag size={22} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-base text-[#1C1C1C] dark:text-white flex items-center gap-1.5">
+                  <span>Register as a Customer</span>
+                  <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 text-[#D71920]" />
+                </h3>
+                <p className="text-neutral-500 dark:text-neutral-400 text-xs mt-1 leading-relaxed">
+                  Browse appliances, add items to cart, and place retail orders instantly.
+                </p>
+              </div>
+            </div>
+
+            {/* Distributor Option */}
+            <div 
+              onClick={() => router.push("/auth/distributor-signup")}
+              className="group border border-neutral-200 dark:border-slate-800 hover:border-[#D71920] dark:hover:border-[#D71920] bg-white/50 dark:bg-slate-950/40 hover:bg-white dark:hover:bg-slate-950 p-5 rounded-2xl text-left cursor-pointer transition-all duration-300 flex items-center gap-4 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <div className="w-12 h-12 rounded-xl bg-[#D71920]/10 text-[#D71920] flex items-center justify-center transition-all group-hover:scale-110 shrink-0">
+                <Building size={22} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-base text-[#1C1C1C] dark:text-white flex items-center gap-1.5">
+                  <span>Register as a Distributor</span>
+                  <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 text-[#D71920]" />
+                </h3>
+                <p className="text-neutral-500 dark:text-neutral-400 text-xs mt-1 leading-relaxed">
+                  Apply for a wholesale B2B partner account with customized billing and tax invoicing.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Sign In Link */}
+          <p className="text-center mt-6 text-neutral-600 dark:text-neutral-400 text-sm">
+            Already have an account?{" "}
+            <Link
+              href="/auth/login"
+              className="text-[#D71920] font-semibold hover:text-[#D71920]/80 transition-colors"
+            >
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </AuthBackground>
+    );
+  }
+
   return (
     <AuthBackground focusPos={focusPos} isSuccess={isSuccess}>
       <div className="w-full max-w-md bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/20 dark:border-slate-800/40 rounded-2xl p-6 sm:p-8 shadow-2xl transition-all duration-500">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-block mb-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/sd-smart-ecommerce/SD-logo.png"
-              alt="SD Smart Appliances"
-              className="h-10 w-auto object-contain"
-            />
-          </Link>
-          <h1 className="text-2xl font-bold text-[#1C1C1C] mb-2">Create Account</h1>
-          <p className="text-neutral-600">Join SD Smart Appliances community</p>
+          <div className="flex items-center justify-between mb-4">
+            <button 
+              type="button" 
+              onClick={() => setRoleChoice("SELECT")} 
+              className="text-xs text-neutral-500 hover:text-[#D71920] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              ← Back
+            </button>
+            <Link href="/" className="inline-block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/SD-logo.png"
+                alt="SD Smart Appliances"
+                className="h-8 w-auto object-contain"
+              />
+            </Link>
+          </div>
+          <h1 className="text-2xl font-bold text-[#1C1C1C] dark:text-white mb-2">Create Account</h1>
+          <p className="text-neutral-600 dark:text-neutral-400">Join SD Smart Appliances community</p>
         </div>
 
         {/* Form */}
@@ -268,12 +351,18 @@ export default function SignupPage() {
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+              <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+            )}
+            {formData.confirmPassword && formData.password === formData.confirmPassword && (
+              <p className="text-xs text-green-500 mt-1">Passwords match</p>
+            )}
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading || isSuccess || !isPasswordStrong}
+            disabled={loading || isSuccess || !isPasswordStrong || formData.password !== formData.confirmPassword}
             className="w-full py-2 bg-[#D71920] text-white font-semibold rounded-lg hover:bg-[#B91520] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading || isSuccess ? (

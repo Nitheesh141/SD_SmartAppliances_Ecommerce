@@ -1,13 +1,6 @@
 import dynamic from "next/dynamic";
 import React from "react";
-
-// Helper loading component
-const PageLoader = () => (
-  <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-950 font-sans">
-    <div className="w-12 h-12 border-4 border-[#D71920]/25 border-t-[#D71920] rounded-full animate-spin"></div>
-    <p className="mt-4 text-sm font-semibold text-neutral-500 tracking-wider">Loading...</p>
-  </div>
-);
+import PageLoader from "@/components/layout/PageLoader";
 
 // Lazy-loaded route page components
 
@@ -33,7 +26,109 @@ const AdminManageProductPage = dynamic(() => import("../app/admin/manage-product
   ssr: true,
 });
 
+const AdminProductsPage = dynamic(() => import("../app/admin/products"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminDistributorPricingPage = dynamic(() => import("../app/admin/distributor_pricing_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminMarketingPage = dynamic(() => import("../app/admin/marketing"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminOrdersPage = dynamic(() => import("../app/admin/orders_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminSettingsPage = dynamic(() => import("../app/admin/settings_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminServiceRequestsPage = dynamic(() => import("../app/admin/service_requests_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminWarrantiesPage = dynamic(() => import("../app/admin/warranties_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 const ForgotPasswordPage = dynamic(() => import("../app/auth/forgot-password_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const DistributorSignupPage = dynamic(() => import("../app/auth/distributor_signup_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const DistributerDashboardPage = dynamic(() => import("../app/distributor/distributer_dashboard"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminDistributorsPage = dynamic(() => import("../app/admin/distributors_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminSalesPersonsPage = dynamic(() => import("../app/admin/sales_persons_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminDistributorEnquiriesPage = dynamic(() => import("../app/admin/distributor_enquiries_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesDistributorEnquiriesPage = dynamic(() => import("../app/sales/distributor_enquiries_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesDashboardPage = dynamic(() => import("../app/sales/dashboard_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesDistributorsPage = dynamic(() => import("../app/sales/distributors_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+
+
+const SalesProductsPage = dynamic(() => import("../app/sales/products_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesOrdersPage = dynamic(() => import("../app/sales/orders_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesTargetsPage = dynamic(() => import("../app/sales/targets_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const SalesDailyActivityPage = dynamic(() => import("../app/sales/daily_activity_page"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
+const AdminDailyActivitiesPage = dynamic(() => import("../app/admin/daily_activities_page"), {
   loading: PageLoader,
   ssr: true,
 });
@@ -74,38 +169,17 @@ const CheckoutPage = dynamic(() => import("../app/checkout/checkoutpage"), {
   ssr: true,
 });
 
+const OrderDetailPage = dynamic(() => import("../app/account/orders/orderdetailpage"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 const ShopPage = dynamic(() => import("../app/shop/shoppage"), {
   loading: PageLoader,
   ssr: true,
 });
 
-// Category components
-const PressureCookersPage = dynamic(() => import("../app/shop/pressure-cookers/pressure-cookerspage"), {
-  loading: PageLoader,
-  ssr: true,
-});
-
-const WetGrindersPage = dynamic(() => import("../app/shop/wet-grinders/wet-grinderspage"), {
-  loading: PageLoader,
-  ssr: true,
-});
-
-const GasStovesPage = dynamic(() => import("../app/shop/gas-stoves/gas-stovespage"), {
-  loading: PageLoader,
-  ssr: true,
-});
-
-const NonStickPage = dynamic(() => import("../app/shop/non-stick/non-stickpage"), {
-  loading: PageLoader,
-  ssr: true,
-});
-
-const CommercialPage = dynamic(() => import("../app/shop/commercial/commercialpage"), {
-  loading: PageLoader,
-  ssr: true,
-});
-
-const AccessoriesPage = dynamic(() => import("../app/shop/accessories/accessoriespage"), {
+const ProductDetailPage = dynamic(() => import("../app/product/productpage"), {
   loading: PageLoader,
   ssr: true,
 });
@@ -141,11 +215,39 @@ const FAQsPage = dynamic(() => import("../app/faqs/faqspage"), {
   ssr: true,
 });
 
+const TrackServiceRequestPage = dynamic(() => import("../app/track-service-request/track-service-requestpage"), {
+  loading: PageLoader,
+  ssr: true,
+});
+
 export const routes: Record<string, React.ComponentType<any>> = {
   "/": LandingPage,
+  "/track-service-request": TrackServiceRequestPage,
+  "/service-request/track": TrackServiceRequestPage,
   "/auth/login": LoginPage,
   "/auth/signup": SignupPage,
+  "/auth/distributor-signup": DistributorSignupPage,
+  "/distributor/dashboard": DistributerDashboardPage,
+  "/admin/distributors": AdminDistributorsPage,
+  "/admin/sales-persons": AdminSalesPersonsPage,
+  "/admin/distributor-enquiries": AdminDistributorEnquiriesPage,
+  "/sales/dashboard": SalesDashboardPage,
+  "/sales/distributors": SalesDistributorsPage,
+
+  "/sales/products": SalesProductsPage,
+  "/sales/distributor-enquiries": SalesDistributorEnquiriesPage,
+  "/sales/orders": SalesOrdersPage,
+  "/sales/targets": SalesTargetsPage,
+  "/sales/daily-activity": SalesDailyActivityPage,
+  "/admin/daily-activities": AdminDailyActivitiesPage,
   "/admin/dashboard": AdminDashboardPage,
+  "/admin/products": AdminProductsPage,
+  "/admin/distributor-pricing": AdminDistributorPricingPage,
+  "/admin/orders": AdminOrdersPage,
+  "/admin/service-requests": AdminServiceRequestsPage,
+  "/admin/warranties": AdminWarrantiesPage,
+  "/admin/marketing": AdminMarketingPage,
+  "/admin/settings": AdminSettingsPage,
   "/admin/manage-product": AdminManageProductPage,
   "/admin/manage": AdminManageProductPage,
   "/auth/forgot-password": ForgotPasswordPage,
@@ -156,12 +258,6 @@ export const routes: Record<string, React.ComponentType<any>> = {
   "/account": AccountPage,
   "/checkout": CheckoutPage,
   "/shop": ShopPage,
-  "/shop/pressure-cookers": PressureCookersPage,
-  "/shop/wet-grinders": WetGrindersPage,
-  "/shop/gas-stoves": GasStovesPage,
-  "/shop/non-stick": NonStickPage,
-  "/shop/commercial": CommercialPage,
-  "/shop/accessories": AccessoriesPage,
   "/support": SupportPage,
   "/warranty-registration": WarrantyRegistrationPage,
   "/service-request": ServiceRequestPage,
@@ -172,5 +268,11 @@ export const routes: Record<string, React.ComponentType<any>> = {
 
 export function getRouteComponent(path: string) {
   const cleanPath = path === "/" ? "/" : path.replace(/\/$/, "");
+  if (cleanPath.startsWith("/product/")) {
+    return ProductDetailPage;
+  }
+  if (cleanPath.startsWith("/account/orders/")) {
+    return OrderDetailPage;
+  }
   return routes[cleanPath] || null;
 }

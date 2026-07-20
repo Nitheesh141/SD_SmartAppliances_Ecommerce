@@ -1,4 +1,5 @@
 "use client";
+import { ENV } from "@/config/env";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 
@@ -10,6 +11,9 @@ interface UserProfile {
   firstName?: string;
   lastName?: string;
   role?: string;
+  companyName?: string | null;
+  gstin?: string | null;
+  approvalStatus?: string | null;
 }
 
 interface AuthContextType {
@@ -19,6 +23,7 @@ interface AuthContextType {
   login: (emailOrPhone: string, password: string) => Promise<void>;
   signup: (email: string, password: string, firstName: string, lastName: string, phoneNumber?: string) => Promise<void>;
   adminSignup: (email: string, password: string, firstName: string, lastName: string, phoneNumber?: string) => Promise<void>;
+  distributorSignup: (distributorData: any) => Promise<void>;
   logout: () => void;
   resetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
   sendOtp: (phone: string) => Promise<void>;
@@ -32,6 +37,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [didInit, setDidInit] = useState(false);
+
+  // Patch global fetch to log detailed error status and URLs across all files
+  useEffect(() => {
+    if (typeof window !== "undefined" && !(window as any).fetchPatched) {
+      const originalFetch = window.fetch;
+      window.fetch = async function (...args) {
+        try {
+          const response = await originalFetch(...args);
+          if (!response.ok) {
+            if (response.status >= 500) {
+              console.error(`API Error: Fetch failed with status ${response.status} (${response.statusText || "Error"}) for URL: ${response.url}`);
+            } else {
+              console.warn(`API Info: Fetch returned status ${response.status} for URL: ${response.url}`);
+            }
+          }
+          return response;
+        } catch (error: any) {
+          console.error(`API Network Error: Failed to fetch URL: ${args[0]}. Error: ${error.message || error}`);
+          throw error;
+        }
+      };
+      (window as any).fetchPatched = true;
+    }
+  }, []);
 
   // Check if user is logged in on mount
   useEffect(() => {
@@ -39,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const token = localStorage.getItem("authToken");
         if (token) {
-          const response = await fetch("http://localhost:5000/api/auth/me", {
+          const response = await fetch(`${ENV.API_BASE_URL}/auth/me`, {
             method: "GET",
             headers: {
               "Authorization": `Bearer ${token}`,
@@ -51,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsAuthenticated(true);
             localStorage.setItem("userProfile", JSON.stringify(data.user));
           } else {
+            console.warn(`Auth check failed: Server returned status ${response.status} (${response.statusText || "Error"})`);
             // Token is invalid/expired, clear auth state
             localStorage.removeItem("authToken");
             localStorage.removeItem("userProfile");
@@ -58,10 +89,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsAuthenticated(false);
           }
         }
-      } catch (error) {
-        console.error("Auth check failed:", error);
+      } catch (error: any) {
+        console.error("Auth check failed (Network Error):", error.message);
       } finally {
         setLoading(false);
+        setDidInit(true);
       }
     };
 
@@ -71,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (emailOrPhone: string, password: string) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: emailOrPhone, password }),
@@ -88,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       setIsAuthenticated(true);
     } catch (error) {
-      console.error("Login error:", error);
+      console.warn("Login error:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -98,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async (email: string, password: string, firstName: string, lastName: string, phoneNumber?: string) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/signup", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, firstName, lastName, phoneNumber }),
@@ -115,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       setIsAuthenticated(true);
     } catch (error) {
-      console.error("Signup error:", error);
+      console.warn("Signup error:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -125,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const adminSignup = async (email: string, password: string, firstName: string, lastName: string, phoneNumber?: string) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/admin/signup", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/admin/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, firstName, lastName, phoneNumber }),
@@ -149,16 +181,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const distributorSignup = async (distributorData: any) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/distributor/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(distributorData),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || "Distributor registration failed");
+      }
+
+      const data = await response.json();
+      localStorage.setItem("authToken", data.token);
+      localStorage.setItem("userProfile", JSON.stringify(data.user));
+      setUser(data.user);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error("Distributor signup error:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("userProfile");
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("adminLandingBypass");
+    }
     setUser(null);
     setIsAuthenticated(false);
   };
 
   const resetPassword = async (email: string, code: string, newPassword: string) => {
     try {
-      const response = await fetch("http://localhost:5000/api/auth/reset-password", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code, newPassword }),
@@ -174,7 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const sendOtp = async (phone: string) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/send-otp", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone }),
@@ -195,7 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithOtp = async (phone: string, code: string) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/auth/verify-otp", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, code }),
@@ -223,7 +285,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const token = localStorage.getItem("authToken");
-      const response = await fetch("http://localhost:5000/api/auth/update", {
+      const response = await fetch(`${ENV.API_BASE_URL}/auth/update`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -248,6 +310,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Sync user profile state with cookies for Server-Side routing
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (user) {
+        document.cookie = `userProfile=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=86400; SameSite=Lax`;
+      } else if (didInit) {
+        document.cookie = "userProfile=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+        document.cookie = "adminLandingBypass=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+      }
+    }
+  }, [user, didInit]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -257,6 +331,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         signup,
         adminSignup,
+        distributorSignup,
         logout,
         resetPassword,
         sendOtp,

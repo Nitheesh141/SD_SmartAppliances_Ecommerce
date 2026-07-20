@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Search, User, Heart, ShoppingCart, ChevronDown, Menu, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Search, User, ShoppingCart, ChevronDown, Menu, X, ChevronRight, Headphones, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ENV } from "@/config/env";
 import { NavLink } from "../../app/LandingPage/types";
 import { THEME_CLASSES } from "@/config/themes";
 import { useAuth } from "@/providers/AuthProvider";
+import { useCart } from "@/providers/CartProvider";
+import { useDynamicProducts } from "@/hooks/useDynamicProducts";
+import { matchProduct } from "../../utils/search";
 
 interface HeaderProps {
   navLinks?: NavLink[];
@@ -20,31 +24,200 @@ const defaultNavLinks = [
   { label: "Categories", href: "/shop", hasDropdown: true },
   { label: "Bestsellers", href: "/shop" },
   { label: "Why Us", href: "/about" },
-  { label: "Our Story", href: "/about" },
-  { label: "Commercial", href: "/shop/commercial" },
+  { label: "About Us", href: "/about" },
+  { label: "Appliances", href: "/shop" },
 ];
 
 const shopDropdownLinks = [
-  { label: "Pressure Cookers", href: "/shop/pressure-cookers" },
-  { label: "Wet Grinders", href: "/shop/wet-grinders" },
-  { label: "Gas Stoves", href: "/shop/gas-stoves" },
-  { label: "Non-Stick Cookware", href: "/shop/non-stick" },
-  { label: "Kitchen Accessories", href: "/shop/accessories" },
-  { label: "Commercial Products", href: "/shop/commercial" },
+  { label: "Pressure Cookers", href: "/shop?category=pressure-cookers" },
+  { label: "Wet Grinders", href: "/shop?category=wet-grinders" },
+  { label: "Gas Stoves", href: "/shop?category=gas-stoves" },
+  { label: "Non-Stick Cookware", href: "/shop?category=non-stick" },
+  { label: "Kitchen Accessories", href: "/shop?category=accessories" },
+  { label: "Commercial Products", href: "/shop?category=commercial" },
 ];
 
 export default function Header({ navLinks = defaultNavLinks, isAuthenticated: propIsAuthenticated, userProfile: propUserProfile }: HeaderProps) {
-  const { isAuthenticated: contextIsAuthenticated, user: contextUser } = useAuth();
+  const { isAuthenticated: contextIsAuthenticated, user: contextUser, logout } = useAuth();
 
   const isAuthenticated = propIsAuthenticated !== undefined ? propIsAuthenticated : contextIsAuthenticated;
   const userProfile = propUserProfile !== undefined ? propUserProfile : contextUser;
+  
+  const [sellerPhone, setSellerPhone] = useState("+91 80 4455 6677");
+
+  useEffect(() => {
+    const fetchPhone = async () => {
+      try {
+        const res = await fetch(`${ENV.API_BASE_URL}/settings`);
+        const data = await res.json();
+        if (data.success && data.settings?.seller_phone) {
+          setSellerPhone(data.settings.seller_phone);
+        }
+      } catch (err) {
+        console.error("Failed to fetch seller phone:", err);
+      }
+    };
+    fetchPhone();
+  }, []);
+
+  // Use optional chaining or try-catch in case it's used outside provider (though it shouldn't be)
+  let cartCount = 0;
+  try {
+    const cartContext = useCart();
+    cartCount = cartContext.cartCount;
+  } catch (e) {
+    console.warn("Header used outside CartProvider");
+  }
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const pathname = usePathname() || "";
+
+  const router = useRouter();
+  const allProducts = useDynamicProducts();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [currentHash, setCurrentHash] = useState("");
+  const [activeSection, setActiveSection] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentHash(window.location.hash);
+      const handleHashChange = () => {
+        setCurrentHash(window.location.hash);
+      };
+      window.addEventListener("hashchange", handleHashChange);
+      return () => window.removeEventListener("hashchange", handleHashChange);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!profileDropdownOpen) return;
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const dropdownEl = document.getElementById("profile-dropdown-menu");
+      const buttonEl = document.getElementById("profile-menu-button");
+
+      if (
+        dropdownEl && !dropdownEl.contains(target) &&
+        buttonEl && !buttonEl.contains(target)
+      ) {
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [profileDropdownOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const isHomePage = pathname === "/" || pathname === "";
+    if (!isHomePage) {
+      setActiveSection("");
+      return;
+    }
+
+    const sections = ["categories", "why-choose-us"];
+    let observer: IntersectionObserver | null = null;
+
+    const setupObserver = () => {
+      const elements = sections
+        .map(id => document.getElementById(id))
+        .filter(el => el !== null) as HTMLElement[];
+
+      if (elements.length === 0) return false;
+
+      const observerOptions = {
+        root: null,
+        rootMargin: "-30% 0px -50% 0px",
+        threshold: 0,
+      };
+
+      const observerCallback = (entries: IntersectionObserverEntry[]) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      };
+
+      observer = new IntersectionObserver(observerCallback, observerOptions);
+      elements.forEach(el => observer?.observe(el));
+      return true;
+    };
+
+    const hasObserved = setupObserver();
+    let retryTimer: NodeJS.Timeout;
+
+    if (!hasObserved) {
+      retryTimer = setTimeout(() => {
+        setupObserver();
+      }, 800);
+    }
+
+    const handleScroll = () => {
+      if (window.scrollY < 180) {
+        setActiveSection("");
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      if (observer) observer.disconnect();
+      if (retryTimer) clearTimeout(retryTimer);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [pathname]);
+
+  const isLinkActive = (href: string) => {
+    const currentPath = pathname;
+    const isHomePage = currentPath === "/" || currentPath === "";
+
+    if (isHomePage) {
+      if (href === "/") {
+        return activeSection === "";
+      }
+      if (href.includes("#")) {
+        const [, hHash] = href.split("#");
+        return activeSection === hHash;
+      }
+    }
+
+    // Fallback path matching
+    const hasMatchingHashLink = navLinks.some((link) => {
+      if (link.href.includes("#")) {
+        const [, hHash] = link.href.split("#");
+        return currentHash === `#${hHash}`;
+      }
+      return false;
+    });
+
+    if (href.includes("#")) {
+      const [hPath, hHash] = href.split("#");
+      const targetPath = hPath === "" ? "/" : hPath;
+      const cleanCurrentPath = currentPath === "" ? "/" : currentPath;
+
+      const pathMatches = cleanCurrentPath === targetPath;
+
+      return pathMatches && currentHash === `#${hHash}`;
+    }
+
+    if (currentHash && hasMatchingHashLink) {
+      return false;
+    }
+
+    return (
+      currentPath === href ||
+      (href === "/" && currentPath === "/")
+    );
+  };
 
   useEffect(() => {
     setIsLoaded(true);
@@ -55,36 +228,107 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.classList.add("overflow-hidden");
+    } else {
+      document.body.classList.remove("overflow-hidden");
+    }
+    return () => {
+      document.body.classList.remove("overflow-hidden");
+    };
+  }, [mobileOpen]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    if (value.trim().length >= 2) {
+      const filtered = allProducts.filter((product) => matchProduct(product, value));
+      setSuggestions(filtered.slice(0, 5));
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const handleSearchSubmit = (query: string) => {
+    if (query.trim()) {
+      router.push(`/shop?search=${encodeURIComponent(query)}`);
+      setSearchOpen(false);
+      setSearchQuery("");
+      setSuggestions([]);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearchSubmit(searchQuery);
+    }
+  };
+
+  const handleSuggestionClick = (productName: string) => {
+    handleSearchSubmit(productName);
+  };
+
   return (
     <header className={cn(
-      "sticky top-0 z-50 transition-all duration-500 will-change-transform",
+      "sticky top-0 z-50 transition-all duration-500 will-change-transform border-b",
       isScrolled
-        ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-b border-neutral-200/50 shadow-[0_5px_22px_rgba(215,25,32,0.22)] dark:shadow-[0_5px_25px_rgba(215,25,32,0.38)] py-1"
-        : "bg-red-50 dark:bg-[#1A090A] border-b border-neutral-200/20 shadow-[0_3px_16px_rgba(215,25,32,0.15)] dark:shadow-[0_3px_20px_rgba(215,25,32,0.28)] py-1",
+        ? "bg-red-50/95 dark:bg-[#1A090A]/95 border-neutral-200/80 shadow-[0_15px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.7)]"
+        : "bg-red-50 dark:bg-[#1A090A] border-neutral-200/40 shadow-[0_6px_25px_rgba(0,0,0,0.1)] dark:shadow-[0_6px_25px_rgba(0,0,0,0.45)]",
       isLoaded ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
     )}>
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
-        <div className="flex items-center h-15 gap-4 lg:gap-8">
+      {/* Top Support Bar */}
+      <div className="bg-red-100/55 dark:bg-red-950/20 text-neutral-600 dark:text-neutral-350 py-2 px-4 text-xs md:text-[12.5px] font-extrabold uppercase tracking-wider border-b border-neutral-200/50 dark:border-neutral-800/40 animate-in fade-in duration-300">
+        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-center md:justify-between items-center gap-2 md:gap-4 px-4 sm:px-6 lg:px-8 xl:px-12 text-center md:text-left">
+          <div className="flex items-center gap-1.5 justify-center md:justify-start">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-650 animate-pulse"></span>
+            <span>Customer Support</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-4 gap-y-1.5">
+            <a href="tel:18001239397" className="flex items-center gap-1.5 hover:text-[#D71920] dark:hover:text-red-400 transition-colors">
+              <Headphones size={13.5} className="text-[#D71920]" />
+              <span>Toll-Free: 1800 123 9397</span>
+            </a>
+            <span className="hidden sm:inline text-neutral-300 dark:text-neutral-750">|</span>
+            <a href={`tel:${sellerPhone}`} className="hover:text-[#D71920] dark:hover:text-red-400 transition-colors">
+              <span>Support: {sellerPhone}</span>
+            </a>
+            <span className="hidden sm:inline text-neutral-300 dark:text-neutral-750">|</span>
+            <a 
+              href={`https://wa.me/${sellerPhone.replace(/[^0-9]/g, "")}`} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="flex items-center gap-1.5 hover:text-green-500 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" width="13.5" height="13.5" fill="currentColor" className="text-green-500">
+                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.003 5.324 5.328 0 11.859 0c3.166.001 6.141 1.233 8.377 3.469 2.235 2.237 3.466 5.214 3.464 8.384-.003 6.536-5.328 11.86-11.859 11.86-2.007-.001-3.98-.51-5.735-1.479L0 24zm6.59-4.846c1.62.962 3.238 1.469 4.881 1.47 5.434 0 9.855-4.422 9.857-9.856.001-2.632-1.02-5.107-2.875-6.963C16.657 1.95 14.187.93 11.86.93c-5.436 0-9.859 4.422-9.86 9.857-.001 1.847.489 3.65 1.42 5.25L2.39 20.312l4.257-1.158z" />
+              </svg>
+              <span>WhatsApp Chat</span>
+            </a>
+          </div>
+        </div>
+      </div>
 
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-1 md:py-2">
+        {/* Desktop View (Visible on xl breakpoint and up) */}
+        <div className="hidden xl:flex items-center h-16 gap-3 sm:gap-4 xl:gap-8">
           {/* Logo */}
-          <Link href="/" className="flex items-center flex-shrink-0 ml-[-80px]">
+          <Link href="/" className="flex items-center flex-shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/sd-smart-ecommerce/SD-logo.png"
+              src="/SD-logo.png"
               alt="SD Smart Appliances"
-              className="h-15 w-auto object-contain mix-blend-multiply"
+              className="h-10 sm:h-12 md:h-14 w-auto object-contain mix-blend-multiply"
             />
           </Link>
 
-
-
           {/* Nav — desktop */}
-          <nav className="hidden lg:flex items-center gap-1.2 ml-12">
+          <nav className="flex items-center gap-1 xl:gap-1.5 2xl:gap-2.5 ml-3 xl:ml-6 2xl:ml-8">
             {navLinks.map((link) =>
               link.hasDropdown ? (
                 <div key={link.label} className="relative group">
                   <button
-                    className="flex items-center gap-1 px-3 py-2 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                    className="flex items-center gap-1 px-2 py-1.5 xl:px-2.5 xl:py-2 text-xs xl:text-[13px] 2xl:text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
                     onMouseEnter={() => setShopOpen(true)}
                     onMouseLeave={() => setShopOpen(false)}
                   >
@@ -94,7 +338,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                   {/* Dropdown */}
                   <div
                     className={cn(
-                      "absolute top-full left-0 mt-1 w-52 bg-white border border-neutral-200 rounded-xl shadow-xl py-2 z-50 transition-all duration-150",
+                      "absolute top-full left-0 mt-1 w-52 bg-white dark:bg-[#1A090A] border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-2 z-50 transition-all duration-150",
                       shopOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-1"
                     )}
                     onMouseEnter={() => setShopOpen(true)}
@@ -104,7 +348,7 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                       <Link
                         key={l.href}
                         href={l.href}
-                        className="block px-4 py-2 text-sm text-neutral-700 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        className="block px-4 py-2 text-sm text-neutral-700 dark:text-neutral-350 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
                       >
                         {l.label}
                       </Link>
@@ -116,53 +360,186 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                   key={link.label}
                   href={link.href}
                   className={cn(
-                    "px-3 py-2 text-sm font-semibold rounded-lg transition-all duration-300 relative",
-                    pathname === link.href || (link.href === "/" && (pathname === "/" || pathname === "/sd-smart-ecommerce"))
+                    "px-2 py-1.5 xl:px-2.5 xl:py-2 text-xs xl:text-[13px] 2xl:text-sm font-semibold rounded-lg transition-all duration-300 relative",
+                    isLinkActive(link.href)
                       ? "text-[#D71920]"
-                      : "text-[#1C1C1C] hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40"
+                      : "text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40"
                   )}
                 >
                   {link.label}
-                  {(pathname === link.href || (link.href === "/" && (pathname === "/" || pathname === "/sd-smart-ecommerce"))) && (
-                    <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#D71920] rounded-full" />
+                  {isLinkActive(link.href) && (
+                    <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-[#D71920] rounded-full" />
                   )}
                 </Link>
               )
             )}
           </nav>
 
-          {/* Search — desktop (Icon Only) */}
-          <div className="hidden md:flex ml-auto">
-            <button
-              onClick={() => setSearchOpen(!searchOpen)}
-              className="p-2 text-neutral-600 hover:text-[#D71920] rounded-lg transition-colors"
-              aria-label="Search"
-            >
-              <Search size={18} />
-            </button>
-          </div>
+          {/* Search & Actions Group (Desktop) */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 ml-auto flex-shrink-0">
+            {/* Search Input inline */}
+            <div className="hidden md:block relative w-36 lg:w-44 xl:w-52 2xl:w-72 transition-all duration-300">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Search pressure cookers, wet grinders..."
+                className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm font-semibold border border-neutral-300 dark:border-slate-800 hover:border-[#D71920] rounded-full bg-white dark:bg-neutral-900 focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 text-slate-800 dark:text-neutral-100 shadow-sm focus:border-[#D71920] transition-all placeholder-neutral-400 dark:placeholder-neutral-500"
+              />
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#D71920]" />
 
-          {/* Auth Actions */}
-          <div className="flex items-center gap-2 ml-auto lg:ml-2">
+              {/* Suggestions List dropdown */}
+              {suggestions.length > 0 && (
+                <div className="absolute top-full right-0 mt-2 w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl py-2 z-50 max-h-60 overflow-y-auto">
+                  {suggestions.map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => handleSuggestionClick(product.name)}
+                      className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-red-50/50 dark:hover:bg-red-950/20 text-neutral-700 dark:text-neutral-350 hover:text-[#D71920] dark:hover:text-red-400 flex items-center justify-between border-b border-neutral-50 dark:border-neutral-800/40 last:border-0 cursor-pointer"
+                    >
+                      <span className="truncate">{product.name}</span>
+                      <span className="text-[10px] text-neutral-400 font-bold bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">{product.categoryLabel}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Auth Actions */}
             {isAuthenticated ? (
               <>
-                {/* Authenticated: Profile, Wishlist, Cart */}
-                {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin") && (
-                  <Link href="/admin/dashboard" className="px-3 py-1.5 bg-[#D71920] text-white text-xs font-bold rounded-lg hover:bg-[#B91520] transition-colors flex items-center mr-1" title="Admin Dashboard">
-                    <span>Admin Panel</span>
+                {/* Authenticated: Profile Dropdown, Wishlist, Cart */}
+                {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
+                  <Link 
+                    href="/admin/dashboard" 
+                    className="px-4 py-2 bg-[#D71920] hover:bg-[#B91520] text-white text-[11px] font-black uppercase tracking-wider rounded-full transition-all shadow-md shadow-red-500/10 hover:shadow-lg hover:shadow-red-500/20 active:scale-95 flex items-center mr-1"
+                    title="Admin Dashboard"
+                  >
+                    <span className="hidden xl:inline">Admin Panel</span>
+                    <span className="xl:hidden">Admin</span>
                   </Link>
                 )}
-                <Link href="/account" className="p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Account">
-                  <User size={18} />
-                </Link>
-                <Link href="/wishlist" className="p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Wishlist">
-                  <Heart size={18} />
-                </Link>
-                <Link href="/cart" className="relative p-2 text-neutral-600 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors" aria-label="Cart">
-                  <ShoppingCart size={18} />
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-[#D71920] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                    0
-                  </span>
+                {userProfile && (userProfile.role?.toUpperCase() === "SALESPERSON") && (
+                  <Link 
+                    href="/sales/dashboard" 
+                    className="px-4 py-2 bg-[#D71920] hover:bg-[#B91520] text-white text-[11px] font-black uppercase tracking-wider rounded-full transition-all shadow-md shadow-red-500/10 hover:shadow-lg hover:shadow-red-500/20 active:scale-95 flex items-center mr-1"
+                    title="Sales Dashboard"
+                  >
+                    <span className="hidden xl:inline">Sales Panel</span>
+                    <span className="xl:hidden">Sales</span>
+                  </Link>
+                )}
+
+
+                {/* Profile dropdown container */}
+                <div className="relative">
+                  <button
+                    id="profile-menu-button"
+                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                    className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 text-neutral-650 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                    aria-label="Account Menu"
+                  >
+                    <div className="w-5.5 h-5.5 rounded-full bg-neutral-800 dark:bg-slate-700 text-white text-[10px] font-black flex items-center justify-center uppercase shadow-sm">
+                      {userProfile?.name ? userProfile.name.split(" ").map((n: string) => n[0]).join("").substring(0, 2) : "U"}
+                    </div>
+                    <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200 max-w-[100px] truncate hidden xl:inline-block">
+                      {userProfile?.name?.split(" ")[0] || "Account"}
+                    </span>
+                    <ChevronDown size={12} className={cn("transition-transform text-neutral-400 shrink-0", profileDropdownOpen && "rotate-185")} />
+                  </button>
+
+                  {/* Profile Dropdown */}
+                  {profileDropdownOpen && (
+                    <div
+                      id="profile-dropdown-menu"
+                      className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#1A090A] border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                    >
+                      <div className="px-5 py-3 border-b border-neutral-100 dark:border-neutral-800/60 mb-1">
+                        <p className="text-sm font-bold text-neutral-800 dark:text-neutral-100 truncate">{userProfile?.name || "User"}</p>
+                        <p className="text-xs text-neutral-455 dark:text-neutral-500 truncate">{userProfile?.email}</p>
+                      </div>
+                      {userProfile && (userProfile.role?.toUpperCase() === "DISTRIBUTOR") && (
+                        <Link
+                          href="/distributor/dashboard"
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="block px-5 py-2.5 text-sm font-bold text-[#D71920] dark:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        >
+                          Distributor Portal
+                        </Link>
+                      )}
+                      {userProfile && (userProfile.role?.toUpperCase() === "SALESPERSON") && (
+                        <Link
+                          href="/sales/dashboard"
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="block px-5 py-2.5 text-sm font-bold text-[#D71920] dark:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        >
+                          Sales Dashboard
+                        </Link>
+                      )}
+                      {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
+                        <Link
+                          href="/admin/dashboard"
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="block px-5 py-2.5 text-sm font-bold text-[#D71920] dark:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                        >
+                          Admin Panel
+                        </Link>
+                      )}
+                      <Link
+                        href="/account?tab=profile"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-350 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                      >
+                        Profile
+                      </Link>
+                      <Link
+                        href="/wishlist"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-350 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                      >
+                        Wishlist
+                      </Link>
+                      <Link
+                        href="/account?tab=orders"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-350 hover:text-[#D71920] hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                      >
+                        My Orders
+                      </Link>
+                      <Link
+                        href="/service-request"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="block px-5 py-2.5 text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
+                      >
+                        Service Requests
+                      </Link>
+                      <hr className="border-neutral-100 dark:border-neutral-800/60 my-1" />
+                      <button
+                        onClick={async () => {
+                          setProfileDropdownOpen(false);
+                          try {
+                            await logout();
+                            router.push("/");
+                          } catch (err) {
+                            console.error("Logout failed:", err);
+                          }
+                        }}
+                        className="w-full text-left px-5 py-2.5 text-sm font-semibold text-[#D71920] dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <Link href="/cart" className="relative p-2 bg-white dark:bg-neutral-900 border border-neutral-250 dark:border-neutral-800 hover:border-[#D71920] hover:text-[#D71920] rounded-full transition-all shadow-sm flex items-center justify-center" aria-label="Cart">
+                  <ShoppingCart size={18} className="text-neutral-700 dark:text-neutral-300" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 bg-[#D71920] text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 shadow-md">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
                 </Link>
               </>
             ) : (
@@ -170,90 +547,323 @@ export default function Header({ navLinks = defaultNavLinks, isAuthenticated: pr
                 {/* Not Authenticated: Login & Register Buttons */}
                 <Link
                   href="/auth/login"
-                  className="px-4 py-2 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] transition-colors hidden sm:block"
+                  className="px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-semibold text-[#1C1C1C] dark:text-neutral-200 hover:text-[#D71920] dark:hover:text-red-400 transition-colors hidden sm:block"
                 >
                   Login
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="px-4 py-2 text-sm font-semibold text-white bg-[#D71920] rounded-lg hover:bg-[#B91520] transition-colors"
+                  className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white bg-[#D71920] rounded-lg hover:bg-[#B91520] transition-colors hidden sm:block"
                 >
                   Register
                 </Link>
               </>
             )}
-
-            {/* Mobile menu toggle */}
-            <button
-              className="lg:hidden p-2 text-neutral-600 hover:text-[#D71920] rounded-lg transition-colors"
-              onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Menu"
-            >
-              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
           </div>
         </div>
 
-        {/* Search Bar (Hidden, Shows on Click) */}
+        {/* Mobile Header View (Visible below xl breakpoint) */}
+        <div className="flex xl:hidden items-center justify-between h-12 w-full gap-2">
+          {/* Hamburger Menu Toggle (Far Left) */}
+          <button
+            onClick={() => {
+              setMobileOpen(!mobileOpen);
+              if (searchOpen) setSearchOpen(false);
+            }}
+            className="p-1.5 text-neutral-650 dark:text-neutral-355 hover:text-[#D71920] rounded-lg transition-colors cursor-pointer shrink-0"
+            aria-label="Menu"
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+
+          {/* Centered Brand Logo */}
+          <div className="flex-grow flex items-center justify-center">
+            <Link href="/" onClick={() => setMobileOpen(false)}>
+              <img
+                src="/SD-logo.png"
+                alt="SD Smart Appliances"
+                className="h-10 w-auto object-contain scale-x-[1.12] origin-center mix-blend-multiply"
+              />
+            </Link>
+          </div>
+
+          {/* Search Icon & Cart Icon (Far Right) */}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Search Icon button */}
+            <button
+              onClick={() => {
+                if (pathname.includes("/shop")) {
+                  const clickSearchInput = document.querySelector(".cursor-pointer input") as HTMLInputElement;
+                  if (clickSearchInput) {
+                    clickSearchInput.click();
+                  } else {
+                    setSearchOpen(!searchOpen);
+                    if (mobileOpen) setMobileOpen(false);
+                  }
+                } else {
+                  setSearchOpen(!searchOpen);
+                  if (mobileOpen) setMobileOpen(false);
+                }
+              }}
+              className="p-1.5 text-neutral-655 dark:text-neutral-300 hover:text-[#D71920] rounded-lg transition-colors cursor-pointer"
+              aria-label="Toggle Search"
+            >
+              {searchOpen ? <X size={18} className="text-[#D71920]" /> : <Search size={18} />}
+            </button>
+
+            {/* Cart Icon button with Badge */}
+            <Link
+              href="/cart"
+              onClick={() => setMobileOpen(false)}
+              className="relative p-1.5 text-neutral-655 dark:text-neutral-300 hover:text-[#D71920] rounded-lg transition-colors"
+              aria-label="Cart"
+            >
+              <ShoppingCart size={18} className="text-neutral-700 dark:text-neutral-350" />
+              {cartCount > 0 && (
+                <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-[#D71920] text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
+            </Link>
+          </div>
+        </div>
+
+        {/* Mobile Search Bar (Expandable, Mobile/Tablet only) */}
         {searchOpen && (
-          <div className="hidden md:flex py-3 border-t border-neutral-100">
-            <div className="relative w-full max-w-xs">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <div className="md:hidden px-4 py-3 border-t border-neutral-200/10 dark:border-neutral-800/60 bg-red-50/95 dark:bg-[#1A090A]/95 animate-in slide-in-from-top-2 duration-200 relative">
+            <div className="relative w-full">
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="Search pressure cookers, wet grinders..."
-                autoFocus
-                className="w-full pl-9 pr-4 py-2 text-sm border border-neutral-200 rounded-md bg-neutral-50 outline-none focus:ring-2 focus:ring-[#D71920]/20 focus:border-[#D71920] transition-all"
+                className="w-full pl-10 pr-10 py-2 text-sm font-semibold border border-[#D71920] dark:border-[#D71920]/80 rounded-xl bg-white dark:bg-neutral-900 focus:outline-none focus:ring-4 focus:ring-[#D71920]/15 text-slate-800 dark:text-neutral-100 shadow-sm focus:border-[#D71920] transition-colors placeholder-neutral-400 dark:placeholder-neutral-500"
               />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#D71920]" />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSuggestions([]);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-[#D71920]"
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
-          </div>
-        )}
 
-        {/* Mobile menu */}
-        {mobileOpen && (
-          <div className="lg:hidden border-t border-neutral-100 py-4 flex flex-col gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-left"
-                onClick={() => setMobileOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="mt-2 pt-2 border-t border-neutral-100 flex flex-col gap-1">
-              {shopDropdownLinks.map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className="px-3 py-2 text-sm text-neutral-600 hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 text-left"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  — {l.label}
-                </Link>
-              ))}
-            </div>
-            {/* Mobile Auth Section */}
-            {!isAuthenticated && (
-              <div className="mt-4 pt-4 border-t border-neutral-100 flex flex-col gap-2">
-                <Link
-                  href="/auth/login"
-                  className="px-3 py-2.5 text-sm font-semibold text-[#1C1C1C] hover:text-[#D71920] rounded-lg hover:bg-red-100/60 dark:hover:bg-red-950/40 transition-colors text-center"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/auth/signup"
-                  className="px-3 py-2.5 text-sm font-semibold text-white bg-[#D71920] rounded-lg hover:bg-[#B91520] transition-colors text-center"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  Register
-                </Link>
+            {/* Suggestions for Mobile Search */}
+            {suggestions.length > 0 && (
+              <div className="absolute left-4 right-4 top-full mt-1 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl py-2 z-50 max-h-60 overflow-y-auto">
+                {suggestions.map((product) => (
+                  <button
+                    key={product.id}
+                    onClick={() => handleSuggestionClick(product.name)}
+                    className="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-red-50/50 dark:hover:bg-red-950/20 text-neutral-700 dark:text-neutral-300 hover:text-[#D71920] dark:hover:text-red-400 flex items-center justify-between border-b border-neutral-50 dark:border-neutral-800/40 last:border-0 cursor-pointer"
+                  >
+                    <span className="truncate">{product.name}</span>
+                    <span className="text-[10px] text-neutral-400 font-bold bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full">{product.categoryLabel}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
+        )}
+        {/* Mobile menu (Sidebar drawer) */}
+        {mobileOpen && (
+          <>
+            {/* Backdrop Overlay */}
+            <div 
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 xl:hidden animate-in fade-in duration-300"
+              onClick={() => setMobileOpen(false)}
+            />
+
+            {/* Sidebar drawer panel */}
+            <div className="xl:hidden fixed top-0 bottom-0 left-0 w-[280px] max-w-[85vw] h-screen bg-white dark:bg-slate-950 z-50 shadow-2xl border-r border-neutral-100 dark:border-neutral-900/60 flex flex-col animate-in slide-in-from-left duration-300">
+              {/* Sidebar Header */}
+              <div className="px-5 py-4 border-b border-neutral-100 dark:border-neutral-900/60 flex items-center justify-between">
+                <Link href="/" onClick={() => setMobileOpen(false)}>
+                  <img
+                    src="/SD-logo.png"
+                    alt="SD Smart Appliances"
+                    className="h-10 w-auto object-contain mix-blend-multiply"
+                  />
+                </Link>
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  className="p-1.5 rounded-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-slate-900 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Scrollable Sidebar Content */}
+              <div className="flex-grow overflow-y-auto py-5 px-5 space-y-6 text-left">
+                {/* Navigation Links */}
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-2">Navigation</p>
+                  {navLinks.map((link) => (
+                    <Link
+                      key={link.label}
+                      href={link.href}
+                      className={cn(
+                        "flex items-center justify-between px-3 py-2.5 text-sm font-semibold rounded-lg hover:bg-red-50/50 dark:hover:bg-red-950/20 transition-all",
+                        isLinkActive(link.href) 
+                          ? "text-[#D71920] bg-red-500/5 font-bold" 
+                          : "text-[#1C1C1C] dark:text-neutral-200"
+                      )}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <span>{link.label}</span>
+                      <ChevronRight size={14} className="text-neutral-400" />
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Shop Categories */}
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-2">Shop Categories</p>
+                  <div className="grid grid-cols-1 gap-1 pl-1">
+                    {shopDropdownLinks.map((l) => (
+                      <Link
+                        key={l.href}
+                        href={l.href}
+                        className="px-3 py-2 text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:text-[#D71920] hover:bg-red-50/30 dark:hover:bg-red-950/10 rounded-lg transition-colors text-left"
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        {l.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Profile & Account Actions */}
+                <div className="border-t border-neutral-100 dark:border-neutral-900/60 pt-5 space-y-4">
+                  {isAuthenticated ? (
+                    <div className="space-y-3">
+                      <div className="px-3 py-2.5 bg-red-500/5 dark:bg-slate-900/40 rounded-xl">
+                        <p className="text-xs font-bold text-neutral-800 dark:text-neutral-200 truncate">{userProfile?.name || "User"}</p>
+                        <p className="text-[10px] text-neutral-400 dark:text-neutral-500 truncate">{userProfile?.email}</p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {userProfile && (userProfile.role?.toUpperCase() === "DISTRIBUTOR") && (
+                          <Link
+                            href="/distributor/dashboard"
+                            className="block px-3 py-2 text-xs font-bold text-[#D71920] dark:text-red-400 rounded-lg hover:bg-red-50/50"
+                            onClick={() => setMobileOpen(false)}
+                          >
+                            Distributor Portal
+                          </Link>
+                        )}
+                        {userProfile && (userProfile.role?.toUpperCase() === "SALESPERSON") && (
+                          <Link
+                            href="/sales/dashboard"
+                            className="block px-3 py-2 text-xs font-bold text-[#D71920] dark:text-red-400 rounded-lg hover:bg-red-50/50"
+                            onClick={() => setMobileOpen(false)}
+                          >
+                            Sales Dashboard
+                          </Link>
+                        )}
+                        {userProfile && (userProfile.role === "admin" || userProfile.role === "superadmin" || userProfile.role === "ADMIN" || userProfile.role === "SUPERADMIN") && (
+                          <Link
+                            href="/admin/dashboard"
+                            className="block px-3 py-2 text-xs font-bold text-[#D71920] dark:text-red-400 rounded-lg hover:bg-red-50/50"
+                            onClick={() => setMobileOpen(false)}
+                          >
+                            Admin Panel
+                          </Link>
+                        )}
+                        <Link
+                          href="/account?tab=profile"
+                          className="block px-3 py-2.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-50 dark:hover:bg-slate-900"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          My Profile
+                        </Link>
+                        <Link
+                          href="/wishlist"
+                          className="block px-3 py-2.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-50 dark:hover:bg-slate-900"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          Wishlist
+                        </Link>
+                        <Link
+                          href="/account?tab=orders"
+                          className="block px-3 py-2.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-50 dark:hover:bg-slate-900"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          My Orders
+                        </Link>
+                        <Link
+                          href="/service-request"
+                          className="block px-3 py-2.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-50 dark:hover:bg-slate-900"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          Service Requests
+                        </Link>
+
+                        <button
+                          onClick={async () => {
+                            setMobileOpen(false);
+                            try {
+                              await logout();
+                              router.push("/");
+                            } catch (err) {
+                              console.error("Logout failed:", err);
+                            }
+                          }}
+                          className="w-full text-left px-3 py-2.5 text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <Link
+                        href="/auth/login"
+                        className="px-3 py-2 text-xs font-bold text-center border border-neutral-200 dark:border-slate-800 rounded-xl hover:bg-neutral-50 dark:hover:bg-slate-900 transition-colors"
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        Login
+                      </Link>
+                      <Link
+                        href="/auth/signup"
+                        className="px-3 py-2 text-xs font-bold text-center text-white bg-[#D71920] hover:bg-[#B91520] rounded-xl transition-colors"
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        Register
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
+                {/* Support Block inside Mobile Drawer */}
+                <div className="border-t border-neutral-100 dark:border-neutral-900/60 pt-5 space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Need Assistance?</p>
+                  <div className="bg-neutral-50 dark:bg-slate-900/50 rounded-xl p-3.5 space-y-2.5">
+                    <a href="tel:18001239397" className="flex items-center gap-2 text-xs font-bold text-neutral-800 dark:text-neutral-200 hover:text-[#D71920]">
+                      <Headphones size={15} className="text-[#D71920]" />
+                      <div className="text-left leading-tight">
+                        <p className="text-[9px] uppercase text-neutral-400 font-semibold">Toll-Free Support</p>
+                        <p>1800 123 9397</p>
+                      </div>
+                    </a>
+                    <a href={`tel:${sellerPhone}`} className="flex items-center gap-2 text-xs font-bold text-neutral-800 dark:text-neutral-200 hover:text-[#D71920]">
+                      <Phone size={15} className="text-[#D71920]" />
+                      <div className="text-left leading-tight">
+                        <p className="text-[9px] uppercase text-neutral-400 font-semibold">Direct Helpline</p>
+                        <p>{sellerPhone}</p>
+                      </div>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </header>

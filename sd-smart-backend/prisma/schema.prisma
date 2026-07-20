@@ -11,16 +11,42 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  ADMIN
+  DISTRIBUTOR
+  CUSTOMER
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  phoneNumber String?  @unique
-  password    String
-  firstName   String
-  lastName    String
-  role        String   @default("user")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String           @id @default(uuid())
+  email           String           @unique
+  phoneNumber     String?          @unique
+  password        String
+  firstName       String
+  lastName        String
+  role            UserRole         @default(CUSTOMER)
+  approvalStatus  ApprovalStatus?
+  companyName     String?
+  gstin           String?
+  viewedByAdmin   Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  cart            Cart?
+  wishlist        Wishlist?
+  addresses       Address[]
+  orders          Order[]
+  serviceRequests ServiceRequest[]
+  warrantyRegistrations WarrantyRegistration[]
+  salesPersonId   String?
+  salesPerson     SalesPerson?     @relation(fields: [salesPersonId], references: [id], onDelete: SetNull)
+  distributorEnquiries DistributorEnquiry[] @relation("DistributorToEnquiry")
+  visitedActivities SalesDailyActivity[] @relation("DistributorVisited")
 }
 
 model OtpVerification {
@@ -31,33 +57,491 @@ model OtpVerification {
   createdAt DateTime @default(now())
 }
 
+model PasswordReset {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
 model Product {
+  id                 String                 @id @default(uuid())
+  name               String
+  category           String
+  categoryLabel      String
+  image              String
+  images             String[]               @default([])
+  rating             Float                  @default(5.0)
+  reviewCount        Int                    @default(0)
+  price              Float
+  originalPrice      Float
+  discountPercent    Int                    @default(0)
+  warranty           String                 @default("1 Year")
+  productDescription String?
+  badge              String?
+  href               String                 @default("")
+  inStock            Boolean                @default(true)
+  isBestSeller       Boolean                @default(false)
+  isFeatured         Boolean                @default(false)
+  eyebrow            String?
+  description        String?
+  specs              Json? // Stores array of {label, value}
+  startingPrice      Float?
+  primaryCTALabel    String?
+  primaryCTAHref     String?
+  secondaryCTALabel  String?
+  secondaryCTAHref   String?
+  imagePosition      String?                @default("left")
+  modelNumber        String?
+  productId          String?
+  sku                String?                @unique
+  itemCode           String?
+  variantGroup       String?
+  variantDetails     Json?
+  availableStock     Int                    @default(0)
+  stockIn            Int                    @default(0)
+  stockOut           Int                    @default(0)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  transactions       InventoryTransaction[]
+  cartItems          CartItem[]
+  wishlistItems      WishlistItem[]
+  orderItems         OrderItem[]
+  serviceRequests    ServiceRequest[]
+  distributorEnquiries DistributorEnquiry[]
+  distributorPricing DistributorPricing?
+}
+
+model InventoryTransaction {
+  id        String   @id @default(uuid())
+  productId String
+  type      String // "IN" or "OUT"
+  quantity  Int
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model DeletedModel {
+  id        String   @id @default(uuid())
+  category  String
+  name      String
+  createdAt DateTime @default(now())
+
+  @@unique([category, name])
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId])
+}
+
+model Wishlist {
+  id        String         @id @default(uuid())
+  userId    String         @unique
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WishlistItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model WishlistItem {
+  id         String   @id @default(uuid())
+  wishlistId String
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([wishlistId, productId])
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName     String
+  emailAddress String?
+  mobileNumber String
+  companyName  String?
+  addressLine1 String
+  addressLine2 String?
+  landmark     String?
+  city         String
+  state        String
+  pincode      String
+  gstin        String?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  orders       Order[]
+}
+
+model Order {
+  id              String               @id @default(uuid())
+  orderNumber     String               @unique
+  userId          String
+  user            User                 @relation(fields: [userId], references: [id])
+  addressId       String
+  address         Address              @relation(fields: [addressId], references: [id])
+  poNumber        String?
+  paymentMethod   String
+  status          String               @default("PENDING_APPROVAL")
+  subtotal        Float
+  cgst            Float
+  sgst            Float
+  igst            Float                @default(0)
+  deliveryCharges Float
+  discount        Float
+  grandTotal      Float
+  items           OrderItem[]
+  approvedAt      DateTime?
+  approvedBy      String?
+  rejectionReason String?
+  statusHistory   OrderStatusHistory[]
+  invoice         Invoice?
+  paymentStatus   String               @default("PENDING")
+  viewedByAdmin   Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model OrderStatusHistory {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  remarks   String?
+  updatedBy String
+  updatedAt DateTime @default(now())
+}
+
+model Invoice {
+  id             String   @id @default(uuid())
+  invoiceNumber  String   @unique
+  orderId        String   @unique
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  distributorId  String
+  subtotal       Float
+  discountAmount Float
+  taxAmount      Float
+  shippingAmount Float
+  grandTotal     Float
+  invoiceDate    DateTime @default(now())
+  pdfUrl         String?
+  generatedBy    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+  unitPrice Float
+  createdAt DateTime @default(now())
+}
+
+// Unified Offer model (Polymorphic JSON configuration)
+model Offer {
+  id                 String   @id @default(uuid())
+  name               String
+  code               String   @unique
+  description        String?
+  offerType          String // e.g. "PRODUCT_DISCOUNT", "COUPON", "BOGO", "FLASH_SALE", etc.
+  bannerImage        String?
+  status             String   @default("ACTIVE") // "ACTIVE", "INACTIVE", "SCHEDULED"
+  startDate          DateTime
+  endDate            DateTime
+  applyAutomatically Boolean  @default(true)
+  stackable          Boolean  @default(false)
+  maxUsageLimit      Int?
+  usagePerCustomer   Int?     @default(1)
+  displayBadgeText   String?
+  badgeColor         String?  @default("red")
+  termsConditions    String?
+
+  // Single JSON configuration column to store type-specific rules
+  configuration Json @default("{}")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  createdBy      String?
+  lastModifiedBy String?
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ServiceRequest {
+  id                  String                     @id @default(uuid())
+  ticketId            String                     @unique // e.g., SR-2026-000001
+  userId              String?
+  user                User?                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId           String
+  product             Product                    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderId             String? // Optional Order ID / Order Number
+  purchasePlace       String? // Dedicated field for Purchase Place / Dealer Name
+  purchaseDate        DateTime
+  serviceCategory     String // Repair, Installation, Warranty Claim, Product Not Working, Spare Parts Request
+  issueDescription    String
+  preferredPickupDate DateTime?
+  contactNumber       String
+  pickupAddress       String
+  contactPersonName   String?
+  email               String?
+  pincode             String?
+  technicianName      String?
+  technicianPhone     String?
+  expectedVisitDate   DateTime?
+  expectedVisitTime   String?
+  internalRemarks     String?
+  warrantyExpiryDate  DateTime
+  warrantyStatus      String // UNDER_WARRANTY or WARRANTY_EXPIRED
+  currentStatus       String // PENDING_VERIFICATION, VERIFIED, PICKUP_SCHEDULED, etc.
+  serviceCharge       Float?
+  sparePartsCost      Float?
+  totalServiceCost    Float?
+  inspectionRemarks   String?
+  cancellationReason  String?
+  distributorItems    Json?                      // Stores multiple product items for Distributor requests
+  viewedByAdmin       Boolean                    @default(false)
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  attachments         ServiceRequestAttachment[]
+  history             ServiceRequestHistory[]
+}
+
+model ServiceRequestAttachment {
+  id               String         @id @default(uuid())
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  fileUrl          String
+  fileType         String // PRODUCT_IMAGE or WARRANTY_CARD
+  fileName         String
+  createdAt        DateTime       @default(now())
+}
+
+model ServiceRequestHistory {
+  id               String         @id @default(uuid())
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  status           String
+  remarks          String?
+  updatedBy        String // User's name or role (e.g. Admin or customer/distributor)
+  updatedAt        DateTime       @default(now())
+}
+
+model WarrantyRegistration {
+  id                 String               @id @default(uuid())
+  registrationId     String               @unique // e.g. WR-2026-000001
+  userId             String?
+  user               User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName       String
+  customerEmail      String
+  customerPhone      String
+  customerAltPhone   String?
+  addressLine1       String
+  addressLine2       String?
+  city               String
+  state              String
+  pincode            String
+  productCategory    String
+  productName        String
+  modelNumber        String
+  serialNumber       String               @unique
+  skuCode            String?
+  productCapacity    String?
+  purchaseDate       DateTime
+  invoiceNumber      String
+  dealerName         String
+  placeOfPurchase    String
+  warrantyStartDate  DateTime
+  warrantyExpiryDate DateTime
+  warrantyDuration   Int                  @default(5) // in years
+  status             String               @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, VERIFIED, REJECTED, EXPIRED
+  rejectionReason    String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  attachments        WarrantyAttachment[]
+}
+
+model WarrantyAttachment {
+  id                     String               @id @default(uuid())
+  warrantyRegistrationId String
+  warrantyRegistration   WarrantyRegistration @relation(fields: [warrantyRegistrationId], references: [id], onDelete: Cascade)
+  fileUrl                String
+  fileType               String // PURCHASE_INVOICE, WARRANTY_CARD, PRODUCT_IMAGE
+  fileName               String
+  createdAt              DateTime             @default(now())
+}
+
+model SalesPerson {
+  id               String        @id @default(uuid())
+  employeeId       String        @unique
+  fullName         String
+  email            String        @unique
+  mobileNumber     String        @unique
+  password         String
+  assignedRegion   String
+  assignedState    String
+  assignedDistrict String
+  status           String        @default("ACTIVE") // ACTIVE or INACTIVE
+  remarks          String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  distributors     User[]
+  targets          SalesTarget[]
+  distributorEnquiries DistributorEnquiry[] @relation("SalesPersonToDistributorEnquiry")
+  followUps            EnquiryFollowUp[]
+  activities           SalesDailyActivity[]
+}
+
+
+
+model SalesTarget {
+  id            String      @id @default(uuid())
+  salesPersonId String
+  salesPerson   SalesPerson @relation(fields: [salesPersonId], references: [id], onDelete: Cascade)
+  targetType    String      // "REVENUE" or "UNITS_SOLD"
+  targetValue   Float
+  month         Int         // 1 to 12
+  year          Int
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([salesPersonId, month, year])
+}
+
+model DistributorEnquiry {
+  id            String             @id @default(uuid())
+  distributorId String
+  distributor   User               @relation("DistributorToEnquiry", fields: [distributorId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity      Int                @default(1)
+  message       String?
+  status        String             @default("New") // "New", "Assigned", "Contacted", "Quotation Sent", "Negotiation", "Converted to Order", "Closed"
+  salesPersonId String?
+  salesPerson   SalesPerson?       @relation("SalesPersonToDistributorEnquiry", fields: [salesPersonId], references: [id], onDelete: SetNull)
+  viewedByAdmin Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  followUps     EnquiryFollowUp[]
+}
+
+model EnquiryFollowUp {
+  id                   String             @id @default(uuid())
+  distributorEnquiryId String
+  distributorEnquiry   DistributorEnquiry @relation(fields: [distributorEnquiryId], references: [id], onDelete: Cascade)
+  actionType           String             // "CALL", "EMAIL", "REMARK", "STATUS_CHANGE"
+  remarks              String
+  performedById        String             // SalesPerson ID
+  performedBy          SalesPerson        @relation(fields: [performedById], references: [id], onDelete: Cascade)
+  createdAt            DateTime           @default(now())
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  recipientId String   // User ID (for admin) or SalesPerson ID
+  userType    String   // "ADMIN" or "SALESPERSON"
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model DistributorPricing {
   id               String   @id @default(uuid())
-  name             String
-  category         String
-  categoryLabel    String
-  image            String
-  rating           Float    @default(5.0)
-  reviewCount      Int      @default(0)
-  price            Float
-  originalPrice    Float
-  discountPercent  Int      @default(0)
-  warranty         String   @default("1 Year")
-  capacity         String?
-  badge            String?
-  href             String   @default("")
-  inStock          Boolean  @default(true)
-  isBestSeller     Boolean  @default(false)
-  isFeatured       Boolean  @default(false)
-  eyebrow          String?
-  description      String?
-  specs            Json?    // Stores array of {label, value}
-  startingPrice    Float?
-  primaryCTALabel  String?
-  primaryCTAHref   String?
-  secondaryCTALabel String?
-  secondaryCTAHref  String?
-  imagePosition    String?  @default("left")
+  productId        String   @unique
+  skuCode          String
+  basePrice        Float
+  marginPercentage Float
+  marginAmount     Float
+  netPrice         Float
+  gstPercentage    Float
+  gstAmount        Float
+  dealerPrice      Float
+  mrp              Float
+  packageQuantity  String
+  scheme           String
+  status           String   @default("ACTIVE") // "ACTIVE" or "INACTIVE"
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SalesDailyActivity {
+  id                     String      @id @default(uuid())
+  salesPersonId          String
+  salesPerson            SalesPerson @relation(fields: [salesPersonId], references: [id], onDelete: Cascade)
+  activityDate           DateTime
+  startTime              String
+  endTime                String
+  workingStatus          String
+  currentLocation        String
+  distributorId          String?
+  distributor            User?       @relation("DistributorVisited", fields: [distributorId], references: [id], onDelete: SetNull)
+  visitType              String?
+  visitStatus            String?
+  orderCollected         Boolean     @default(false)
+  orderAmount            Float?
+  productsOrdered        String?
+  expectedDeliveryDate   DateTime?
+  newEnquiry             Boolean     @default(false)
+  enquiryDistributorName String?
+  enquiryMobile          String?
+  enquiryLocation        String?
+  interestedProducts     String?
+  numberOfVisits         Int         @default(0)
+  numberOfOrders         Int         @default(0)
+  numberOfEnquiries      Int         @default(0)
+  numberOfFollowUps      Int         @default(0)
+  distanceTravelled      Float?
+  achievements           String?
+  challenges             String?
+  tomorrowPlan           String?
+  remarks                String?
+  attachment             Json?
+  status                 String      @default("PENDING") // "DRAFT", "PENDING", "APPROVED", "CORRECTION_REQUESTED", "REJECTED", "VERIFIED"
+  reviewComment          String?
+  viewedByAdmin          Boolean     @default(false)
+  submittedAt            DateTime?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+}
+

@@ -50,6 +50,10 @@ export interface User {
   firstName: string;
   lastName: string;
   profileImage?: string;
+  role?: string;
+  companyName?: string;
+  gstin?: string;
+  approvalStatus?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -65,18 +69,30 @@ export interface Product {
   price: number;
   discountPrice?: number;
   images: string[];
+  image?: string;
   category: string;
+  categoryLabel?: string;
   rating: number;
   reviews: number;
   inStock: boolean;
   quantity: number;
   specifications?: Record<string, string>;
+  specs?: any;
+  variantGroup?: string;
+  variantDetails?: Record<string, string>;
+  modelNumber?: string;
+  productId?: string;
+  sku?: string;
+  availableStock?: number;
+  stockIn?: number;
+  stockOut?: number;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ProductFilters {
   category?: string;
+  variantGroup?: string;
   minPrice?: number;
   maxPrice?: number;
   search?: string;
@@ -128,45 +144,114 @@ export interface UpdateCartItemRequest {
  * Order Types
  */
 export interface OrderItem {
+  id: string;
+  orderId: string;
   productId: string;
-  productName: string;
+  product?: Product;
   quantity: number;
-  price: number;
-  totalPrice: number;
+  unitPrice: number;
+  createdAt: string;
+}
+
+export interface OrderStatusHistory {
+  id: string;
+  orderId: string;
+  status: string;
+  remarks?: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  orderId: string;
+  distributorId: string;
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  shippingAmount: number;
+  grandTotal: number;
+  invoiceDate: string;
+  pdfUrl?: string;
+  generatedBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Order {
   id: string;
-  userId: string;
   orderNumber: string;
+  userId: string;
+  user?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+  };
+  addressId: string;
+  address?: Address;
+  poNumber?: string;
+  paymentMethod: string;
+  status: string;
+  subtotal: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  deliveryCharges: number;
+  discount: number;
+  grandTotal: number;
   items: OrderItem[];
-  totalAmount: number;
-  shippingAddress: Address;
-  billingAddress: Address;
-  paymentMethod: "card" | "upi" | "netbanking";
-  paymentStatus: "pending" | "completed" | "failed";
-  orderStatus: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectionReason?: string;
+  statusHistory?: OrderStatusHistory[];
+  invoice?: Invoice;
+  paymentStatus?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateOrderRequest {
-  items: CartItem[];
-  shippingAddress: Address;
-  billingAddress: Address;
-  paymentMethod: "card" | "upi" | "netbanking";
+  addressId: string;
+  paymentMethod: string;
+  poNumber?: string;
+  couponCode?: string;
 }
 
 export interface Address {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  street: string;
+  id: string;
+  userId: string;
+  fullName: string;
+  emailAddress?: string;
+  mobileNumber: string;
+  companyName?: string;
+  gstin?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  landmark?: string;
   city: string;
   state: string;
-  postalCode: string;
-  country: string;
+  pincode: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAddressRequest {
+  fullName: string;
+  emailAddress?: string;
+  mobileNumber: string;
+  companyName?: string;
+  gstin?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault?: boolean;
 }
 
 /**
@@ -174,17 +259,18 @@ export interface Address {
  */
 export interface WishlistItem {
   id: string;
-  userId: string;
+  wishlistId: string;
   productId: string;
   product: Product;
-  addedAt: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Wishlist {
   id: string;
   userId: string;
   items: WishlistItem[];
-  totalItems: number;
+  createdAt: string;
   updatedAt: string;
 }
 

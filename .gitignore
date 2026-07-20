@@ -1,0 +1,2 @@
+# Ignore large zip archives generated in the root
+*.zip

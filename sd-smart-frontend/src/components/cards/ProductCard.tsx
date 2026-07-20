@@ -4,11 +4,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { Heart, Eye, ArrowLeftRight, ShoppingCart, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/providers/AuthProvider";
+import { useCart } from "@/providers/CartProvider";
+import { useWishlist } from "@/providers/WishlistProvider";
 import { cn } from "@/lib/utils";
 import type { Product } from "../../app/LandingPage/types";
 import RatingStars from "../shared/RatingStars";
 import ProductPrice from "../shared/ProductPrice";
 import BadgePill from "../shared/BadgePill";
+import EnquiryModal from "../shared/EnquiryModal";
 
 interface ProductCardProps {
   product: Product;
@@ -32,82 +37,101 @@ const getSpecTags = (category: string) => {
 };
 
 export default function ProductCard({ product, className }: ProductCardProps) {
-  const [wishlisted, setWishlisted] = useState(false);
   const specTags = getSpecTags(product.categoryLabel);
+  const { isAuthenticated, user } = useAuth();
+  const { addToCart } = useCart();
+  const isDistributor = isAuthenticated && user && (user.role?.toUpperCase() === "DISTRIBUTOR" || user.role === "distributor");
+  const [isEnquiryOpen, setIsEnquiryOpen] = useState(false);
+  const { wishlistItems, addToWishlist, removeFromWishlist } = useWishlist();
+  const router = useRouter();
+
+  const isWishlisted = wishlistItems.some(item => item.productId === product.id);
+
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      router.push("/auth/login");
+      return;
+    }
+    try {
+      if (isWishlisted) {
+        await removeFromWishlist(product.id);
+      } else {
+        await addToWishlist(product.id);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      router.push("/auth/login");
+      return;
+    }
+    try {
+      await addToCart(product.id, 1);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Extract display attribute dynamically from variantDetails or fallback to product.capacity
+  const displayAttribute = (() => {
+    if (product.capacity) return product.capacity;
+    const details = product.variantDetails;
+    if (details && typeof details === "object") {
+      const keys = Object.keys(details);
+      if (keys.length > 0) {
+        // Prefer Capacity, Size, Burner Count, Type if they exist (case-insensitive)
+        const preferredKey = keys.find(k => 
+          /capacity|size|burner|type/i.test(k)
+        );
+        if (preferredKey) {
+          return details[preferredKey];
+        }
+        // Fallback to first attribute value
+        return details[keys[0]];
+      }
+    }
+    return null;
+  })();
 
   return (
     <div
-      onMouseMove={(e) => {
-        const el = e.currentTarget;
-        const rect = el.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const mx = (x / rect.width) - 0.5;
-        const my = (y / rect.height) - 0.5;
-        el.style.setProperty("--p-mx", `${x}px`);
-        el.style.setProperty("--p-my", `${y}px`);
-        el.style.setProperty("--tx", `${mx * 8}px`); // magnetic pull
-        el.style.setProperty("--ty", `${my * 8}px`);
-      }}
-      onMouseLeave={(e) => {
-        const el = e.currentTarget;
-        el.style.setProperty("--tx", "0px");
-        el.style.setProperty("--ty", "0px");
-      }}
-      style={{
-        transform: "translate3d(var(--tx, 0px), var(--ty, 0px), 0px)",
-      }}
       className={cn(
         "group relative bg-white rounded-2xl overflow-hidden border border-neutral-100 transition-all duration-300 ease-out hover:shadow-2xl hover:border-neutral-200/80",
         className
       )}
     >
-      {/* Glow effect follows mouse */}
-      <div
-        className="absolute inset-0 pointer-events-none z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{
-          background: "radial-gradient(circle 120px at var(--p-mx, 0px) var(--p-my, 0px), rgba(215, 25, 32, 0.05), transparent)",
-        }}
-      />
+      {/* Absolute overlay link to make the entire card clickable */}
+      <Link href={`/product/${product.id}`} className="absolute inset-0 z-10" aria-label={product.name} />
+
       {/* Image area */}
-      <Link href={product.href} className="block relative aspect-[4/3] overflow-hidden bg-neutral-50">
-        {product.image.startsWith("/") ? (
-          <div className="w-full h-full flex items-center justify-center bg-neutral-100 text-neutral-300 text-sm">
-            {product.name}
-          </div>
-        ) : (
-          <Image
-            src={product.image}
-            alt={product.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-          />
-        )}
+      <div className="block relative aspect-[4/3] overflow-hidden bg-neutral-50 flex items-center justify-center">
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "/SD-logo.png";
+          }}
+        />
 
         {/* Overlay action buttons (show on hover) */}
-        <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
           <button
-            onClick={(e) => { e.preventDefault(); setWishlisted(!wishlisted); }}
+            onClick={handleWishlistToggle}
             className="w-9 h-9 bg-white rounded-full shadow flex items-center justify-center hover:bg-red-50 transition-colors"
             aria-label="Add to wishlist"
           >
             <Heart
               size={16}
-              className={cn(wishlisted ? "fill-[#D71920] text-[#D71920]" : "text-neutral-600")}
+              className={cn(isWishlisted ? "fill-[#D71920] text-[#D71920]" : "text-neutral-600")}
             />
-          </button>
-          <button
-            className="w-9 h-9 bg-white rounded-full shadow flex items-center justify-center hover:bg-neutral-50 transition-colors"
-            aria-label="Quick view"
-          >
-            <Eye size={16} className="text-neutral-600" />
-          </button>
-          <button
-            className="w-9 h-9 bg-white rounded-full shadow flex items-center justify-center hover:bg-neutral-50 transition-colors"
-            aria-label="Compare"
-          >
-            <ArrowLeftRight size={14} className="text-neutral-600" />
           </button>
         </div>
 
@@ -119,65 +143,114 @@ export default function ProductCard({ product, className }: ProductCardProps) {
               variant={badgeVariantMap[product.badge] ?? "red"}
             />
           )}
-          {product.discountPercent > 0 && (
-            <BadgePill
-              label={`${product.discountPercent}% OFF`}
-              variant="orange"
-            />
-          )}
         </div>
-
-        {/* Floating specification indicators (slide up on hover) */}
-        <div className="absolute bottom-2 left-2 right-2 flex flex-wrap gap-1 z-10 translate-y-8 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 delay-75">
-          {specTags.map((tag) => (
-            <span
-              key={tag}
-              className="px-1.5 py-0.5 text-[9px] font-bold text-white bg-slate-950/75 border border-white/10 backdrop-blur-md rounded-md select-none uppercase tracking-wider"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      </Link>
+      </div>
 
       {/* Info */}
-      <div className="p-4 text-left">
-        <p className="text-xs font-semibold text-[#D71920] tracking-widest uppercase mb-1">
+      <div className="p-4 pt-2 text-left">
+        <p className="text-[10px] font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-1">
           {product.categoryLabel}
         </p>
-        <Link href={product.href}>
-          <h3 className="text-[15px] font-bold text-[#1C1C1C] leading-snug mb-2 hover:text-[#D71920] transition-colors line-clamp-2">
-            {product.name}
-          </h3>
-        </Link>
+        <h3 className="text-[15px] sm:text-[16px] font-extrabold text-slate-900 dark:text-white leading-snug mb-2 group-hover:text-[#D71920] transition-colors line-clamp-2">
+          {product.name.length > 50 ? (
+            <>
+              {product.name.substring(0, 47)}
+              <span className="text-neutral-450 dark:text-neutral-500 font-medium text-xs ml-0.5">... see more</span>
+            </>
+          ) : (
+            product.name
+          )}
+        </h3>
 
-        <RatingStars rating={product.rating} reviewCount={product.reviewCount} className="mb-3" />
+        {/* <RatingStars rating={product.rating} reviewCount={product.reviewCount} className="mb-3" /> */}
 
-        <ProductPrice
-          price={product.price}
-          originalPrice={product.originalPrice}
-          size="md"
-          className="mb-2"
-        />
+        {isDistributor ? (
+          (product as any).distributorPricing && (product as any).distributorPricing.status === "ACTIVE" ? (
+            <div className="mb-3 space-y-1.5 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-neutral-850 text-xs text-left relative z-20">
+              <div className="flex justify-between items-center">
+                <span className="text-neutral-500 font-semibold">Dealer Price:</span>
+                <span className="text-sm sm:text-base font-extrabold text-[#D71920]">₹{(product as any).distributorPricing.dealerPrice}</span>
+              </div>
+              <div className="flex justify-between items-center text-neutral-450 dark:text-neutral-500">
+                <span>MRP:</span>
+                <span className="font-semibold line-through">₹{(product as any).distributorPricing.mrp}</span>
+              </div>
+              <div className="flex justify-between items-center text-neutral-450 dark:text-neutral-500">
+                <span>Package:</span>
+                <span className="font-semibold">{(product as any).distributorPricing.packageQuantity}</span>
+              </div>
+              <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-500">
+                <span>Scheme:</span>
+                <span className="font-extrabold text-[11px]">{(product as any).distributorPricing.scheme}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-2">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsEnquiryOpen(true);
+                }}
+                className="relative z-20 w-full text-center py-2 px-3 border-2 border-[#D71920] hover:bg-red-50 dark:hover:bg-slate-800 text-[#D71920] hover:text-[#b8141a] text-sm font-bold rounded-xl transition-all duration-200"
+              >
+                Enquiry for Price
+              </button>
+            </div>
+          )
+        ) : (
+           <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mb-2">
+          <ProductPrice
+            price={product.price}
+            originalPrice={product.originalPrice}
+            priceClass="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white"
+            originalPriceClass="text-xs sm:text-sm line-through text-slate-400 dark:text-neutral-500"
+          />
+          {product.discountPercent > 0 && (
+            <span className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-500 shrink-0">
+              {product.discountPercent}% OFF
+            </span>
+          )}
+        </div>
+        )}
 
         {/* Warranty + capacity */}
         <div className="flex items-center gap-1 text-xs text-neutral-500 mb-4">
           <ShieldCheck size={12} className="text-neutral-400" />
           <span>{product.warranty}</span>
-          {product.capacity && (
+          {displayAttribute && (
             <>
               <span className="text-neutral-300">·</span>
-              <span>{product.capacity}</span>
+              <span>{displayAttribute}</span>
             </>
           )}
         </div>
 
-        {/* Add to Cart */}
-        <button className="w-full flex items-center justify-center gap-2 bg-[#D71920] hover:bg-[#b8141a] text-white text-sm font-semibold py-3 rounded-xl transition-colors duration-200 cursor-pointer">
-          <ShoppingCart size={16} />
-          Add to Cart
-        </button>
+        {/* Add to Cart / Out of Stock button */}
+        {(!product.inStock || product.availableStock === 0) ? (
+          <button 
+            disabled
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className="w-full flex items-center justify-center gap-2 bg-neutral-200 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-600 text-sm font-semibold py-3 rounded-xl cursor-not-allowed relative z-20"
+          >
+            Out of Stock
+          </button>
+        ) : (
+          <button 
+            onClick={handleAddToCart}
+            className="w-full flex items-center justify-center gap-2 bg-[#D71920] hover:bg-[#b8141a] text-white text-sm font-semibold py-3 rounded-xl transition-colors duration-200 cursor-pointer relative z-20"
+          >
+            <ShoppingCart size={16} />
+            Add to Cart
+          </button>
+        )}
       </div>
+      {isEnquiryOpen && (
+        <EnquiryModal isOpen={isEnquiryOpen} onClose={() => setIsEnquiryOpen(false)} productId={product.id} productName={product.name} />
+      )}
     </div>
   );
 }

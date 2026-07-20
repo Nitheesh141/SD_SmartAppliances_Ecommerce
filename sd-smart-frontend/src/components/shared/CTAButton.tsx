@@ -7,6 +7,8 @@ interface CTAButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   asLink?: boolean;
   href?: string;
+  target?: string;
+  rel?: string;
 }
 
 export default function CTAButton({
@@ -15,6 +17,8 @@ export default function CTAButton({
   children,
   asLink = false,
   href = "#",
+  target,
+  rel,
   className,
   ...props
 }: CTAButtonProps) {
@@ -42,7 +46,7 @@ export default function CTAButton({
 
   if (asLink) {
     return (
-      <a href={href} className={combinedClasses}>
+      <a href={href} className={combinedClasses} target={target} rel={rel}>
         {children}
       </a>
     );
