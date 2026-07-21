@@ -164,7 +164,7 @@ function TrackServiceRequestContent() {
               placeholder="e.g. SR-2026-000001"
               value={ticketId}
               onChange={(e) => setTicketId(e.target.value)}
-              className="w-full px-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#E11D2E] focus:ring-2 focus:ring-[#E11D2E]/20 outline-none transition-all font-mono"
+              className="w-full px-4 py-2.5 bg-white text-slate-900 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#E11D2E] focus:ring-2 focus:ring-[#E11D2E]/20 outline-none transition-all font-mono"
             />
           </div>
 
@@ -176,7 +176,7 @@ function TrackServiceRequestContent() {
               placeholder="Enter your 10-digit mobile number"
               value={mobileNumber}
               onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              className="w-full px-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#E11D2E] focus:ring-2 focus:ring-[#E11D2E]/20 outline-none transition-all"
+              className="w-full px-4 py-2.5 bg-white text-slate-900 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#E11D2E] focus:ring-2 focus:ring-[#E11D2E]/20 outline-none transition-all"
             />
           </div>
         </div>

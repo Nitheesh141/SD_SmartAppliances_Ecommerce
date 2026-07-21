@@ -14,6 +14,7 @@ import RatingStars from "../shared/RatingStars";
 import ProductPrice from "../shared/ProductPrice";
 import BadgePill from "../shared/BadgePill";
 import EnquiryModal from "../shared/EnquiryModal";
+import { getAbsoluteImageUrl } from "@/config/env";
 
 interface ProductCardProps {
   product: Product;
@@ -44,6 +45,7 @@ export default function ProductCard({ product, className }: ProductCardProps) {
   const [isEnquiryOpen, setIsEnquiryOpen] = useState(false);
   const { wishlistItems, addToWishlist, removeFromWishlist } = useWishlist();
   const router = useRouter();
+  const [imgSrc, setImgSrc] = useState(getAbsoluteImageUrl(product.image));
 
   const isWishlisted = wishlistItems.some(item => item.productId === product.id);
 
@@ -112,12 +114,16 @@ export default function ProductCard({ product, className }: ProductCardProps) {
 
       {/* Image area */}
       <div className="block relative aspect-[4/3] overflow-hidden bg-neutral-50 flex items-center justify-center">
-        <img
-          src={product.image}
-          alt={product.name}
+        <Image
+          src={imgSrc}
+          alt={`SD Smart ${product.categoryLabel || "Appliance"} - ${product.name}`}
+          width={400}
+          height={300}
+          loading="lazy"
+          unoptimized
           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = "/SD-logo.png";
+          onError={() => {
+            setImgSrc("/SD-logo.png");
           }}
         />
 

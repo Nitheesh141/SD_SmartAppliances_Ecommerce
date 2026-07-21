@@ -108,40 +108,19 @@ select {
   caret-color: currentColor !important;
 }
 
-/* Force light color scheme on all light-background containers and their contents to ensure dark scrollbars and dark mouse I-beam cursors */
-.bg-white,
-.bg-slate-50,
-.bg-slate-100,
-.bg-neutral-50,
-.bg-neutral-100,
-[class*="bg-white"],
-[class*="bg-slate-50"],
-[class*="bg-slate-100"],
-[class*="bg-neutral-50"],
-[class*="bg-neutral-100"],
-.bg-white input,
-.bg-white textarea,
-.bg-slate-50 input,
-.bg-slate-50 textarea,
-.bg-slate-100 input,
-.bg-slate-100 textarea,
-.bg-neutral-50 input,
-.bg-neutral-50 textarea,
-.bg-neutral-100 input,
-.bg-neutral-100 textarea {
+/* Force light color scheme on light theme elements */
+:root:not(.dark),
+:root:not(.dark) input,
+:root:not(.dark) textarea,
+:root:not(.dark) select {
   color-scheme: light !important;
 }
 
-/* Force dark color scheme on all dark-background containers and their contents */
+/* Force dark color scheme on dark theme elements */
 .dark,
-[class*="bg-slate-950"],
-[class*="bg-neutral-900"],
-[class*="bg-slate-900"],
-[class*="bg-neutral-950"],
 .dark input,
 .dark textarea,
-[class*="bg-slate-950"] input,
-[class*="bg-slate-950"] textarea {
+.dark select {
   color-scheme: dark !important;
 }
 

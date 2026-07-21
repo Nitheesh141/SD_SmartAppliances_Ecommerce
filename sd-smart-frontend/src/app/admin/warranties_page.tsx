@@ -10,6 +10,7 @@ import {
   X, Check, ShieldCheck, User, ShieldAlert, FileSpreadsheet, ImageIcon, AlertTriangle, Package
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
+import Pagination from "@/components/shared/Pagination";
 import { cn } from "@/lib/utils";
 import { warrantyService } from "@/services/warrantyService";
 
@@ -30,6 +31,12 @@ export default function AdminWarrantiesPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Drawer / Modal state
   const [selectedReg, setSelectedReg] = useState<any | null>(null);
@@ -59,18 +66,30 @@ export default function AdminWarrantiesPage() {
     }
   }, [isAuthenticated, user, authLoading, router]);
 
+  // Reset page to 1 on search or tab change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, activeTab]);
+
   // Fetch registrations
   const fetchRegistrations = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     try {
-      const res = await warrantyService.getWarrantyRegistrations();
+      const res = await warrantyService.getWarrantyRegistrations({
+        page,
+        limit: pageSize,
+        status: activeTab !== "ALL" ? activeTab : undefined,
+        search: searchQuery || undefined,
+      });
       if (res.success) {
         setRegistrations(res.data || []);
-        
+        setTotalRecords(res.pagination?.totalRecords || 0);
+        setTotalPages(res.pagination?.totalPages || 1);
+
         // Sync selected detail view if already open
         setSelectedReg((prev: any) => {
           if (!prev) return null;
-          const updated = res.data?.find((r: any) => r.id === prev.id);
+          const updated = (res.data || [])?.find((r: any) => r.id === prev.id);
           return updated || null;
         });
       } else {
@@ -88,7 +107,7 @@ export default function AdminWarrantiesPage() {
     if (isAuthenticated && user) {
       fetchRegistrations();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, page, pageSize, activeTab, searchQuery]);
 
   // Update Status
   const handleUpdateStatus = async (id: string, newStatus: TabType) => {
@@ -176,27 +195,8 @@ export default function AdminWarrantiesPage() {
     toast.success("CSV exported successfully.");
   };
 
-  // Filter logic
-  const filteredRegs = registrations.filter((reg) => {
-    const matchesTab = activeTab === "ALL" || reg.status === activeTab;
-    
-    if (!matchesTab) return false;
-
-    if (searchQuery.trim() !== "") {
-      const q = searchQuery.toLowerCase().trim();
-      return (
-        reg.registrationId?.toLowerCase().includes(q) ||
-        reg.customerName?.toLowerCase().includes(q) ||
-        reg.customerEmail?.toLowerCase().includes(q) ||
-        reg.customerPhone?.toLowerCase().includes(q) ||
-        reg.serialNumber?.toLowerCase().includes(q) ||
-        reg.invoiceNumber?.toLowerCase().includes(q) ||
-        reg.productName?.toLowerCase().includes(q)
-      );
-    }
-
-    return true;
-  });
+  // Filter logic (now handled on the backend)
+  const filteredRegs = registrations;
 
   // Metric computations
   const totalCount = registrations.length;
@@ -390,6 +390,20 @@ export default function AdminWarrantiesPage() {
                 </table>
               )}
             </div>
+            {filteredRegs.length > 0 && (
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalRecords={totalRecords}
+                pageSize={pageSize}
+                onPageChange={(p) => setPage(p)}
+                onPageSizeChange={(s) => {
+                  setPageSize(s);
+                  setPage(1);
+                }}
+                theme={theme}
+              />
+            )}
           </div>
         </main>
       </div>

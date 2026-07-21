@@ -19,7 +19,7 @@ export const getDistributorPricings = async (req: Request, res: Response): Promi
     if (!verifyAdmin(req, res)) return;
 
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const limit = parseInt(req.query.limit as string) || 5;
     const search = (req.query.search as string) || "";
 
     const skip = (page - 1) * limit;
@@ -71,6 +71,15 @@ export const getDistributorPricings = async (req: Request, res: Response): Promi
       total,
       page,
       totalPages: Math.ceil(total / limit),
+      data: pricings,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalRecords: total,
+        pageSize: limit,
+        hasNext: page * limit < total,
+        hasPrevious: page > 1
+      }
     });
   } catch (error: any) {
     console.error("Get distributor pricings error:", error);

@@ -961,6 +961,73 @@ export const getDistributors = async (req: Request, res: Response): Promise<void
       return;
     }
 
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const search = req.query.search as string | undefined;
+
+    const whereClause: any = {
+      role: "DISTRIBUTOR"
+    };
+
+    if (search) {
+      const cleanSearch = search.trim();
+      whereClause.OR = [
+        { firstName: { contains: cleanSearch, mode: "insensitive" } },
+        { lastName: { contains: cleanSearch, mode: "insensitive" } },
+        { companyName: { contains: cleanSearch, mode: "insensitive" } },
+        { email: { contains: cleanSearch, mode: "insensitive" } },
+        { phoneNumber: { contains: cleanSearch } },
+        { gstin: { contains: cleanSearch, mode: "insensitive" } }
+      ];
+    }
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [distributors, totalRecords] = await prisma.$transaction([
+        prisma.user.findMany({
+          where: whereClause,
+          orderBy: {
+            createdAt: "desc"
+          },
+          include: {
+            addresses: {
+              where: {
+                isDefault: true
+              }
+            }
+          },
+          skip,
+          take: limit
+        }),
+        prisma.user.count({ where: whereClause })
+      ]);
+
+      res.json({
+        success: true,
+        data: distributors.map(d => ({
+          id: d.id,
+          email: d.email,
+          phoneNumber: d.phoneNumber,
+          firstName: d.firstName, // Contact Person
+          lastName: d.lastName,   // Distributor Name
+          companyName: d.companyName, // Business Name
+          gstin: d.gstin,
+          approvalStatus: d.approvalStatus,
+          createdAt: d.createdAt,
+          businessAddress: d.addresses[0]?.addressLine1 || "N/A"
+        })),
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalRecords / limit),
+          totalRecords,
+          pageSize: limit,
+          hasNext: page * limit < totalRecords,
+          hasPrevious: page > 1
+        }
+      });
+      return;
+    }
+
     const distributors = await prisma.user.findMany({
       where: {
         role: "DISTRIBUTOR"

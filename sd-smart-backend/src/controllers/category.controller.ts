@@ -14,6 +14,35 @@ const generateSlug = (text: string): string => {
 // GET /api/categories
 export const listCategories = async (req: Request, res: Response): Promise<void> => {
   try {
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [categories, totalRecords] = await prisma.$transaction([
+        prisma.category.findMany({
+          orderBy: { name: "asc" },
+          skip,
+          take: limit
+        }),
+        prisma.category.count()
+      ]);
+
+      res.json({
+        success: true,
+        data: categories,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalRecords / limit),
+          totalRecords,
+          pageSize: limit,
+          hasNext: page * limit < totalRecords,
+          hasPrevious: page > 1
+        }
+      });
+      return;
+    }
+
     const categories = await prisma.category.findMany({
       orderBy: { name: "asc" }
     });

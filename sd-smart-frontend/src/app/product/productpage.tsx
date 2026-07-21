@@ -1,5 +1,5 @@
 "use client";
-import { ENV } from "@/config/env";
+import { ENV, getAbsoluteImageUrl } from "@/config/env";
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -96,8 +96,8 @@ export default function ProductDetailPage() {
   const [isEnquiryOpen, setIsEnquiryOpen] = useState(false);
   const { wishlistItems, addToWishlist, removeFromWishlist } = useWishlist();
 
-  // Extract productId from pathname: /product/[id]
-  const productId = pathname.split("/product/")[1] || "";
+  // Extract productId from pathname: /product/[id] or /products/[id]
+  const productId = pathname.split("/product/")[1] || pathname.split("/products/")[1] || "";
 
   // Fetch product from hook
   const { product: apiProduct, loading: apiLoading, error: apiError, fetchProduct } = useProduct(productId);
@@ -472,9 +472,10 @@ export default function ProductDetailPage() {
   // Sync images list once product is loaded
   useEffect(() => {
     if (product) {
-      const list = product.images && product.images.length > 0
+      const list = (product.images && product.images.length > 0
         ? product.images
-        : (product.image ? [product.image] : ["/SD-logo.png"]);
+        : (product.image ? [product.image] : ["/SD-logo.png"]))
+        .map((img: string) => getAbsoluteImageUrl(img));
       setImagesList(list);
       setActiveImage(list[0]);
     }
@@ -816,7 +817,7 @@ export default function ProductDetailPage() {
           <ChevronRight size={10} className="text-slate-450" />
           <Link href="/shop" className="hover:text-[#D71920]">Shop</Link>
           <ChevronRight size={10} className="text-slate-450" />
-          <span className="hover:text-[#D71920]">{product.categoryLabel}</span>
+          <Link href={`/categories/${product.category}`} className="hover:text-[#D71920]">{product.categoryLabel}</Link>
           <ChevronRight size={10} className="text-slate-450" />
           <span className="text-slate-800 dark:text-neutral-250 truncate max-w-xs">{product.name}</span>
         </div>
@@ -850,9 +851,12 @@ export default function ProductDetailPage() {
                       {activeImage && (
                         <img
                           src={activeImage}
-                          alt={product.name}
+                          alt={`SD Smart ${product.categoryLabel || "Appliance"} - ${product.name}`}
                           style={zoomStyle}
                           className="w-full h-full object-contain transition-transform duration-100"
+                          width={600}
+                          height={600}
+                          loading="lazy"
                         />
                       )}
                     </div>
@@ -921,7 +925,7 @@ export default function ProductDetailPage() {
                               : "border-slate-200 dark:border-slate-800"
                           )}
                         >
-                          <img src={img} alt="thumbnail" className="w-full h-full object-contain rounded-lg" />
+                          <img src={img} alt={`SD Smart ${product.name} - Gallery Thumbnail ${idx + 1}`} className="w-full h-full object-contain rounded-lg" width={80} height={80} loading="lazy" />
                         </button>
                       ))}
                     </div>
@@ -1443,6 +1447,19 @@ export default function ProductDetailPage() {
                       ) : (
                         <p>Experience standard, high-efficiency kitchen operation with the all-new {product.name}. Designed with modern engineering, this appliance focuses on speed, safety, and durability.</p>
                       )}
+
+                      {/* Technical SEO internal linking */}
+                      <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-850 flex flex-wrap gap-4 text-[11px] font-bold text-slate-400">
+                        <Link href="/warranty-registration" className="hover:text-[#D71920] uppercase tracking-wider">Register Warranty</Link>
+                        <span className="text-slate-350">|</span>
+                        <Link href="/service-request" className="hover:text-[#D71920] uppercase tracking-wider">Request Service Visit</Link>
+                        <span className="text-slate-350">|</span>
+                        <Link href="/support" className="hover:text-[#D71920] uppercase tracking-wider">Help Center & Support</Link>
+                        <span className="text-slate-350">|</span>
+                        <Link href="/contact" className="hover:text-[#D71920] uppercase tracking-wider">Contact Us</Link>
+                        <span className="text-slate-350">|</span>
+                        <Link href="/about" className="hover:text-[#D71920] uppercase tracking-wider">About Brand</Link>
+                      </div>
                     </div>
                   )}
 

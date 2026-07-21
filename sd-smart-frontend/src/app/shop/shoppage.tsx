@@ -35,7 +35,11 @@ const sortOptions = [
   { value: "featured", label: "Featured Showcase" },
 ];
 
-export default function ShopPage() {
+interface ShopPageProps {
+  initialCategory?: string;
+}
+
+export default function ShopPage({ initialCategory }: ShopPageProps = {}) {
   const allProducts = useDynamicProducts();
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
@@ -52,7 +56,7 @@ export default function ShopPage() {
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory || "all");
   const [maxPrice, setMaxPrice] = useState<number>(50000);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState("default");
@@ -73,6 +77,10 @@ export default function ShopPage() {
 
   // 1. Sync URL Query Parameters on Load (Client Side)
   useEffect(() => {
+    if (initialCategory) {
+      setSelectedCategory(initialCategory);
+      return;
+    }
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const categoryParam = params.get("category");
@@ -87,7 +95,7 @@ export default function ShopPage() {
         setSearchQuery(searchParam);
       }
     }
-  }, []);
+  }, [initialCategory]);
 
   // Set dynamic price limits based on loaded products
   useEffect(() => {

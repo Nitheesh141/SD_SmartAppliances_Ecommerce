@@ -268,8 +268,11 @@ export const routes: Record<string, React.ComponentType<any>> = {
 
 export function getRouteComponent(path: string) {
   const cleanPath = path === "/" ? "/" : path.replace(/\/$/, "");
-  if (cleanPath.startsWith("/product/")) {
+  if (cleanPath.startsWith("/product/") || cleanPath.startsWith("/products/")) {
     return ProductDetailPage;
+  }
+  if (cleanPath.startsWith("/categories/")) {
+    return ShopPage;
   }
   if (cleanPath.startsWith("/account/orders/")) {
     return OrderDetailPage;
