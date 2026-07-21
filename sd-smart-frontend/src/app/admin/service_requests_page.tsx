@@ -10,6 +10,7 @@ import {
   X, Check, ShieldCheck, User, Truck, ShieldAlert, Plus, MessageSquare, Image as ImageIcon
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
+import Pagination from "@/components/shared/Pagination";
 import { cn } from "@/lib/utils";
 import { serviceRequestService } from "@/services/serviceRequestService";
 import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
@@ -32,6 +33,12 @@ export default function AdminServiceRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Drawer / Modal state
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
@@ -92,18 +99,30 @@ export default function AdminServiceRequestsPage() {
     }
   }, [isAuthenticated, user, authLoading, router]);
 
+  // Reset page to 1 on search or tab change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, activeTab]);
+
   // Fetch all service requests
   const fetchRequests = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     try {
-      const res = await serviceRequestService.getServiceRequests();
+      const res = await serviceRequestService.getServiceRequests({
+        page,
+        limit: pageSize,
+        status: activeTab !== "ALL" ? activeTab : undefined,
+        search: searchQuery || undefined,
+      });
       if (res.success) {
         setRequests(res.data || []);
+        setTotalRecords(res.pagination?.totalRecords || 0);
+        setTotalPages(res.pagination?.totalPages || 1);
         
         // Update selectedRequest in-place if open
         setSelectedRequest((prev: any) => {
           if (!prev) return null;
-          const updated = res.data?.find((r: any) => r.id === prev.id);
+          const updated = (res.data || [])?.find((r: any) => r.id === prev.id);
           return updated || prev;
         });
       }
@@ -138,48 +157,38 @@ export default function AdminServiceRequestsPage() {
 
       return () => clearInterval(interval);
     }
+  }, [isAuthenticated, page, pageSize, activeTab, searchQuery]);
+
+  const [allRequestsForKpi, setAllRequestsForKpi] = useState<any[]>([]);
+
+  // Fetch KPI stats (unpaginated)
+  const fetchKpiStats = async () => {
+    try {
+      const res = await serviceRequestService.getServiceRequests();
+      if (res.success) {
+        setAllRequestsForKpi(res.data || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchKpiStats();
+    }
   }, [isAuthenticated]);
 
-  // Handle status update action
-  // (Moved to AdminStatusActionPanel)
-
-  // Filter requests based on search query and tab selection
-  const filteredRequests = requests.filter(req => {
-    // Search filter
-    const matchesSearch = 
-      req.ticketId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      `${req.user?.firstName} ${req.user?.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      req.product?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (req.contactNumber && req.contactNumber.includes(searchQuery));
-
-    if (!matchesSearch) return false;
-
-    // Tab filter
-    const effStatus = getEffectiveCurrentStatus(req);
-    switch (activeTab) {
-      case "PENDING_VERIFICATION":
-        return effStatus === "Request Submitted";
-      case "PICKUP_SCHEDULED":
-        return ["Request Accepted", "Technician Assigned"].includes(effStatus);
-      case "UNDER_SERVICE":
-        return ["Technician On The Way", "Reached Customer Location", "Inspection Started", "Repair In Progress", "Waiting For Spare Parts"].includes(effStatus);
-      case "COMPLETED":
-        return ["Service Completed", "Customer Feedback"].includes(effStatus);
-      case "CLOSED":
-        return ["Closed", "Request Rejected"].includes(effStatus);
-      case "ALL":
-      default:
-        return true;
-    }
-  });
+  // Filter requests based on search query and tab selection (now handled on the backend)
+  const filteredRequests = requests;
  
-  // Calculate KPI metrics
-  const totalRequests = requests.length;
-  const pendingRequests = requests.filter(r => getEffectiveCurrentStatus(r) === "Request Submitted").length;
-  const pickupScheduledRequests = requests.filter(r => ["Request Accepted", "Technician Assigned"].includes(getEffectiveCurrentStatus(r))).length;
-  const underServiceRequests = requests.filter(r => ["Technician On The Way", "Reached Customer Location", "Inspection Started", "Repair In Progress", "Waiting For Spare Parts"].includes(getEffectiveCurrentStatus(r))).length;
-  const completedRequests = requests.filter(r => ["Service Completed", "Customer Feedback"].includes(getEffectiveCurrentStatus(r))).length;
-  const closedRequests = requests.filter(r => ["Closed", "Request Rejected"].includes(getEffectiveCurrentStatus(r))).length;
+  // Calculate KPI metrics from full dataset
+  const totalRequests = allRequestsForKpi.length || totalRecords;
+  const pendingRequests = allRequestsForKpi.filter(r => getEffectiveCurrentStatus(r) === "Request Submitted").length;
+  const pickupScheduledRequests = allRequestsForKpi.filter(r => ["Request Accepted", "Technician Assigned"].includes(getEffectiveCurrentStatus(r))).length;
+  const underServiceRequests = allRequestsForKpi.filter(r => ["Technician On The Way", "Reached Customer Location", "Inspection Started", "Repair In Progress", "Waiting For Spare Parts"].includes(getEffectiveCurrentStatus(r))).length;
+  const completedRequests = allRequestsForKpi.filter(r => ["Service Completed", "Customer Feedback"].includes(getEffectiveCurrentStatus(r))).length;
+  const closedRequests = allRequestsForKpi.filter(r => ["Closed", "Request Rejected"].includes(getEffectiveCurrentStatus(r))).length;
 
   // Render Status Badge
   const getStatusBadge = (status: string, cancellationReason?: string | null) => {
@@ -631,6 +640,20 @@ export default function AdminServiceRequestsPage() {
                 </div>
               ))}
             </div>
+            {filteredRequests.length > 0 && (
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalRecords={totalRecords}
+                pageSize={pageSize}
+                onPageChange={(p) => setPage(p)}
+                onPageSizeChange={(s) => {
+                  setPageSize(s);
+                  setPage(1);
+                }}
+                theme={theme}
+              />
+            )}
           </div>
         )}
 

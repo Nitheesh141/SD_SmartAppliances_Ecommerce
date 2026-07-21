@@ -250,6 +250,8 @@ export const getAdminActivities = async (req: Request, res: Response): Promise<v
     if (!verifyAdmin(req, res)) return;
 
     const { timeRange, salesPersonId, region, distributorId, workingStatus } = req.query;
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
 
     const where: any = {};
 
@@ -299,6 +301,51 @@ export const getAdminActivities = async (req: Request, res: Response): Promise<v
 
     // Exclude drafts from admin view unless they are submitted
     where.status = { not: "DRAFT" };
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [activities, totalRecords] = await prisma.$transaction([
+        prisma.salesDailyActivity.findMany({
+          where,
+          orderBy: { activityDate: "desc" },
+          include: {
+            salesPerson: {
+              select: {
+                id: true,
+                fullName: true,
+                employeeId: true,
+                assignedRegion: true
+              }
+            },
+            distributor: {
+              select: {
+                id: true,
+                companyName: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
+          skip,
+          take: limit
+        }),
+        prisma.salesDailyActivity.count({ where })
+      ]);
+
+      res.json({
+        success: true,
+        data: activities,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalRecords / limit),
+          totalRecords,
+          pageSize: limit,
+          hasNext: page * limit < totalRecords,
+          hasPrevious: page > 1
+        }
+      });
+      return;
+    }
 
     const activities = await prisma.salesDailyActivity.findMany({
       where,

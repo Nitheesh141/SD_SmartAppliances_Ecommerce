@@ -23,6 +23,10 @@ export const listSalesPersons = async (req: Request, res: Response): Promise<voi
   try {
     if (!verifyAdmin(req, res)) return;
 
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const search = req.query.search as string | undefined;
+
     const startOfCurrentMonth = new Date();
     startOfCurrentMonth.setDate(1);
     startOfCurrentMonth.setHours(0, 0, 0, 0);
@@ -33,7 +37,146 @@ export const listSalesPersons = async (req: Request, res: Response): Promise<voi
     const currentMonth = startOfCurrentMonth.getMonth() + 1;
     const currentYear = startOfCurrentMonth.getFullYear();
 
+    const where: any = {};
+    if (search) {
+      const cleanSearch = String(search).trim();
+      where.OR = [
+        { fullName: { contains: cleanSearch, mode: "insensitive" } },
+        { employeeId: { contains: cleanSearch, mode: "insensitive" } },
+        { email: { contains: cleanSearch, mode: "insensitive" } },
+        { mobileNumber: { contains: cleanSearch } },
+        { assignedDistrict: { contains: cleanSearch, mode: "insensitive" } },
+        { assignedState: { contains: cleanSearch, mode: "insensitive" } },
+      ];
+    }
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      
+      const [salesPersons, totalRecords] = await prisma.$transaction([
+        prisma.salesPerson.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          include: {
+            distributors: {
+              select: {
+                id: true,
+                companyName: true,
+                firstName: true,
+                lastName: true
+              }
+            },
+            targets: {
+              where: {
+                month: currentMonth,
+                year: currentYear
+              }
+            }
+          },
+          skip,
+          take: limit
+        }),
+        prisma.salesPerson.count({ where })
+      ]);
+
+      // Collect all distributor IDs
+      const allDistributorIds: string[] = [];
+      salesPersons.forEach(sp => {
+        sp.distributors.forEach(d => {
+          allDistributorIds.push(d.id);
+        });
+      });
+
+      // Fetch all current month orders for these distributors
+      const orders = allDistributorIds.length > 0 ? await prisma.order.findMany({
+        where: {
+          userId: { in: allDistributorIds },
+          createdAt: { gte: startOfCurrentMonth, lt: endOfCurrentMonth },
+          status: { notIn: ["CANCELLED", "REJECTED"] }
+        },
+        include: {
+          items: true
+        }
+      }) : [];
+
+      // Map orders by distributor ID for fast lookup
+      const ordersByDistributor: Record<string, typeof orders> = {};
+      orders.forEach(order => {
+        let list = ordersByDistributor[order.userId];
+        if (!list) {
+          list = [];
+          ordersByDistributor[order.userId] = list;
+        }
+        list.push(order);
+      });
+
+      const salesPersonsWithStats = salesPersons.map(sp => {
+        const currentTarget = sp.targets[0] || null;
+        const targetType = currentTarget?.targetType || "REVENUE";
+        const targetValue = currentTarget?.targetValue || 0;
+
+        // Collect all orders for this salesperson's distributors
+        const spOrders: typeof orders = [];
+        sp.distributors.forEach(d => {
+          const distOrders = ordersByDistributor[d.id] || [];
+          spOrders.push(...distOrders);
+        });
+
+        // Calculate achievements
+        let achievement = 0;
+        if (targetType === "REVENUE") {
+          achievement = spOrders.reduce((sum, order) => sum + order.grandTotal, 0);
+        } else if (targetType === "UNITS_SOLD") {
+          achievement = spOrders.reduce((sum, order) => {
+            const itemsCount = order.items.reduce((itemSum, item) => itemSum + item.quantity, 0);
+            return sum + itemsCount;
+          }, 0);
+        }
+
+        const progressPercent = targetValue > 0 ? Math.min(Math.round((achievement / targetValue) * 100), 100) : 0;
+
+        return {
+          id: sp.id,
+          employeeId: sp.employeeId,
+          fullName: sp.fullName,
+          email: sp.email,
+          mobileNumber: sp.mobileNumber,
+          assignedRegion: sp.assignedRegion,
+          assignedState: sp.assignedState,
+          assignedDistrict: sp.assignedDistrict,
+          status: sp.status,
+          remarks: sp.remarks,
+          createdAt: sp.createdAt,
+          updatedAt: sp.updatedAt,
+          distributors: sp.distributors,
+          currentTarget: currentTarget ? {
+            targetType,
+            targetValue,
+            month: currentMonth,
+            year: currentYear
+          } : null,
+          achievement,
+          progressPercent
+        };
+      });
+
+      res.json({
+        success: true,
+        data: salesPersonsWithStats,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalRecords / limit),
+          totalRecords,
+          pageSize: limit,
+          hasNext: page * limit < totalRecords,
+          hasPrevious: page > 1
+        }
+      });
+      return;
+    }
+
     const salesPersons = await prisma.salesPerson.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       include: {
         distributors: {

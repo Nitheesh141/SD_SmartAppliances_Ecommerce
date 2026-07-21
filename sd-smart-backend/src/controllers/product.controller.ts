@@ -8,6 +8,8 @@ import { applyDynamicPricesToProducts } from "../utils/pricing";
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
     const { category, isBestSeller, isFeatured, variantGroup, search } = req.query;
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
 
     const whereClause: any = {};
 
@@ -26,6 +28,66 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      
+      if (search) {
+        const queryStr = String(search).trim();
+        whereClause.OR = [
+          { name: { contains: queryStr, mode: "insensitive" } },
+          { category: { contains: queryStr, mode: "insensitive" } },
+          { categoryLabel: { contains: queryStr, mode: "insensitive" } },
+          { modelNumber: { contains: queryStr, mode: "insensitive" } },
+          { sku: { contains: queryStr, mode: "insensitive" } },
+          { productId: { contains: queryStr, mode: "insensitive" } },
+          { description: { contains: queryStr, mode: "insensitive" } },
+        ];
+      }
+
+      const [products, totalRecords] = await prisma.$transaction([
+        prisma.product.findMany({
+          where: whereClause,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit,
+          include: {
+            distributorPricing: true,
+            transactions: {
+              where: {
+                createdAt: {
+                  gte: todayStart,
+                }
+              }
+            }
+          }
+        }),
+        prisma.product.count({ where: whereClause })
+      ]);
+
+      const formattedProducts = products.map((p: any) => {
+        const todayStockIn = p.transactions.filter((t: any) => t.type === "IN").reduce((sum: number, t: any) => sum + t.quantity, 0);
+        const todayStockOut = p.transactions.filter((t: any) => t.type === "OUT").reduce((sum: number, t: any) => sum + t.quantity, 0);
+        const { transactions, ...rest } = p;
+        return { ...rest, todayStockIn, todayStockOut };
+      });
+
+      const updatedProducts = await applyDynamicPricesToProducts(formattedProducts, (req as AuthenticatedRequest).user);
+
+      res.json({
+        success: true,
+        data: updatedProducts,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalRecords / limit),
+          totalRecords,
+          pageSize: limit,
+          hasNext: page * limit < totalRecords,
+          hasPrevious: page > 1
+        }
+      });
+      return;
+    }
 
     const products = await prisma.product.findMany({
       where: whereClause,

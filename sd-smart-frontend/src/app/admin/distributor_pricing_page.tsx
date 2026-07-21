@@ -10,6 +10,7 @@ import {
   ChevronLeft, ChevronRight, X, Sparkles, Check, AlertCircle, IndianRupee, Eye
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
+import Pagination from "@/components/shared/Pagination";
 import { cn } from "@/lib/utils";
 
 interface ProductType {
@@ -63,7 +64,7 @@ export default function AdminDistributorPricingPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(5);
 
   // Filter and search
   const [searchQuery, setSearchQuery] = useState("");
@@ -134,7 +135,7 @@ export default function AdminDistributorPricingPage() {
         fetchCatalogProducts();
       }
     }
-  }, [isAuthenticated, user, authLoading, router, page, debouncedSearch]);
+  }, [isAuthenticated, user, authLoading, router, page, limit, debouncedSearch]);
 
   // Fetch Distributor Pricing list
   const fetchPricings = async (isBackground = false) => {
@@ -156,9 +157,9 @@ export default function AdminDistributorPricingPage() {
       if (!response.ok) throw new Error("Failed to load distributor pricing");
       const data = await response.json();
       if (data.success) {
-        setPricings(data.pricings || []);
-        setTotal(data.total || 0);
-        setTotalPages(data.totalPages || 1);
+        setPricings(data.data || []);
+        setTotal(data.pagination?.totalRecords || 0);
+        setTotalPages(data.pagination?.totalPages || 1);
       }
     } catch (error: any) {
       console.error(error);
@@ -361,7 +362,11 @@ export default function AdminDistributorPricingPage() {
       }
 
       toast.success("Pricing record deleted successfully");
-      fetchPricings();
+      if (pricings.length === 1 && page > 1) {
+        setPage(prev => prev - 1);
+      } else {
+        fetchPricings();
+      }
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Failed to delete pricing record");
@@ -623,43 +628,19 @@ export default function AdminDistributorPricingPage() {
             )}
 
             {/* Pagination component */}
-            {totalPages > 1 && (
-              <div className={cn(
-                "p-4 border-t flex items-center justify-between gap-4",
-                isDark ? "border-neutral-800 bg-neutral-900/10" : "border-slate-100 bg-slate-50/20"
-              )}>
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                  className={cn(
-                    "px-3 py-1.5 border rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all disabled:opacity-50 select-none cursor-pointer",
-                    isDark
-                      ? "border-neutral-850 hover:bg-neutral-900 text-neutral-300 disabled:hover:bg-transparent"
-                      : "border-slate-200 hover:bg-slate-50 text-slate-700 disabled:hover:bg-transparent"
-                  )}
-                >
-                  <ChevronLeft size={14} />
-                  <span>Previous</span>
-                </button>
-
-                <div className="text-xs font-bold text-neutral-500">
-                  Page {page} of {totalPages}
-                </div>
-
-                <button
-                  disabled={page === totalPages}
-                  onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
-                  className={cn(
-                    "px-3 py-1.5 border rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all disabled:opacity-50 select-none cursor-pointer",
-                    isDark
-                      ? "border-neutral-850 hover:bg-neutral-900 text-neutral-300 disabled:hover:bg-transparent"
-                      : "border-slate-200 hover:bg-slate-50 text-slate-700 disabled:hover:bg-transparent"
-                  )}
-                >
-                  <span>Next</span>
-                  <ChevronRight size={14} />
-                </button>
-              </div>
+            {pricings.length > 0 && (
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalRecords={total}
+                pageSize={limit}
+                onPageChange={(p) => setPage(p)}
+                onPageSizeChange={(s) => {
+                  setLimit(s);
+                  setPage(1);
+                }}
+                theme={theme}
+              />
             )}
           </div>
         </main>

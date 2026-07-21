@@ -7,6 +7,7 @@ import {
   Loader2, Calendar, Shield, IndianRupee, Eye, CheckCircle2, AlertTriangle, XCircle, Clock, MapPin, RefreshCw, X, MessageSquare, Clipboard, User, Target, BarChart3, ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
+import Pagination from "@/components/shared/Pagination";
 import { cn } from "@/lib/utils";
 
 interface ActivityAdminType {
@@ -187,6 +188,12 @@ export default function AdminDailyActivitiesPage() {
   const [distributorId, setDistributorId] = useState("");
   const [workingStatus, setWorkingStatus] = useState("");
 
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   // Review state
   const [reviewComment, setReviewComment] = useState("");
 
@@ -241,6 +248,11 @@ export default function AdminDailyActivitiesPage() {
     }
   };
 
+  // Reset page to 1 on filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [timeRange, salesPersonId, region, distributorId, workingStatus]);
+
   const fetchActivities = async () => {
     setLoading(true);
     try {
@@ -253,6 +265,8 @@ export default function AdminDailyActivitiesPage() {
       if (region) queryParams.append("region", region);
       if (distributorId) queryParams.append("distributorId", distributorId);
       if (workingStatus) queryParams.append("workingStatus", workingStatus);
+      queryParams.append("page", String(page));
+      queryParams.append("limit", String(pageSize));
 
       const res = await fetch(`${ENV.API_BASE_URL}/sales-activities/admin/list?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -260,7 +274,9 @@ export default function AdminDailyActivitiesPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          setActivities(data.activities || []);
+          setActivities(data.data || []);
+          setTotalRecords(data.pagination?.totalRecords || 0);
+          setTotalPages(data.pagination?.totalPages || 1);
         }
       }
     } catch (err) {
@@ -278,7 +294,7 @@ export default function AdminDailyActivitiesPage() {
 
   useEffect(() => {
     fetchActivities();
-  }, [timeRange, salesPersonId, region, distributorId, workingStatus]);
+  }, [page, pageSize, timeRange, salesPersonId, region, distributorId, workingStatus]);
 
   const handleAdminAction = async (action: "APPROVE" | "CORRECTION" | "REJECT" | "VERIFY") => {
     if (!selectedActivity) return;
@@ -559,6 +575,20 @@ export default function AdminDailyActivitiesPage() {
                     ))}
                   </tbody>
                 </table>
+                {activities.length > 0 && (
+                  <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    totalRecords={totalRecords}
+                    pageSize={pageSize}
+                    onPageChange={(p) => setPage(p)}
+                    onPageSizeChange={(s) => {
+                      setPageSize(s);
+                      setPage(1);
+                    }}
+                    theme={theme}
+                  />
+                )}
               </div>
             )}
           </div>

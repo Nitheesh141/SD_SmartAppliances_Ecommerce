@@ -10,6 +10,7 @@ import {
   TrendingUp, ClipboardList, Award, Users, AlertCircle, ArrowUpRight
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
+import Pagination from "@/components/shared/Pagination";
 import { cn } from "@/lib/utils";
 
 interface SalesPersonType {
@@ -64,6 +65,12 @@ export default function AdminSalesPersonsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Form Modals State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -154,6 +161,11 @@ export default function AdminSalesPersonsPage() {
     }
   };
 
+  // Reset page to 1 when search query changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
+
   // Fetch Sales Persons
   const fetchSalesPersons = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
@@ -161,13 +173,24 @@ export default function AdminSalesPersonsPage() {
       const token = localStorage.getItem("authToken");
       if (!token) return;
 
-      const res = await fetch(`${ENV.API_BASE_URL}/sales-persons/admin/list`, {
+      const queryParams = new URLSearchParams({
+        page: String(page),
+        limit: String(pageSize),
+      });
+
+      if (searchQuery) {
+        queryParams.append("search", searchQuery);
+      }
+
+      const res = await fetch(`${ENV.API_BASE_URL}/sales-persons/admin/list?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       const data = await res.json();
       if (data.success) {
-        setSalesPersons(data.salesPersons || []);
+        setSalesPersons(data.data || []);
+        setTotalRecords(data.pagination?.totalRecords || 0);
+        setTotalPages(data.pagination?.totalPages || 1);
       } else {
         if (!isBackground) toast.error(data.message || "Failed to fetch sales persons");
       }
@@ -178,6 +201,18 @@ export default function AdminSalesPersonsPage() {
       if (!isBackground) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchSalesPersons(false);
+    }
+  }, [page, pageSize, searchQuery, isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchDistributors();
+    }
+  }, [isAuthenticated]);
 
   // Fetch performance metrics for specific Sales Person & Month/Year
   const fetchMgmtPerformance = async (spId: string, month: number, year: number) => {
@@ -464,10 +499,14 @@ export default function AdminSalesPersonsPage() {
       const data = await res.json();
       if (data.success) {
         toast.success("Sales Person deleted successfully");
-        setSalesPersons(prev => prev.filter(sp => sp.id !== id));
         if (selectedSp && selectedSp.id === id) {
           setIsMgmtModalOpen(false);
           setSelectedSp(null);
+        }
+        if (salesPersons.length === 1 && page > 1) {
+          setPage(prev => prev - 1);
+        } else {
+          fetchSalesPersons();
         }
       } else {
         toast.error(data.message || "Failed to delete");
@@ -498,20 +537,10 @@ export default function AdminSalesPersonsPage() {
     });
   }, [distributors, mgmtDistributorSearch]);
 
-  // Filter Sales Persons for main grid
+  // Filter Sales Persons for main grid (now done on the backend)
   const filteredSalesPersons = useMemo(() => {
-    return salesPersons.filter(sp => {
-      const q = searchQuery.toLowerCase();
-      return (
-        sp.fullName.toLowerCase().includes(q) ||
-        sp.employeeId.toLowerCase().includes(q) ||
-        sp.email.toLowerCase().includes(q) ||
-        sp.mobileNumber.includes(q) ||
-        sp.assignedDistrict.toLowerCase().includes(q) ||
-        sp.assignedState.toLowerCase().includes(q)
-      );
-    });
-  }, [salesPersons, searchQuery]);
+    return salesPersons;
+  }, [salesPersons]);
 
   const isDark = theme === "dark";
 
@@ -733,6 +762,21 @@ export default function AdminSalesPersonsPage() {
               );
             })}
           </div>
+        )}
+
+        {filteredSalesPersons.length > 0 && (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalRecords={totalRecords}
+            pageSize={pageSize}
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(s) => {
+              setPageSize(s);
+              setPage(1);
+            }}
+            theme={theme}
+          />
         )}
       </main>
 
