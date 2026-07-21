@@ -96,7 +96,8 @@ export const apiRequest = async <T>(
 
     return {
       success: true,
-      data: data.data || data,
+      data: data.data !== undefined ? data.data : data,
+      pagination: data.pagination,
       message: data.message,
       statusCode: response.status,
     };

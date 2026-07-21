@@ -17,7 +17,12 @@ export const serviceRequestService = {
   /**
    * Get service requests (optionally filter by status)
    */
-  getServiceRequests: async (params?: { status?: string }): Promise<ApiResponse<any[]>> => {
+  getServiceRequests: async (params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<ApiResponse<any[]>> => {
     return apiGet<any[]>("/service-requests", params);
   },
 

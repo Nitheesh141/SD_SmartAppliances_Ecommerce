@@ -11,6 +11,7 @@ import {
   Search, Calendar, MessageSquare, AlertCircle, ChevronDown
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
+import Pagination from "@/components/shared/Pagination";
 import { cn } from "@/lib/utils";
 
 const logisticsOptions = [
@@ -114,6 +115,12 @@ export default function AdminOrdersPage() {
   const [activeTab, setActiveTab] = useState<TabType>("PENDING");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   // Detailed Modal/Drawer state
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -180,23 +187,43 @@ export default function AdminOrdersPage() {
     }
   }, [selectedOrder]);
 
+  // Reset page to 1 when search or tab filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchQuery]);
+
   const fetchOrders = async (isBackground = false) => {
     if (!isBackground) setLoadingOrders(true);
     try {
       const token = localStorage.getItem("authToken");
       if (!token) return;
 
-      const res = await fetch(`${ENV.API_BASE_URL}/orders/all`, {
+      const queryParams = new URLSearchParams({
+        page: String(page),
+        limit: String(pageSize),
+      });
+
+      if (activeTab) {
+        queryParams.append("status", activeTab);
+      }
+
+      if (searchQuery) {
+        queryParams.append("search", searchQuery);
+      }
+
+      const res = await fetch(`${ENV.API_BASE_URL}/orders/all?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success) {
-        setOrders(data.orders);
+        setOrders(data.data || []);
+        setTotalRecords(data.pagination?.totalRecords || 0);
+        setTotalPages(data.pagination?.totalPages || 1);
         
         // Update selectedOrder in-place if open
         setSelectedOrder(prev => {
           if (!prev) return null;
-          const updated = data.orders?.find((o: any) => o.id === prev.id);
+          const updated = (data.data || []).find((o: any) => o.id === prev.id);
           return updated || prev;
         });
       } else {
@@ -209,6 +236,12 @@ export default function AdminOrdersPage() {
       if (!isBackground) setLoadingOrders(false);
     }
   };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchOrders(false);
+    }
+  }, [page, pageSize, activeTab, searchQuery, isAuthenticated]);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -226,9 +259,7 @@ export default function AdminOrdersPage() {
       }
     };
 
-
     if (isAuthenticated) {
-      fetchOrders(false);
       fetchSettings();
 
       const interval = setInterval(() => {
@@ -244,7 +275,7 @@ export default function AdminOrdersPage() {
 
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, page, pageSize, activeTab, searchQuery]);
 
   const handleUpdateStatus = async (status: string, remarks: string) => {
     if (!selectedOrder) return;
@@ -282,46 +313,8 @@ export default function AdminOrdersPage() {
 
   const isDark = theme === "dark";
 
-  // Filter orders by active tab & search query
-  const filteredOrders = orders.filter(o => {
-    // Tab filtering
-    let tabMatch = false;
-    switch (activeTab) {
-      case "PENDING":
-        tabMatch = o.status === "PENDING_APPROVAL";
-        break;
-      case "APPROVED":
-        tabMatch = o.status === "APPROVED";
-        break;
-      case "PROCESSING":
-        tabMatch = o.status === "PROCESSING" || o.status === "PACKED";
-        break;
-      case "SHIPPING":
-        tabMatch = o.status === "SHIPPED" || o.status === "IN_TRANSIT" || o.status === "OUT_FOR_DELIVERY";
-        break;
-      case "DELIVERED":
-        tabMatch = o.status === "DELIVERED";
-        break;
-      case "CANCELLED_REJECTED":
-        tabMatch = o.status === "CANCELLED" || o.status === "REJECTED";
-        break;
-      case "ALL":
-      default:
-        tabMatch = true;
-    }
-
-    if (!tabMatch) return false;
-
-    // Search query match
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      o.orderNumber.toLowerCase().includes(query) ||
-      (o.invoice?.invoiceNumber || "").toLowerCase().includes(query) ||
-      (o.address?.fullName || "").toLowerCase().includes(query) ||
-      (o.address?.companyName || "").toLowerCase().includes(query)
-    );
-  });
+  // Filter orders by active tab & search query (now offloaded to the backend)
+  const filteredOrders = orders;
 
   const getStatusLabel = (status: string) => {
     const mapping: Record<string, string> = {
@@ -841,8 +834,22 @@ export default function AdminOrdersPage() {
                   </div>
                 )}
               </div>
-
             </div>
+          )}
+
+          {filteredOrders.length > 0 && (
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalRecords={totalRecords}
+              pageSize={pageSize}
+              onPageChange={(p) => setPage(p)}
+              onPageSizeChange={(s) => {
+                setPageSize(s);
+                setPage(1);
+              }}
+              theme={theme}
+            />
           )}
 
         </main>

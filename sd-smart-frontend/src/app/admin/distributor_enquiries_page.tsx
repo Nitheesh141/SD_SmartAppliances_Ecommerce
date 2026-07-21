@@ -11,6 +11,7 @@ import {
   ChevronRight, CheckSquare, Square
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
+import Pagination from "@/components/shared/Pagination";
 import { cn } from "@/lib/utils";
 
 interface EnquiryType {
@@ -68,6 +69,12 @@ export default function AdminDistributorEnquiriesPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -104,6 +111,11 @@ export default function AdminDistributorEnquiriesPage() {
 
   const isDark = theme === "dark";
 
+  // Reset page to 1 on search or filter change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
+
   // Fetch initial data
   const fetchData = async () => {
     setLoading(true);
@@ -120,8 +132,19 @@ export default function AdminDistributorEnquiriesPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      const queryParams = new URLSearchParams({
+        page: String(page),
+        limit: String(pageSize),
+      });
+      if (statusFilter && statusFilter !== "ALL") {
+        queryParams.append("status", statusFilter);
+      }
+      if (searchQuery) {
+        queryParams.append("search", searchQuery);
+      }
+
       // Load Enquiries
-      const enqRes = await fetch(`${ENV.API_BASE_URL}/distributor-enquiries/admin/list`, {
+      const enqRes = await fetch(`${ENV.API_BASE_URL}/distributor-enquiries/admin/list?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const enqData = await enqRes.json();
@@ -133,11 +156,13 @@ export default function AdminDistributorEnquiriesPage() {
       const spData = await spRes.json();
 
       if (enqData.success) {
-        setEnquiries(enqData.enquiries);
+        setEnquiries(enqData.data || []);
+        setTotalRecords(enqData.pagination?.totalRecords || 0);
+        setTotalPages(enqData.pagination?.totalPages || 1);
       }
       if (spData.success) {
         // filter only active salespersons
-        const activeSp = (spData.salesPersons || []).filter((sp: SalesPersonType) => sp.status === "ACTIVE");
+        const activeSp = (spData.data || spData.salesPersons || []).filter((sp: SalesPersonType) => sp.status === "ACTIVE");
         setSalesPersons(activeSp);
       }
     } catch (err) {
@@ -150,23 +175,12 @@ export default function AdminDistributorEnquiriesPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [page, pageSize, statusFilter, searchQuery]);
 
-  // Filtered Enquiries
+  // Filtered Enquiries (now handled on the backend)
   const filteredEnquiries = useMemo(() => {
-    return enquiries.filter((e) => {
-      const distributorName = e.distributor.companyName || `${e.distributor.firstName} ${e.distributor.lastName}`;
-      const contactName = `${e.distributor.firstName} ${e.distributor.lastName}`;
-      const matchesSearch = 
-        distributorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (e.salesPerson?.fullName || "").toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesStatus = statusFilter === "ALL" || e.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [enquiries, searchQuery, statusFilter]);
+    return enquiries;
+  }, [enquiries]);
 
   // Filtered Active Sales Persons for modal
   const filteredSalesPersons = useMemo(() => {
@@ -449,6 +463,20 @@ export default function AdminDistributorEnquiriesPage() {
                 </tbody>
               </table>
             </div>
+            {filteredEnquiries.length > 0 && (
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalRecords={totalRecords}
+                pageSize={pageSize}
+                onPageChange={(p) => setPage(p)}
+                onPageSizeChange={(s) => {
+                  setPageSize(s);
+                  setPage(1);
+                }}
+                theme={theme}
+              />
+            )}
           </div>
         )}
       </main>

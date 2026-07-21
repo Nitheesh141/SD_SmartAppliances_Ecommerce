@@ -1,5 +1,5 @@
 "use client";
-import { ENV } from "@/config/env";
+import { ENV, getAbsoluteImageUrl } from "@/config/env";
 
 import AnnouncementBar from "@/components/layout/AnnouncementBar";
 import Header from "@/components/layout/Header";
@@ -176,7 +176,7 @@ export default function CartPage() {
                       {/* Product Image */}
                       <Link href={`/product/${product.id || '#'}`} className="w-24 h-24 sm:w-32 sm:h-32 bg-neutral-50 rounded-xl flex items-center justify-center p-2 flex-shrink-0 relative z-10 hover:opacity-90 transition-opacity">
                         <img 
-                          src={product.image || product.images?.[0] || "/SD-logo.png"} 
+                          src={getAbsoluteImageUrl(product.image || product.images?.[0])} 
                           alt={product.name || "Product"} 
                           className="w-full h-full object-contain mix-blend-multiply" 
                         />

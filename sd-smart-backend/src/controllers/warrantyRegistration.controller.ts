@@ -295,10 +295,12 @@ export const getWarrantyRegistrations = async (req: Request, res: Response): Pro
     }
 
     const { search, status, category } = req.query as { search?: string; status?: string; category?: string };
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
 
     const filters: any = {};
 
-    if (status) {
+    if (status && status !== "ALL") {
       filters.status = status;
     }
 
@@ -316,6 +318,38 @@ export const getWarrantyRegistrations = async (req: Request, res: Response): Pro
         { invoiceNumber: { contains: cleanSearch, mode: "insensitive" } },
         { registrationId: { contains: cleanSearch, mode: "insensitive" } }
       ];
+    }
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [data, totalRecords] = await prisma.$transaction([
+        prisma.warrantyRegistration.findMany({
+          where: filters,
+          include: {
+            attachments: true
+          },
+          orderBy: {
+            createdAt: "desc"
+          },
+          skip,
+          take: limit
+        }),
+        prisma.warrantyRegistration.count({ where: filters })
+      ]);
+
+      res.status(200).json({
+        success: true,
+        data,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalRecords / limit),
+          totalRecords,
+          pageSize: limit,
+          hasNext: page * limit < totalRecords,
+          hasPrevious: page > 1
+        }
+      });
+      return;
     }
 
     const data = await prisma.warrantyRegistration.findMany({

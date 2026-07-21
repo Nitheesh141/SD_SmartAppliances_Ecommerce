@@ -10,6 +10,7 @@ import {
   Building, User, Mail, Phone, FileText, MapPin, Clock
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
+import Pagination from "@/components/shared/Pagination";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -34,6 +35,12 @@ export default function AdminDistributorsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modal details state
   const [selectedDistributor, setSelectedDistributor] = useState<DistributorType | null>(null);
@@ -72,6 +79,11 @@ export default function AdminDistributorsPage() {
     }
   }, [isAuthenticated, user, authLoading, router]);
 
+  // Reset page to 1 when search query changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
+
   // Fetch distributors
   const fetchDistributors = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
@@ -79,18 +91,29 @@ export default function AdminDistributorsPage() {
       const token = localStorage.getItem("authToken");
       if (!token) return;
 
-      const res = await fetch(`${ENV.API_BASE_URL}/auth/admin/distributors`, {
+      const queryParams = new URLSearchParams({
+        page: String(page),
+        limit: String(pageSize),
+      });
+
+      if (searchQuery) {
+        queryParams.append("search", searchQuery);
+      }
+
+      const res = await fetch(`${ENV.API_BASE_URL}/auth/admin/distributors?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       const data = await res.json();
       if (data.success) {
-        setDistributors(data.distributors || []);
+        setDistributors(data.data || []);
+        setTotalRecords(data.pagination?.totalRecords || 0);
+        setTotalPages(data.pagination?.totalPages || 1);
         
         // Update selectedDistributor in-place if open
         setSelectedDistributor(prev => {
           if (!prev) return null;
-          const updated = data.distributors?.find((d: any) => d.id === prev.id);
+          const updated = (data.data || []).find((d: any) => d.id === prev.id);
           return updated || prev;
         });
       } else {
@@ -104,6 +127,12 @@ export default function AdminDistributorsPage() {
     }
   };
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchDistributors(false);
+    }
+  }, [page, pageSize, searchQuery, isAuthenticated]);
+
   // Track whether the detail drawer is open to pause polling
   const isEditingRef = useRef(false);
   useEffect(() => {
@@ -112,8 +141,6 @@ export default function AdminDistributorsPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchDistributors(false);
-
       const interval = setInterval(() => {
         const activeEl = document.activeElement;
         const isInputFocused = activeEl && (
@@ -127,7 +154,7 @@ export default function AdminDistributorsPage() {
 
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, page, pageSize, searchQuery]);
 
   // Handle Approve/Reject
   const handleUpdateStatus = async (id: string, status: "APPROVED" | "REJECTED") => {
@@ -179,8 +206,11 @@ export default function AdminDistributorsPage() {
       const data = await res.json();
       if (data.success) {
         toast.success("Distributor successfully deleted!");
-        // Update state locally
-        setDistributors(prev => prev.filter(d => d.id !== id));
+        if (distributors.length === 1 && page > 1) {
+          setPage(prev => prev - 1);
+        } else {
+          fetchDistributors();
+        }
       } else {
         toast.error(data.message || "Failed to delete distributor");
       }
@@ -271,20 +301,10 @@ export default function AdminDistributorsPage() {
     }
   };
 
-  // Filter distributors by search query
+  // Filter distributors by search query (now handled on the backend)
   const filteredDistributors = useMemo(() => {
-    return distributors.filter(d => {
-      const query = searchQuery.toLowerCase();
-      return (
-        d.lastName.toLowerCase().includes(query) || // Distributor Name
-        d.firstName.toLowerCase().includes(query) || // Contact Person
-        (d.companyName && d.companyName.toLowerCase().includes(query)) || // Business Name
-        d.email.toLowerCase().includes(query) ||
-        (d.phoneNumber && d.phoneNumber.includes(query)) ||
-        (d.gstin && d.gstin.toLowerCase().includes(query))
-      );
-    });
-  }, [distributors, searchQuery]);
+    return distributors;
+  }, [distributors]);
 
   const isDark = theme === "dark";
 
@@ -560,6 +580,20 @@ export default function AdminDistributorsPage() {
                     })}
                   </tbody>
                 </table>
+                {filteredDistributors.length > 0 && (
+                  <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    totalRecords={totalRecords}
+                    pageSize={pageSize}
+                    onPageChange={(p) => setPage(p)}
+                    onPageSizeChange={(s) => {
+                      setPageSize(s);
+                      setPage(1);
+                    }}
+                    theme={theme}
+                  />
+                )}
               </div>
             </div>
           )}

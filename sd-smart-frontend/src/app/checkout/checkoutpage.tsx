@@ -1,5 +1,5 @@
 "use client";
-import { ENV } from "@/config/env";
+import { ENV, getAbsoluteImageUrl } from "@/config/env";
 
 import { useState, useEffect, useMemo } from "react";
 import Header from "@/components/layout/Header";
@@ -170,7 +170,7 @@ export default function CheckoutPage() {
           productId: item.productId,
           quantity: item.quantity
         }));
-        
+
         const response = await fetch(`${ENV.API_BASE_URL}/offers/calculate`, {
           method: "POST",
           headers: {
@@ -179,11 +179,11 @@ export default function CheckoutPage() {
           },
           body: JSON.stringify({ items: bodyItems, couponCode: couponCode || undefined })
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           setCalculationResult(data);
-          
+
           if (couponCode) {
             const couponOffer = data.appliedOffers?.find((o: any) => o.code?.toLowerCase() === couponCode.toLowerCase());
             if (couponOffer) {
@@ -312,23 +312,23 @@ export default function CheckoutPage() {
             <AlertTriangle size={40} />
           </div>
           <h1 className="text-3xl font-black text-[#1C1C1C] dark:text-white mb-3 text-center">Checkout Blocked</h1>
-          
+
           <div className="bg-white dark:bg-slate-900 border border-neutral-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-sm text-center">
             <p className="text-neutral-600 dark:text-neutral-300 text-sm leading-relaxed">
-              {user.approvalStatus?.toUpperCase() === "REJECTED" 
+              {user.approvalStatus?.toUpperCase() === "REJECTED"
                 ? "Your distributor application has been rejected. Please contact support."
                 : "Your distributor account is currently under review. Please wait for admin approval before placing orders."
               }
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link 
-                href="/distributor/dashboard" 
+              <Link
+                href="/distributor/dashboard"
                 className="w-full sm:w-auto bg-[#D71920] hover:bg-[#B91520] text-white text-sm font-bold px-6 py-3 rounded-xl transition-all shadow-md shadow-[#D71920]/10 cursor-pointer"
               >
                 Go to Dashboard
               </Link>
-              <Link 
-                href="/" 
+              <Link
+                href="/"
                 className="w-full sm:w-auto bg-neutral-100 hover:bg-neutral-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-neutral-700 dark:text-neutral-300 text-sm font-bold px-6 py-3 rounded-xl transition-all cursor-pointer"
               >
                 Back to Home
@@ -407,6 +407,50 @@ export default function CheckoutPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* LEFT SECTION (65%) */}
           <div className="flex-1 lg:w-[65%] space-y-8">
+
+            {/* ITEMS IN YOUR ORDER */}
+            <section className="bg-neutral-50/60 dark:bg-slate-900/40 rounded-2xl p-5 border border-neutral-200/80 dark:border-neutral-800">
+              <h2 className="text-xl font-bold text-[#1C1C1C] dark:text-white mb-4 flex items-center gap-2">
+                <Package className="text-[#D71920]" size={20} />
+                Items in your Order
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {inStockCartItems.map((item) => (
+                  <Link
+                    key={item.id || item.productId}
+                    href={`/product/${item.productId}`}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-neutral-100 hover:border-neutral-200 bg-white dark:bg-slate-900 transition-all select-none group"
+                  >
+                    <div className="w-12 h-12 bg-white rounded-lg border border-neutral-200 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
+                      <img
+                        src={getAbsoluteImageUrl(item.product?.image)}
+                        alt={item.product?.name || "Product image"}
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "/SD-logo.png";
+                        }}
+                      />
+                    </div>
+                    <div className="flex-grow min-w-0 text-left">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-neutral-200 truncate group-hover:text-[#D71920] transition-colors leading-tight">
+                        {item.product?.name}
+                      </h4>
+                      <p className="text-[10px] text-neutral-450 dark:text-neutral-500 font-bold uppercase mt-0.5">
+                        {item.product?.categoryLabel}
+                      </p>
+                      <div className="flex items-center justify-between mt-1 text-xs">
+                        <span className="font-extrabold text-[#D71920]">
+                          ₹{((item.product as any)?.distributorPricing?.dealerPrice || item.product?.price || 0).toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-semibold bg-slate-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded-md">
+                          Qty: {item.quantity}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
 
             {/* DELIVERY ADDRESS */}
             <section>
@@ -499,43 +543,43 @@ export default function CheckoutPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Full Name *</label>
-                      <input type="text" required value={newAddress.fullName} onChange={e => setNewAddress({ ...newAddress, fullName: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
+                      <input type="text" required value={newAddress.fullName} onChange={e => setNewAddress({ ...newAddress, fullName: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-neutral-100 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Email Address (Optional)</label>
-                      <input type="email" value={newAddress.emailAddress || ""} onChange={e => setNewAddress({ ...newAddress, emailAddress: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
+                      <input type="email" value={newAddress.emailAddress || ""} onChange={e => setNewAddress({ ...newAddress, emailAddress: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-neutral-100 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Mobile Number *</label>
-                      <input type="tel" required value={newAddress.mobileNumber} onChange={e => setNewAddress({ ...newAddress, mobileNumber: e.target.value.replace(/\D/g, "").slice(0, 10) })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
+                      <input type="tel" required value={newAddress.mobileNumber} onChange={e => setNewAddress({ ...newAddress, mobileNumber: e.target.value.replace(/\D/g, "").slice(0, 10) })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-neutral-100 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Company Name (Optional)</label>
-                      <input type="text" value={newAddress.companyName} onChange={e => setNewAddress({ ...newAddress, companyName: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
+                      <input type="text" value={newAddress.companyName} onChange={e => setNewAddress({ ...newAddress, companyName: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-neutral-100 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Address Line 1 *</label>
-                      <input type="text" required value={newAddress.addressLine1} onChange={e => setNewAddress({ ...newAddress, addressLine1: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
+                      <input type="text" required value={newAddress.addressLine1} onChange={e => setNewAddress({ ...newAddress, addressLine1: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-neutral-100 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Address Line 2</label>
-                      <input type="text" value={newAddress.addressLine2} onChange={e => setNewAddress({ ...newAddress, addressLine2: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
+                      <input type="text" value={newAddress.addressLine2} onChange={e => setNewAddress({ ...newAddress, addressLine2: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-neutral-100 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">City *</label>
-                      <input type="text" required value={newAddress.city} onChange={e => setNewAddress({ ...newAddress, city: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
+                      <input type="text" required value={newAddress.city} onChange={e => setNewAddress({ ...newAddress, city: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-neutral-100 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">State *</label>
-                      <input type="text" required value={newAddress.state} onChange={e => setNewAddress({ ...newAddress, state: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
+                      <input type="text" required value={newAddress.state} onChange={e => setNewAddress({ ...newAddress, state: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-neutral-100 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Pincode *</label>
-                      <input type="text" required value={newAddress.pincode} onChange={e => setNewAddress({ ...newAddress, pincode: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
+                      <input type="text" required value={newAddress.pincode} onChange={e => setNewAddress({ ...newAddress, pincode: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-neutral-100 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Landmark</label>
-                      <input type="text" value={newAddress.landmark} onChange={e => setNewAddress({ ...newAddress, landmark: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
+                      <input type="text" value={newAddress.landmark} onChange={e => setNewAddress({ ...newAddress, landmark: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-neutral-100 focus:border-[#D71920] focus:ring-1 focus:ring-[#D71920] outline-none transition-all text-sm font-medium" />
                     </div>
                     <div className="md:col-span-2 mt-2">
                       <label className="flex items-center gap-2 cursor-pointer">
@@ -588,8 +632,8 @@ export default function CheckoutPage() {
                       }}
                       className={cn(
                         "flex items-center p-4 rounded-xl border-2 transition-all",
-                        isDisabled 
-                          ? "opacity-50 cursor-not-allowed bg-neutral-50 border-neutral-200" 
+                        isDisabled
+                          ? "opacity-50 cursor-not-allowed bg-neutral-50 border-neutral-200"
                           : "cursor-pointer",
                         paymentMethod === method.id
                           ? "border-[#D71920] bg-red-50/30"
@@ -628,7 +672,7 @@ export default function CheckoutPage() {
                   {/* Coupon Code Input Panel */}
                   <div className="mt-6 mb-6 p-4 bg-slate-55 rounded-2xl border border-neutral-200 space-y-3">
                     <span className="text-xs font-extrabold uppercase tracking-wider text-neutral-500 block">Promo Code & Coupons</span>
-                    
+
                     {couponSuccess ? (
                       <div className="flex items-center justify-between bg-green-50/60 border border-green-150 rounded-xl p-3 text-xs text-green-800">
                         <div className="flex items-center gap-2">
@@ -663,18 +707,16 @@ export default function CheckoutPage() {
                     {couponError && <p className="text-[10px] font-bold text-[#D71920]">{couponError}</p>}
                   </div>
                   {/* ── SMART DELIVERY BANNER ── */}
-                  <div className={`mb-5 rounded-2xl border overflow-hidden ${
-                    isFreeDelivery
+                  <div className={`mb-5 rounded-2xl border overflow-hidden ${isFreeDelivery
                       ? "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50"
                       : "border-orange-100 bg-gradient-to-br from-orange-50/60 to-amber-50/40"
-                  }`}>
+                    }`}>
                     <div className="px-4 pt-3.5 pb-2">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Truck size={16} className={isFreeDelivery ? "text-green-600" : "text-orange-500"} />
-                          <span className={`text-xs font-extrabold uppercase tracking-wider ${
-                            isFreeDelivery ? "text-green-700" : "text-orange-600"
-                          }`}>
+                          <span className={`text-xs font-extrabold uppercase tracking-wider ${isFreeDelivery ? "text-green-700" : "text-orange-600"
+                            }`}>
                             {isFreeDelivery ? "Free Delivery Unlocked! 🎉" : "Free Delivery"}
                           </span>
                         </div>

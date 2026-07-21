@@ -335,6 +335,86 @@ export const getAllOrders = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const status = req.query.status as string | undefined;
+    const search = req.query.search as string | undefined;
+
+    const where: any = {};
+
+    if (status && status !== "ALL") {
+      if (status === "PENDING") {
+        where.status = "PENDING_APPROVAL";
+      } else if (status === "APPROVED") {
+        where.status = "APPROVED";
+      } else if (status === "PROCESSING") {
+        where.status = { in: ["PROCESSING", "PACKED"] };
+      } else if (status === "SHIPPING") {
+        where.status = { in: ["SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY"] };
+      } else if (status === "DELIVERED") {
+        where.status = "DELIVERED";
+      } else if (status === "CANCELLED_REJECTED") {
+        where.status = { in: ["CANCELLED", "REJECTED"] };
+      }
+    }
+
+    if (search) {
+      const cleanSearch = search.trim();
+      where.OR = [
+        { orderNumber: { contains: cleanSearch, mode: "insensitive" } },
+        { invoice: { invoiceNumber: { contains: cleanSearch, mode: "insensitive" } } },
+        { address: { fullName: { contains: cleanSearch, mode: "insensitive" } } },
+        { address: { companyName: { contains: cleanSearch, mode: "insensitive" } } },
+      ];
+    }
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [orders, totalRecords] = await prisma.$transaction([
+        prisma.order.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit,
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phoneNumber: true,
+                role: true,
+              }
+            },
+            address: true,
+            items: {
+              include: { product: true }
+            },
+            statusHistory: {
+              orderBy: { updatedAt: "asc" }
+            },
+            invoice: true
+          }
+        }),
+        prisma.order.count({ where })
+      ]);
+
+      res.json({
+        success: true,
+        data: orders,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalRecords / limit),
+          totalRecords,
+          pageSize: limit,
+          hasNext: page * limit < totalRecords,
+          hasPrevious: page > 1
+        }
+      });
+      return;
+    }
+
     const orders = await prisma.order.findMany({
       orderBy: { createdAt: "desc" },
       include: {

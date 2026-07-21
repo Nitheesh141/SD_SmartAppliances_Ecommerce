@@ -341,6 +341,9 @@ export const getServiceRequests = async (req: Request, res: Response): Promise<v
     }
 
     const status = req.query.status as string | undefined;
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const search = req.query.search as string | undefined;
     const role = user.role.toUpperCase();
     const isAdmin = role === "ADMIN" || role === "SUPERADMIN";
 
@@ -350,8 +353,96 @@ export const getServiceRequests = async (req: Request, res: Response): Promise<v
       whereClause.userId = user.id;
     }
 
-    if (status) {
-      whereClause.currentStatus = String(status);
+    if (status && status !== "ALL") {
+      switch (status) {
+        case "PENDING_VERIFICATION":
+          whereClause.currentStatus = "Request Submitted";
+          break;
+        case "PICKUP_SCHEDULED":
+          whereClause.currentStatus = { in: ["Request Accepted", "Technician Assigned"] };
+          break;
+        case "UNDER_SERVICE":
+          whereClause.currentStatus = { in: ["Technician On The Way", "Reached Customer Location", "Inspection Started", "Repair In Progress", "Waiting For Spare Parts"] };
+          break;
+        case "COMPLETED":
+          whereClause.currentStatus = { in: ["Service Completed", "Customer Feedback"] };
+          break;
+        case "CLOSED":
+          whereClause.currentStatus = { in: ["Closed", "Request Rejected"] };
+          break;
+        default:
+          whereClause.currentStatus = String(status);
+          break;
+      }
+    }
+
+    if (search) {
+      const cleanSearch = search.trim();
+      whereClause.OR = [
+        { ticketId: { contains: cleanSearch, mode: "insensitive" } },
+        { customerName: { contains: cleanSearch, mode: "insensitive" } },
+        { customerPhone: { contains: cleanSearch } },
+        { product: { name: { contains: cleanSearch, mode: "insensitive" } } },
+        { modelNumber: { contains: cleanSearch, mode: "insensitive" } },
+      ];
+    }
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [requests, totalRecords] = await prisma.$transaction([
+        prisma.serviceRequest.findMany({
+          where: whereClause,
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+                categoryLabel: true,
+                sku: true,
+                variantGroup: true,
+                warranty: true,
+                modelNumber: true
+              }
+            },
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                role: true,
+                companyName: true,
+                gstin: true,
+                phoneNumber: true
+              }
+            },
+            attachments: true
+          },
+          orderBy: {
+            createdAt: "desc"
+          },
+          skip,
+          take: limit
+        }),
+        prisma.serviceRequest.count({ where: whereClause })
+      ]);
+
+      const mappedRequests = requests.map(mapServiceRequestResponse);
+
+      res.status(200).json({
+        success: true,
+        data: mappedRequests,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalRecords / limit),
+          totalRecords,
+          pageSize: limit,
+          hasNext: page * limit < totalRecords,
+          hasPrevious: page > 1
+        }
+      });
+      return;
     }
 
     const requests = await prisma.serviceRequest.findMany({

@@ -9,6 +9,7 @@ import {
   Plus, Edit2, Trash2, Package, Loader2, RefreshCw, Layers, Search
 } from "lucide-react";
 import AdminSidebar from "@/components/layout/AdminSidebar";
+import Pagination from "@/components/shared/Pagination";
 import { cn } from "@/lib/utils";
 import { matchProduct } from "../../utils/search";
 
@@ -51,6 +52,12 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [isDeleteLoading, setIsDeleteLoading] = useState<string | null>(null);
 
+  // Products pagination state
+  const [prodPage, setProdPage] = useState(1);
+  const [prodPageSize, setProdPageSize] = useState(5);
+  const [prodTotalRecords, setProdTotalRecords] = useState(0);
+  const [prodTotalPages, setProdTotalPages] = useState(1);
+
   // Categories state
   const [categories, setCategories] = useState<any[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
@@ -59,6 +66,12 @@ export default function AdminProductsPage() {
   const [newCatSlug, setNewCatSlug] = useState("");
   const [isSavingCategory, setIsSavingCategory] = useState(false);
   const [categoryValidationError, setCategoryValidationError] = useState<string | null>(null);
+
+  // Categories pagination state
+  const [catPage, setCatPage] = useState(1);
+  const [catPageSize, setCatPageSize] = useState(5);
+  const [catTotalRecords, setCatTotalRecords] = useState(0);
+  const [catTotalPages, setCatTotalPages] = useState(1);
 
   // Delete Category states
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -69,10 +82,16 @@ export default function AdminProductsPage() {
   const fetchCategories = async () => {
     setLoadingCategories(true);
     try {
-      const res = await fetch(`${ENV.API_BASE_URL}/categories`);
+      const queryParams = new URLSearchParams({
+        page: String(catPage),
+        limit: String(catPageSize)
+      });
+      const res = await fetch(`${ENV.API_BASE_URL}/categories?${queryParams.toString()}`);
       const data = await res.json();
       if (data.success) {
-        setCategories(data.categories || []);
+        setCategories(data.data || []);
+        setCatTotalRecords(data.pagination?.totalRecords || 0);
+        setCatTotalPages(data.pagination?.totalPages || 1);
       } else {
         toast.error(data.message || "Failed to load categories");
       }
@@ -86,10 +105,10 @@ export default function AdminProductsPage() {
 
   // Trigger categories fetch when switching to categories tab
   useEffect(() => {
-    if (currentTab === "categories") {
+    if (currentTab === "categories" && isAuthenticated && user) {
       fetchCategories();
     }
-  }, [currentTab]);
+  }, [currentTab, catPage, catPageSize, isAuthenticated, user]);
 
   // Handle auto slug generation
   const handleCatNameChange = (name: string) => {
@@ -193,8 +212,8 @@ export default function AdminProductsPage() {
 
   // Memoized filtered products list
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => matchProduct(product, searchQuery));
-  }, [products, searchQuery]);
+    return products;
+  }, [products]);
 
   // Theme state
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -309,8 +328,6 @@ export default function AdminProductsPage() {
       if (!isAuthenticated || !user || (role !== "ADMIN" && role !== "SUPERADMIN" && user.role !== "admin" && user.role !== "superadmin")) {
         toast.error("Access Denied. Admins only.");
         router.push("/auth/login");
-      } else {
-        fetchProducts(false);
       }
     }
   }, [isAuthenticated, user, authLoading, router]);
@@ -320,6 +337,11 @@ export default function AdminProductsPage() {
   useEffect(() => {
     isEditingRef.current = !!selectedProduct;
   }, [selectedProduct]);
+
+  // Reset page to 1 when search query changes
+  useEffect(() => {
+    setProdPage(1);
+  }, [searchQuery]);
 
   // Polling interval
   useEffect(() => {
@@ -337,16 +359,27 @@ export default function AdminProductsPage() {
 
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, prodPage, prodPageSize, searchQuery]);
 
   // Fetch products
   const fetchProducts = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     try {
-      const response = await fetch(`${ENV.API_BASE_URL}/products`);
+      const queryParams = new URLSearchParams({
+        page: String(prodPage),
+        limit: String(prodPageSize),
+      });
+      if (searchQuery) {
+        queryParams.append("search", searchQuery);
+      }
+      const response = await fetch(`${ENV.API_BASE_URL}/products?${queryParams.toString()}`);
       if (!response.ok) throw new Error("Failed to load products");
       const data = await response.json();
-      setProducts(data.products || []);
+      if (data.success) {
+        setProducts(data.data || []);
+        setProdTotalRecords(data.pagination?.totalRecords || 0);
+        setProdTotalPages(data.pagination?.totalPages || 1);
+      }
     } catch (error: any) {
       console.error(error);
       if (!isBackground) toast.error(error.message || "Failed to fetch products");
@@ -354,6 +387,12 @@ export default function AdminProductsPage() {
       if (!isBackground) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchProducts(false);
+    }
+  }, [prodPage, prodPageSize, searchQuery, isAuthenticated, user]);
 
   // Handle Delete
   const handleDelete = async (id: string) => {
@@ -376,7 +415,11 @@ export default function AdminProductsPage() {
       }
 
       toast.success("Product deleted successfully");
-      fetchProducts();
+      if (products.length === 1 && prodPage > 1) {
+        setProdPage(prev => prev - 1);
+      } else {
+        fetchProducts();
+      }
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Failed to delete product");
@@ -578,6 +621,20 @@ export default function AdminProductsPage() {
                     </tbody>
                   </table>
                 </div>
+              )}
+              {categories.length > 0 && (
+                <Pagination
+                  currentPage={catPage}
+                  totalPages={catTotalPages}
+                  totalRecords={catTotalRecords}
+                  pageSize={catPageSize}
+                  onPageChange={(p) => setCatPage(p)}
+                  onPageSizeChange={(s) => {
+                    setCatPageSize(s);
+                    setCatPage(1);
+                  }}
+                  theme={theme}
+                />
               )}
             </div>
           ) : (
@@ -787,11 +844,25 @@ export default function AdminProductsPage() {
                     ))}
                   </tbody>
                 </table>
+                {filteredProducts.length > 0 && (
+                  <Pagination
+                    currentPage={prodPage}
+                    totalPages={prodTotalPages}
+                    totalRecords={prodTotalRecords}
+                    pageSize={prodPageSize}
+                    onPageChange={(p) => setProdPage(p)}
+                    onPageSizeChange={(s) => {
+                      setProdPageSize(s);
+                      setProdPage(1);
+                    }}
+                    theme={theme}
+                  />
+                )}
               </div>
             )}
           </div>
-          )}
-        </main>
+        )}
+      </main>
       </div>
 
       {/* Inventory Management Modal */}
