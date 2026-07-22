@@ -93,13 +93,94 @@ export const listAllEnquiries = async (req: Request, res: Response): Promise<voi
   try {
     if (!verifyAdmin(req, res)) return;
 
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const search = req.query.search as string | undefined;
+    const status = req.query.status as string | undefined;
+
+    const where: any = {};
+
+    if (status && status !== "ALL") {
+      where.status = status;
+    }
+
+    if (search) {
+      const cleanSearch = search.trim();
+      where.OR = [
+        { distributor: { companyName: { contains: cleanSearch, mode: "insensitive" } } },
+        { distributor: { firstName: { contains: cleanSearch, mode: "insensitive" } } },
+        { distributor: { lastName: { contains: cleanSearch, mode: "insensitive" } } },
+        { product: { name: { contains: cleanSearch, mode: "insensitive" } } },
+        { salesPerson: { fullName: { contains: cleanSearch, mode: "insensitive" } } },
+      ];
+    }
+
     // Mark all as read by admin when listing them
     await prisma.distributorEnquiry.updateMany({
       where: { viewedByAdmin: false },
       data: { viewedByAdmin: true }
     });
 
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [enquiries, totalRecords] = await prisma.$transaction([
+        prisma.distributorEnquiry.findMany({
+          where,
+          include: {
+            distributor: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phoneNumber: true,
+                companyName: true
+              }
+            },
+            product: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+                categoryLabel: true,
+                image: true,
+                price: true
+              }
+            },
+            salesPerson: {
+              select: {
+                id: true,
+                fullName: true,
+                employeeId: true,
+                email: true,
+                mobileNumber: true
+              }
+            }
+          },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit
+        }),
+        prisma.distributorEnquiry.count({ where })
+      ]);
+
+      res.json({
+        success: true,
+        data: enquiries,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalRecords / limit),
+          totalRecords,
+          pageSize: limit,
+          hasNext: page * limit < totalRecords,
+          hasPrevious: page > 1
+        }
+      });
+      return;
+    }
+
     const enquiries = await prisma.distributorEnquiry.findMany({
+      where,
       include: {
         distributor: {
           select: {

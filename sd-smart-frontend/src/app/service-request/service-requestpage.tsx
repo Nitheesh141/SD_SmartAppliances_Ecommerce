@@ -734,7 +734,7 @@ export default function ServiceRequestPage() {
                         placeholder="Enter full name"
                         value={contactPersonName}
                         onChange={(e) => setContactPersonName(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white text-slate-900 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -749,7 +749,7 @@ export default function ServiceRequestPage() {
                         placeholder="10-digit mobile number"
                         value={contactNumber}
                         onChange={(e) => setContactNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                        className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white text-slate-900 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -764,7 +764,7 @@ export default function ServiceRequestPage() {
                         placeholder="Enter email address"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white text-slate-900 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -779,7 +779,7 @@ export default function ServiceRequestPage() {
                         placeholder="6-digit pincode"
                         value={pincode}
                         onChange={(e) => setPincode(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white text-slate-900 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -794,7 +794,7 @@ export default function ServiceRequestPage() {
                         placeholder="Street details, building number, locality, city and state"
                         value={pickupAddress}
                         onChange={(e) => setPickupAddress(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all resize-none"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white text-slate-900 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all resize-none"
                       />
                     </div>
                   </div>
@@ -870,7 +870,7 @@ export default function ServiceRequestPage() {
                       placeholder="Please describe in detail what is wrong with the appliance..."
                       value={issueDescription}
                       onChange={(e) => setIssueDescription(e.target.value)}
-                      className="w-full px-4 py-3 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all resize-none"
+                      className="w-full px-4 py-3 bg-white text-slate-900 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all resize-none"
                     />
                   </div>
                 </div>
@@ -901,7 +901,7 @@ export default function ServiceRequestPage() {
                       placeholder="e.g. Retailer Store, Amazon, Chennai"
                       value={purchasePlace}
                       onChange={(e) => setPurchasePlace(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
+                      className="w-full px-4 py-2.5 bg-white text-slate-900 border border-neutral-300 dark:border-slate-700 dark:bg-slate-950 dark:text-white text-sm rounded-xl focus:border-[#D71920] focus:ring-2 focus:ring-[#D71920]/20 outline-none transition-all"
                     />
                   </div>
 

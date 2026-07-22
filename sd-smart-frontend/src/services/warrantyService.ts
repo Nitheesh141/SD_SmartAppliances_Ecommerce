@@ -21,6 +21,8 @@ export const warrantyService = {
     search?: string;
     status?: string;
     category?: string;
+    page?: number;
+    limit?: number;
   }): Promise<ApiResponse<any[]>> => {
     return apiGet<any[]>("/warranty-registrations", params);
   },
