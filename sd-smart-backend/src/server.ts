@@ -6,12 +6,19 @@ import { seedCategories } from "./utils/seedCategories";
 
 const PORT = process.env.PORT || 5001;
 
-// Auto-seed startup helpers (non-fatal if they fail)
-Promise.all([
-  seedSuperAdmin(),
-  seedCategories()
-]).then(() => {
+// Auto-seed startup helpers sequentially (non-fatal if they fail)
+async function startServer() {
+  try {
+    await seedSuperAdmin();
+    await seedCategories();
+  } catch (err) {
+    console.error("[server] ❌ Startup seeding failed:", err);
+  }
+
   app.listen(PORT, () => {
     console.log(`[server]: Backend server is running on http://localhost:${PORT}`);
   });
-});
+}
+
+startServer();
+

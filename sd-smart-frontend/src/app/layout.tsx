@@ -47,6 +47,10 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "SD Smart Appliances Team", url: "https://sdsmart.in" }],
   publisher: "SD Smart Appliances Pvt. Ltd.",
+  verification: {
+    google: "j5UeOSDdPhyxAQftYVzbVk2WOxzOwZxoP4W4CTrZrNc",
+  },
+
   robots: {
     index: true,
     follow: true,

@@ -1,39 +1,25 @@
-import { Client } from "pg";
 import dotenv from "dotenv";
 import path from "path";
 
-// Load environment variables from .env
+// Load environment variables from .env before importing db utility
 dotenv.config({ path: path.join(__dirname, "../.env") });
 
-const dbHost = process.env.DB_HOST;
-const dbPort = process.env.DB_PORT;
-const dbUser = process.env.DB_USER;
-const dbPassword = process.env.DB_PASSWORD;
-const dbName = process.env.DB_NAME;
-
-if (!dbHost || !dbPort || !dbUser || !dbPassword || !dbName) {
-  console.error("❌ Database configuration environment variables (DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME) are missing in .env");
-  process.exit(1);
-}
-
-const connectionString = `postgresql://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${dbName}`;
+import { prisma } from "../src/utils/db";
 
 async function run() {
   console.log("Connecting to database to migrate role values...");
-  const client = new Client({ connectionString });
-  await client.connect();
 
   try {
     // 1. Check if the User table exists
-    const tableCheck = await client.query(`
+    const tableCheck = await prisma.$queryRaw<{ exists: boolean }[]>`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
         WHERE table_schema = 'public' 
         AND table_name = 'User'
       );
-    `);
+    `;
 
-    if (!tableCheck.rows[0].exists) {
+    if (!tableCheck[0] || !tableCheck[0].exists) {
       console.log("ℹ️ User table does not exist yet. Skipping role migration.");
       return;
     }
@@ -42,42 +28,42 @@ async function run() {
     console.log("Updating role values in User table...");
     
     // Update 'user' -> 'CUSTOMER'
-    const resUser = await client.query(`
+    const resUser = await prisma.$executeRawUnsafe(`
       UPDATE "User" 
       SET role = 'CUSTOMER' 
       WHERE role = 'user';
     `);
-    console.log(`Updated 'user' to 'CUSTOMER': ${resUser.rowCount} rows`);
+    console.log(`Updated 'user' to 'CUSTOMER': ${resUser} rows/matched`);
 
     // Update 'admin' -> 'ADMIN'
-    const resAdmin = await client.query(`
+    const resAdmin = await prisma.$executeRawUnsafe(`
       UPDATE "User" 
       SET role = 'ADMIN' 
       WHERE role = 'admin';
     `);
-    console.log(`Updated 'admin' to 'ADMIN': ${resAdmin.rowCount} rows`);
+    console.log(`Updated 'admin' to 'ADMIN': ${resAdmin} rows/matched`);
 
     // Update 'superadmin' -> 'ADMIN'
-    const resSuper = await client.query(`
+    const resSuper = await prisma.$executeRawUnsafe(`
       UPDATE "User" 
       SET role = 'ADMIN' 
       WHERE role = 'superadmin';
     `);
-    console.log(`Updated 'superadmin' to 'ADMIN': ${resSuper.rowCount} rows`);
+    console.log(`Updated 'superadmin' to 'ADMIN': ${resSuper} rows/matched`);
 
     // Update 'distributor' -> 'DISTRIBUTOR'
-    const resDist = await client.query(`
+    const resDist = await prisma.$executeRawUnsafe(`
       UPDATE "User" 
       SET role = 'DISTRIBUTOR' 
       WHERE role = 'distributor';
     `);
-    console.log(`Updated 'distributor' to 'DISTRIBUTOR': ${resDist.rowCount} rows`);
+    console.log(`Updated 'distributor' to 'DISTRIBUTOR': ${resDist} rows/matched`);
 
     console.log("✅ Database role migration successful!");
   } catch (err: any) {
     console.error("❌ Error during database role migration:", err.message);
   } finally {
-    await client.end();
+    await prisma.$disconnect();
   }
 }
 
