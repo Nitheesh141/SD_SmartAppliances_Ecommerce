@@ -149,16 +149,30 @@ export async function applyDynamicPricesToProducts(products: any | any[], user?:
     orderBy: { createdAt: "asc" },
   });
 
-  const updatedList = await Promise.all(productList.map(async product => {
+  const distPricingMap = new Map<string, any>();
+  if (isDistUser) {
+    const productIdsToFetch = productList
+      .filter((p) => !p.distributorPricing)
+      .map((p) => p.id);
+
+    if (productIdsToFetch.length > 0) {
+      const dbPricings = await prisma.distributorPricing.findMany({
+        where: {
+          productId: { in: productIdsToFetch },
+          status: "ACTIVE",
+        },
+      });
+      for (const dp of dbPricings) {
+        distPricingMap.set(dp.productId, dp);
+      }
+    }
+  }
+
+  const updatedList = productList.map((product) => {
     let baseProduct = { ...product };
 
     if (isDistUser) {
-      let distPricing = product.distributorPricing;
-      if (!distPricing) {
-        distPricing = await prisma.distributorPricing.findFirst({
-          where: { productId: product.id, status: "ACTIVE" }
-        });
-      }
+      const distPricing = product.distributorPricing || distPricingMap.get(product.id);
 
       if (distPricing && distPricing.status === "ACTIVE") {
         baseProduct.originalPrice = distPricing.mrp;
@@ -182,7 +196,7 @@ export async function applyDynamicPricesToProducts(products: any | any[], user?:
         badgeColor: calc.appliedOffer.badgeColor,
       } : null
     };
-  }));
+  });
 
   return isArray ? updatedList : updatedList[0];
 }
